@@ -2,33 +2,16 @@ import type { Listing } from '../types';
 import { METROS } from './metros';
 import type { Metro, Neighborhood } from './metros';
 
-// ── Real Unsplash apartment photo IDs ───────────────────────
-const APARTMENT_PHOTOS = [
-  'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1502672260-1e0b4029a5c7?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1560185893-a5e827cf24e5?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1600585154-0ecb13263544?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1558618666-fcd25c85f7e6?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1522708323590-b9a634b6a6a?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1600566753-e7a32ff846af?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1600573472-232eea51e4a7?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1574362848-4bedc31f94af?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1600210492-b2daf0a1f02c?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1600585152-3c99b77b12b4?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1560449752-d3f1f2e91187?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1600047509-579d6df4a0cd?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1600607688-bca6a3979651?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1564078290-57e8f0e085c4?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1600566752-59f6a6b4efef?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1600210491-5be30ee71bbb?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1560185127-6a4f1b9a3b3e?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1600585153-086e4f9a0f8c?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1600047508-b5d6a3c7f50e?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1502672023-a5f9ef83ab10?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1560448075-25ab0e46e4be?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1600573473-232eea51e4a8?w=640&h=400&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1574362849-4bedc31f94b0?w=640&h=400&fit=crop&auto=format',
+// ── Apartment photos via picsum.photos (deterministic by ID, always available) ──
+// Using specific picsum IDs that look like interiors/architecture/buildings
+const APARTMENT_PHOTO_IDS = [
+  164, 165, 166, 177, 178, 188, 189, 190, 191, 193,
+  199, 200, 201, 202, 204, 209, 210, 211, 214, 216,
+  217, 218, 219, 221, 225, 228, 229, 230, 231, 234,
 ];
+const APARTMENT_PHOTOS = APARTMENT_PHOTO_IDS.map(
+  id => `https://picsum.photos/id/${id}/640/400`
+);
 
 const AMENITY_POOL = [
   'In-unit laundry', 'Shared laundry', 'Parking included', 'Garage parking',
