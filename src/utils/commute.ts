@@ -45,7 +45,7 @@ export async function calculateCommute(
   // If Google Maps API key is available, attempt to use Distance Matrix
   if (GOOGLE_MAPS_API_KEY && window.google?.maps) {
     try {
-      return await googleMapsCommute(listingLat, listingLng, officeLat, officeLng, distance);
+      return await googleMapsCommute(listingLat, listingLng, officeLat, officeLng);
     } catch {
       // Fall through to haversine
     }
@@ -61,7 +61,6 @@ export async function calculateCommute(
 function googleMapsCommute(
   lat1: number, lng1: number,
   lat2: number, lng2: number,
-  fallbackDistance: number,
 ): Promise<CommuteInfo> {
   return new Promise((resolve, reject) => {
     const service = new window.google.maps.DistanceMatrixService();
