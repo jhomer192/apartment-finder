@@ -1,37 +1,73 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { ScoredListing } from '../types';
+import type { SearchResult } from '../types';
 
 interface Props {
-  listings: ScoredListing[];
-  onToggleFavorite: (id: string) => void;
+  results: SearchResult[];
+  officeCoords: { lat: number; lng: number } | null;
 }
 
-const COMMUTE_MARKER_COLORS: Record<string, string> = {
+const COMMUTE_COLORS: Record<string, string> = {
   green: '#22c55e',
   yellow: '#eab308',
   orange: '#f97316',
   red: '#ef4444',
 };
 
-function createMarkerIcon(color: string): L.DivIcon {
+function createNeighborhoodIcon(color: string, label: string): L.DivIcon {
   return L.divIcon({
-    className: 'custom-marker',
+    className: 'neighborhood-marker',
     html: `<div style="
-      width: 24px; height: 24px;
-      background: ${color};
-      border: 2px solid white;
-      border-radius: 50%;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-    "></div>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -14],
+      display: flex; align-items: center; gap: 4px;
+      background: ${color}22;
+      border: 2px solid ${color};
+      border-radius: 16px;
+      padding: 2px 8px 2px 4px;
+      white-space: nowrap;
+      font-size: 11px;
+      font-weight: 600;
+      color: ${color};
+      backdrop-filter: blur(4px);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    ">
+      <div style="
+        width: 10px; height: 10px;
+        background: ${color};
+        border-radius: 50%;
+        flex-shrink: 0;
+      "></div>
+      ${label}
+    </div>`,
+    iconSize: [0, 0],
+    iconAnchor: [6, 10],
+    popupAnchor: [0, -12],
   });
 }
 
-export function MapView({ listings, onToggleFavorite }: Props) {
+function createOfficeIcon(): L.DivIcon {
+  return L.divIcon({
+    className: 'office-marker',
+    html: `<div style="
+      width: 32px; height: 32px;
+      background: var(--accent, #6366f1);
+      border: 3px solid white;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      display: flex; align-items: center; justify-content: center;
+    ">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+        <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/>
+        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+      </svg>
+    </div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -18],
+  });
+}
+
+export function MapView({ results, officeCoords }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.LayerGroup | null>(null);
@@ -41,8 +77,8 @@ export function MapView({ listings, onToggleFavorite }: Props) {
     if (!containerRef.current || mapRef.current) return;
 
     const map = L.map(containerRef.current, {
-      center: [37.7749, -122.4194],
-      zoom: 13,
+      center: [39.8283, -98.5795], // US center
+      zoom: 4,
       zoomControl: true,
     });
 
@@ -60,65 +96,64 @@ export function MapView({ listings, onToggleFavorite }: Props) {
     };
   }, []);
 
-  // Update markers when listings change
+  // Update markers when results change
   useEffect(() => {
     if (!mapRef.current || !markersRef.current) return;
 
     markersRef.current.clearLayers();
 
-    if (listings.length === 0) return;
+    if (results.length === 0) return;
 
     const bounds: L.LatLngExpression[] = [];
 
-    listings.forEach(listing => {
-      const color = COMMUTE_MARKER_COLORS[listing.commuteColor] ?? '#94a3b8';
-      const icon = createMarkerIcon(color);
-      const bedroomLabel = listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} BR`;
-
-      const marker = L.marker([listing.lat, listing.lng], { icon });
-      marker.bindPopup(`
-        <div style="min-width: 180px; font-size: 13px;">
-          <div style="font-weight: 600; margin-bottom: 4px;">${listing.title}</div>
-          <div style="color: #94a3b8; margin-bottom: 4px;">${listing.address}</div>
-          <div style="display: flex; gap: 8px; margin-bottom: 4px;">
-            <span style="color: #34d399; font-weight: 600;">$${listing.price.toLocaleString()}/mo</span>
-            <span>${bedroomLabel} | ${listing.bathrooms} BA</span>
-          </div>
-          <div style="color: ${color}; font-weight: 500;">
-            ~${listing.commute.estimatedMinutes} min commute
-          </div>
-          <button
-            onclick="document.dispatchEvent(new CustomEvent('toggle-favorite', { detail: '${listing.id}' }))"
-            style="margin-top: 6px; padding: 2px 8px; background: #334155; border: 1px solid #475569; border-radius: 4px; color: #e2e8f0; cursor: pointer; font-size: 12px;"
-          >
-            ${listing.isFavorite ? 'Unsave' : 'Save'}
-          </button>
+    // Add office marker if available
+    if (officeCoords) {
+      const officeIcon = createOfficeIcon();
+      const officeMarker = L.marker([officeCoords.lat, officeCoords.lng], { icon: officeIcon, zIndexOffset: 1000 });
+      officeMarker.bindPopup(`
+        <div style="font-size: 13px; font-weight: 600; color: var(--text, #e2e8f0);">
+          Your Office
         </div>
       `);
+      markersRef.current.addLayer(officeMarker);
+      bounds.push([officeCoords.lat, officeCoords.lng]);
+    }
 
-      markersRef.current!.addLayer(marker);
-      bounds.push([listing.lat, listing.lng]);
+    // Add neighborhood markers
+    results.forEach(result => {
+      result.neighborhoods.forEach(hood => {
+        const color = COMMUTE_COLORS[hood.commuteColor] ?? '#94a3b8';
+        const icon = createNeighborhoodIcon(color, hood.name);
+
+        const marker = L.marker([hood.lat, hood.lng], { icon });
+        marker.bindPopup(`
+          <div style="min-width: 160px; font-size: 13px;">
+            <div style="font-weight: 600; margin-bottom: 4px; color: var(--text, #e2e8f0);">${hood.name}</div>
+            <div style="display: flex; gap: 12px; color: var(--text-dim, #94a3b8);">
+              <span style="color: ${color}; font-weight: 600;">~${hood.estimatedMinutes} min</span>
+              <span>${hood.distanceMiles} mi</span>
+            </div>
+            <div style="margin-top: 4px; font-size: 11px; color: var(--text-dim, #94a3b8);">
+              ${result.metroName}
+            </div>
+          </div>
+        `);
+
+        markersRef.current!.addLayer(marker);
+        bounds.push([hood.lat, hood.lng]);
+      });
     });
 
     if (bounds.length > 0) {
-      mapRef.current.fitBounds(bounds as L.LatLngBoundsExpression, { padding: [30, 30] });
+      mapRef.current.fitBounds(bounds as L.LatLngBoundsExpression, { padding: [40, 40] });
     }
-  }, [listings]);
-
-  // Listen for favorite toggles from popup buttons
-  useEffect(() => {
-    function handler(e: Event) {
-      const id = (e as CustomEvent).detail as string;
-      onToggleFavorite(id);
-    }
-    document.addEventListener('toggle-favorite', handler);
-    return () => document.removeEventListener('toggle-favorite', handler);
-  }, [onToggleFavorite]);
+  }, [results, officeCoords]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-[500px] rounded-xl border border-slate-700 overflow-hidden"
+      className="w-full h-[600px] rounded-xl border overflow-hidden"
+      style={{ borderColor: 'var(--border)' }}
     />
   );
 }

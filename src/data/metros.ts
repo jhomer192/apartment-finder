@@ -8,7 +8,10 @@ export interface Neighborhood {
 export interface Metro {
   id: string;
   name: string;
+  city: string;
+  citySlug: string;
   state: string;
+  region: string; // craigslist region
   basePrice: Record<number, number>; // bedrooms -> base rent
   defaultOffice: { lat: number; lng: number; label: string };
   neighborhoods: Neighborhood[];
@@ -22,7 +25,10 @@ export const METROS: Metro[] = [
   {
     id: 'bay-area',
     name: 'Bay Area',
+    city: 'San Francisco',
+    citySlug: 'san-francisco',
     state: 'CA',
+    region: 'sfbay',
     basePrice: { 0: 2200, 1: 2900, 2: 3800, 3: 4600, 4: 5400 },
     defaultOffice: { lat: 37.7897, lng: -122.3972, label: 'Salesforce Tower' },
     zipPrefix: '94',
@@ -83,7 +89,10 @@ export const METROS: Metro[] = [
   {
     id: 'los-angeles',
     name: 'Los Angeles',
+    city: 'Los Angeles',
+    citySlug: 'los-angeles',
     state: 'CA',
+    region: 'losangeles',
     basePrice: { 0: 1800, 1: 2400, 2: 3200, 3: 3900, 4: 4600 },
     defaultOffice: { lat: 34.0522, lng: -118.2437, label: 'Downtown LA' },
     zipPrefix: '90',
@@ -125,7 +134,10 @@ export const METROS: Metro[] = [
   {
     id: 'new-york',
     name: 'New York',
+    city: 'New York',
+    citySlug: 'new-york',
     state: 'NY',
+    region: 'newyork',
     basePrice: { 0: 2600, 1: 3400, 2: 4500, 3: 5800, 4: 7000 },
     defaultOffice: { lat: 40.7580, lng: -73.9855, label: 'Midtown Manhattan' },
     zipPrefix: '10',
@@ -174,7 +186,10 @@ export const METROS: Metro[] = [
   {
     id: 'dc-metro',
     name: 'DC Metro / NoVA',
-    state: 'VA',
+    city: 'Washington',
+    citySlug: 'washington',
+    state: 'DC',
+    region: 'washingtondc',
     basePrice: { 0: 1800, 1: 2300, 2: 3100, 3: 3800, 4: 4500 },
     defaultOffice: { lat: 38.9072, lng: -77.0369, label: 'Downtown DC' },
     zipPrefix: '22',
@@ -223,7 +238,10 @@ export const METROS: Metro[] = [
   {
     id: 'boston',
     name: 'Boston',
+    city: 'Boston',
+    citySlug: 'boston',
     state: 'MA',
+    region: 'boston',
     basePrice: { 0: 2000, 1: 2600, 2: 3400, 3: 4200, 4: 5000 },
     defaultOffice: { lat: 42.3601, lng: -71.0589, label: 'Downtown Boston' },
     zipPrefix: '02',
@@ -260,7 +278,10 @@ export const METROS: Metro[] = [
   {
     id: 'chicago',
     name: 'Chicago',
+    city: 'Chicago',
+    citySlug: 'chicago',
     state: 'IL',
+    region: 'chicago',
     basePrice: { 0: 1400, 1: 1800, 2: 2400, 3: 3000, 4: 3600 },
     defaultOffice: { lat: 41.8781, lng: -87.6298, label: 'The Loop' },
     zipPrefix: '60',
@@ -295,7 +316,10 @@ export const METROS: Metro[] = [
   {
     id: 'seattle',
     name: 'Seattle',
+    city: 'Seattle',
+    citySlug: 'seattle',
     state: 'WA',
+    region: 'seattle',
     basePrice: { 0: 1700, 1: 2200, 2: 2900, 3: 3600, 4: 4200 },
     defaultOffice: { lat: 47.6062, lng: -122.3321, label: 'Downtown Seattle' },
     zipPrefix: '98',
@@ -329,7 +353,10 @@ export const METROS: Metro[] = [
   {
     id: 'austin',
     name: 'Austin',
+    city: 'Austin',
+    citySlug: 'austin',
     state: 'TX',
+    region: 'austin',
     basePrice: { 0: 1200, 1: 1500, 2: 2000, 3: 2500, 4: 3000 },
     defaultOffice: { lat: 30.2672, lng: -97.7431, label: 'Downtown Austin' },
     zipPrefix: '78',
@@ -362,7 +389,10 @@ export const METROS: Metro[] = [
   {
     id: 'denver',
     name: 'Denver',
+    city: 'Denver',
+    citySlug: 'denver',
     state: 'CO',
+    region: 'denver',
     basePrice: { 0: 1400, 1: 1700, 2: 2200, 3: 2800, 4: 3400 },
     defaultOffice: { lat: 39.7392, lng: -104.9903, label: 'Downtown Denver' },
     zipPrefix: '80',
@@ -396,7 +426,10 @@ export const METROS: Metro[] = [
   {
     id: 'miami',
     name: 'Miami',
+    city: 'Miami',
+    citySlug: 'miami',
     state: 'FL',
+    region: 'miami',
     basePrice: { 0: 1600, 1: 2100, 2: 2800, 3: 3500, 4: 4200 },
     defaultOffice: { lat: 25.7617, lng: -80.1918, label: 'Downtown Miami' },
     zipPrefix: '33',

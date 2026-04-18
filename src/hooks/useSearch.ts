@@ -1,58 +1,83 @@
 import { useState, useCallback } from 'react';
-import type { SearchParams, ScoredListing, SortField, SortDirection, FilterState } from '../types';
-import { searchAllSources } from '../sources';
-import { deduplicateListings } from '../utils/deduplicate';
-import { calculateCommute, geocodeOfficeAddress, getCommuteColor } from '../utils/commute';
-import { getFavorites, toggleFavorite as toggleFav } from '../utils/favorites';
+import type { SearchParams, SearchResult, NeighborhoodCommute } from '../types';
+import { SEARCH_SOURCES } from '../data/sources';
+import { getMetroById } from '../data/metros';
+import { haversineDistance, getCommuteColor, geocodeOfficeAddress } from '../utils/commute';
 
 export function useSearch() {
-  const [results, setResults] = useState<ScoredListing[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<SortField>('commute');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [filters, setFilters] = useState<FilterState>({ amenities: new Set() });
-  const [favorites, setFavorites] = useState<Set<string>>(getFavorites);
   const [hasSearched, setHasSearched] = useState(false);
+  const [officeCoords, setOfficeCoords] = useState<{ lat: number; lng: number } | null>(null);
 
-  const search = useCallback(async (params: SearchParams) => {
+  const search = useCallback((params: SearchParams) => {
     setLoading(true);
     setError(null);
     setHasSearched(true);
 
     try {
-      const listings = await searchAllSources(params);
-      const merged = deduplicateListings(listings);
-
-      const officeCoords = geocodeOfficeAddress(params.officeAddress);
-      if (!officeCoords) {
-        setError('Could not geocode office address. Using downtown as fallback.');
+      const office = geocodeOfficeAddress(params.officeAddress);
+      if (!office) {
+        setError('Could not geocode office address. Using first metro center as fallback.');
       }
-      const office = officeCoords ?? { lat: 37.7749, lng: -122.4194 };
+      setOfficeCoords(office);
 
-      const favs = getFavorites();
-      setFavorites(favs);
+      const searchResults: SearchResult[] = params.metros.map(metroId => {
+        const metro = getMetroById(metroId);
+        if (!metro) throw new Error(`Unknown metro: ${metroId}`);
 
-      const scored: ScoredListing[] = await Promise.all(
-        merged.map(async (listing) => {
-          const commute = await calculateCommute(
-            listing.lat, listing.lng,
-            office.lat, office.lng,
-          );
-          const pricePerSqft = listing.sqft > 0
-            ? Math.round((listing.price / listing.sqft) * 100) / 100
-            : 0;
+        const officeLoc = office ?? { lat: metro.defaultOffice.lat, lng: metro.defaultOffice.lng };
+
+        // Build URLs for each source
+        const urlParams = {
+          city: metro.city,
+          state: metro.state,
+          citySlug: metro.citySlug,
+          region: metro.region,
+          minRent: params.minRent,
+          maxRent: params.maxRent,
+          bedrooms: params.bedrooms,
+        };
+
+        const sources = SEARCH_SOURCES.map(source => ({
+          source,
+          url: source.buildUrl(urlParams),
+        }));
+
+        // Calculate commute for each neighborhood
+        const neighborhoods: NeighborhoodCommute[] = metro.neighborhoods.map(hood => {
+          const dist = haversineDistance(hood.lat, hood.lng, officeLoc.lat, officeLoc.lng);
+          const minutes = Math.round(dist / 12 * 60 + 5);
           return {
-            ...listing,
-            commute,
-            pricePerSqft,
-            commuteColor: getCommuteColor(commute.estimatedMinutes),
-            isFavorite: favs.has(listing.id),
+            name: hood.name,
+            lat: hood.lat,
+            lng: hood.lng,
+            distanceMiles: Math.round(dist * 10) / 10,
+            estimatedMinutes: minutes,
+            commuteColor: getCommuteColor(minutes),
           };
-        })
-      );
+        }).sort((a, b) => a.estimatedMinutes - b.estimatedMinutes);
 
-      setResults(scored);
+        // Center of the metro area
+        const centerLat = metro.neighborhoods.reduce((s, n) => s + n.lat, 0) / metro.neighborhoods.length;
+        const centerLng = metro.neighborhoods.reduce((s, n) => s + n.lng, 0) / metro.neighborhoods.length;
+
+        return {
+          metroId: metro.id,
+          metroName: metro.name,
+          state: metro.state,
+          city: metro.city,
+          citySlug: metro.citySlug,
+          region: metro.region,
+          centerLat,
+          centerLng,
+          sources,
+          neighborhoods,
+        };
+      });
+
+      setResults(searchResults);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Search failed');
     } finally {
@@ -60,75 +85,12 @@ export function useSearch() {
     }
   }, []);
 
-  const toggleFavorite = useCallback((id: string) => {
-    const newFavs = toggleFav(id);
-    setFavorites(newFavs);
-    setResults(prev =>
-      prev.map(r => ({
-        ...r,
-        isFavorite: newFavs.has(r.id),
-      }))
-    );
-  }, []);
-
-  const toggleAmenityFilter = useCallback((amenity: string) => {
-    setFilters(prev => {
-      const next = new Set(prev.amenities);
-      if (next.has(amenity)) {
-        next.delete(amenity);
-      } else {
-        next.add(amenity);
-      }
-      return { ...prev, amenities: next };
-    });
-  }, []);
-
-  const clearFilters = useCallback(() => {
-    setFilters({ amenities: new Set() });
-  }, []);
-
-  // Apply filters and sort
-  const filtered = results.filter(listing => {
-    if (filters.amenities.size === 0) return true;
-    return [...filters.amenities].every(a =>
-      listing.amenities.some(la => la.toLowerCase().includes(a.toLowerCase()))
-    );
-  });
-
-  const sorted = [...filtered].sort((a, b) => {
-    let cmp = 0;
-    switch (sortField) {
-      case 'price':
-        cmp = a.price - b.price;
-        break;
-      case 'commute':
-        cmp = a.commute.estimatedMinutes - b.commute.estimatedMinutes;
-        break;
-      case 'sqft':
-        cmp = a.sqft - b.sqft;
-        break;
-      case 'pricePerSqft':
-        cmp = a.pricePerSqft - b.pricePerSqft;
-        break;
-    }
-    return sortDirection === 'asc' ? cmp : -cmp;
-  });
-
   return {
-    results: sorted,
-    allResults: results,
+    results,
     loading,
     error,
     hasSearched,
-    sortField,
-    sortDirection,
-    filters,
-    favorites,
+    officeCoords,
     search,
-    setSortField,
-    setSortDirection,
-    toggleFavorite,
-    toggleAmenityFilter,
-    clearFilters,
   };
 }

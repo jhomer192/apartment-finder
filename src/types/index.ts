@@ -6,55 +6,45 @@ export interface SearchParams {
   officeAddress: string;
 }
 
-export interface Listing {
+export interface SearchSource {
   id: string;
-  source: string;
-  title: string;
-  address: string;
-  neighborhood: string;
+  name: string;
+  color: string;
+  description: string;
+  buildUrl: (params: SourceUrlParams) => string;
+}
+
+export interface SourceUrlParams {
   city: string;
-  metro: string;
   state: string;
-  zip: string;
+  citySlug: string;
+  region: string;
+  minRent: number;
+  maxRent: number;
+  bedrooms: number | null;
+}
+
+export interface NeighborhoodCommute {
+  name: string;
   lat: number;
   lng: number;
-  price: number;
-  bedrooms: number;
-  bathrooms: number;
-  sqft: number;
-  photoUrl: string | null;
-  amenities: string[];
-  description: string;
-  url: string;
-  datePosted: string;
-}
-
-export interface MergedListing extends Listing {
-  sources: string[];
-  sourceCount: number;
-}
-
-export interface CommuteInfo {
   distanceMiles: number;
   estimatedMinutes: number;
-  method: 'google_maps' | 'haversine';
-}
-
-export interface ScoredListing extends MergedListing {
-  commute: CommuteInfo;
-  pricePerSqft: number;
   commuteColor: 'green' | 'yellow' | 'orange' | 'red';
-  isFavorite: boolean;
 }
 
-export type SortField = 'price' | 'commute' | 'sqft' | 'pricePerSqft';
-export type SortDirection = 'asc' | 'desc';
-
-export interface FilterState {
-  amenities: Set<string>;
-}
-
-export interface ApartmentSource {
-  name: string;
-  search(params: SearchParams): Promise<Listing[]>;
+export interface SearchResult {
+  metroId: string;
+  metroName: string;
+  state: string;
+  city: string;
+  citySlug: string;
+  region: string;
+  centerLat: number;
+  centerLng: number;
+  sources: Array<{
+    source: SearchSource;
+    url: string;
+  }>;
+  neighborhoods: NeighborhoodCommute[];
 }
