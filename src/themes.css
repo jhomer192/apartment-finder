@@ -1,0 +1,46 @@
+/* Theme system -- CSS custom properties */
+
+html,
+html[data-theme='tokyo'] {
+  --bg: #16161e;
+  --surface: #1a1b26;
+  --text: #a9b1d6;
+  --text-dim: #565f89;
+  --accent: #73daca;
+  --accent-2: #7aa2f7;
+  --accent-3: #bb9af7;
+  --border: #292e42;
+}
+
+html[data-theme='miami'] {
+  --bg: #0d0221;
+  --surface: #150535;
+  --text: #e0def4;
+  --text-dim: #908caa;
+  --accent: #ff2d95;
+  --accent-2: #00f0ff;
+  --accent-3: #ffe156;
+  --border: #2a1a4e;
+}
+
+html[data-theme='matcha'] {
+  --bg: #1c1a17;
+  --surface: #252320;
+  --text: #d4be98;
+  --text-dim: #7c6f64;
+  --accent: #8db660;
+  --accent-2: #d4be98;
+  --accent-3: #a9b665;
+  --border: #3c3836;
+}
+
+html[data-theme='gruvbox'] {
+  --bg: #282828;
+  --surface: #3c3836;
+  --text: #ebdbb2;
+  --text-dim: #928374;
+  --accent: #fb4934;
+  --accent-2: #fabd2f;
+  --accent-3: #b8bb26;
+  --border: #504945;
+}

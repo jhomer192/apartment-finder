@@ -10,11 +10,11 @@ export function ResultsGrid({ listings, onToggleFavorite }: Props) {
   if (listings.length === 0) {
     return (
       <div className="text-center py-16">
-        <svg className="w-16 h-16 mx-auto text-slate-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+        <svg className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-dim)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
-        <p className="text-slate-400 text-lg">No listings match your criteria</p>
-        <p className="text-slate-500 text-sm mt-1">Try adjusting your filters or expanding the price range</p>
+        <p className="text-lg" style={{ color: 'var(--text-dim)' }}>No listings match your criteria</p>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>Try adjusting your filters or expanding the price range</p>
       </div>
     );
   }

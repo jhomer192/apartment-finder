@@ -12,7 +12,6 @@ export function MetroSelector({ selected, onChange }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -54,11 +53,12 @@ export function MetroSelector({ selected, onChange }: Props) {
     <div ref={containerRef} className="relative">
       {/* Selected pills */}
       <div
-        className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 cursor-pointer min-h-[42px] flex flex-wrap gap-1.5 items-center focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent"
+        className="w-full rounded-lg px-3 py-2 cursor-pointer min-h-[42px] flex flex-wrap gap-1.5 items-center focus-within:ring-2 focus-within:ring-[var(--accent)]"
+        style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
         onClick={() => setOpen(!open)}
       >
         {selected.length === 0 && (
-          <span className="text-slate-500">Select metro areas...</span>
+          <span style={{ color: 'var(--text-dim)' }}>Select metro areas...</span>
         )}
         {selected.map(id => {
           const metro = METROS.find(m => m.id === id);
@@ -66,13 +66,14 @@ export function MetroSelector({ selected, onChange }: Props) {
           return (
             <span
               key={id}
-              className="inline-flex items-center gap-1 bg-blue-600/30 text-blue-300 text-xs font-medium px-2 py-0.5 rounded-full border border-blue-500/30"
+              className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
+              style={{ backgroundColor: 'color-mix(in srgb, var(--accent) 20%, transparent)', color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)' }}
             >
               {metro.name}
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); removeMetro(id); }}
-                className="hover:text-blue-100 transition-colors"
+                className="hover:opacity-70 transition-colors"
               >
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
                   <path d="M18 6L6 18M6 6l12 12" />
@@ -81,22 +82,23 @@ export function MetroSelector({ selected, onChange }: Props) {
             </span>
           );
         })}
-        <svg className={`w-4 h-4 text-slate-400 ml-auto transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <svg className={`w-4 h-4 ml-auto transition-transform ${open ? 'rotate-180' : ''}`} style={{ color: 'var(--text-dim)' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <path d="M6 9l6 6 6-6" />
         </svg>
       </div>
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-72 overflow-y-auto">
+        <div className="absolute z-50 mt-1 w-full rounded-lg shadow-xl max-h-72 overflow-y-auto" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           {/* Search input */}
-          <div className="p-2 border-b border-slate-700 sticky top-0 bg-slate-800">
+          <div className="p-2 border-b sticky top-0" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface)' }}>
             <input
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Filter metros & neighborhoods..."
-              className="w-full bg-slate-700 border border-slate-600 rounded px-2.5 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
               onClick={e => e.stopPropagation()}
               autoFocus
             />
@@ -110,24 +112,24 @@ export function MetroSelector({ selected, onChange }: Props) {
               : [];
 
             return (
-              <div key={metro.id} className="border-b border-slate-700/50 last:border-b-0">
-                <div className="flex items-center gap-2 px-3 py-2 hover:bg-slate-700/50 transition-colors">
-                  {/* Checkbox */}
+              <div key={metro.id} className="last:border-b-0" style={{ borderBottom: '1px solid color-mix(in srgb, var(--border) 50%, transparent)' }}>
+                <div className="flex items-center gap-2 px-3 py-2 transition-colors" style={{ cursor: 'pointer' }}>
                   <label className="flex items-center gap-2 flex-1 cursor-pointer" onClick={e => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleMetro(metro.id)}
-                      className="w-4 h-4 rounded border-slate-500 bg-slate-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                      className="w-4 h-4 rounded cursor-pointer"
+                      style={{ accentColor: 'var(--accent)' }}
                     />
-                    <span className="text-sm font-medium text-slate-200">{metro.name}</span>
-                    <span className="text-xs text-slate-500">{metro.neighborhoods.length} neighborhoods</span>
+                    <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>{metro.name}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{metro.neighborhoods.length} neighborhoods</span>
                   </label>
-                  {/* Expand toggle */}
                   <button
                     type="button"
                     onClick={e => { e.stopPropagation(); toggleExpand(metro.id); }}
-                    className="p-1 text-slate-400 hover:text-slate-200 transition-colors"
+                    className="p-1 transition-colors"
+                    style={{ color: 'var(--text-dim)' }}
                   >
                     <svg className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                       <path d="M6 9l6 6 6-6" />
@@ -135,14 +137,14 @@ export function MetroSelector({ selected, onChange }: Props) {
                   </button>
                 </div>
 
-                {/* Expanded neighborhoods list */}
                 {(isExpanded || matchingHoods.length > 0) && (
                   <div className="px-3 pb-2">
                     <div className="flex flex-wrap gap-1 pl-6">
                       {(search ? matchingHoods : metro.neighborhoods).map(n => (
                         <span
                           key={n.name}
-                          className="text-xs text-slate-400 bg-slate-700/50 px-2 py-0.5 rounded"
+                          className="text-xs px-2 py-0.5 rounded"
+                          style={{ color: 'var(--text-dim)', backgroundColor: 'color-mix(in srgb, var(--border) 50%, transparent)' }}
                         >
                           {n.name}
                         </span>
@@ -155,7 +157,7 @@ export function MetroSelector({ selected, onChange }: Props) {
           })}
 
           {filteredMetros.length === 0 && (
-            <div className="p-4 text-sm text-slate-500 text-center">No matches found</div>
+            <div className="p-4 text-sm text-center" style={{ color: 'var(--text-dim)' }}>No matches found</div>
           )}
         </div>
       )}

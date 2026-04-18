@@ -25,45 +25,50 @@ export function SearchForm({ onSearch, loading }: Props) {
     });
   }
 
+  const inputClass = "w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
+
   return (
-    <form onSubmit={handleSubmit} className="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700">
-      <h2 className="text-lg font-semibold text-slate-100 mb-4">Find apartments</h2>
+    <form onSubmit={handleSubmit} className="rounded-xl p-6 shadow-lg border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+      <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text)' }}>Find apartments</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="sm:col-span-2 lg:col-span-1">
-          <label className="block text-sm font-medium text-slate-400 mb-1">Metro areas</label>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-dim)' }}>Metro areas</label>
           <MetroSelector selected={metros} onChange={setMetros} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-400 mb-1">Min rent</label>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-dim)' }}>Min rent</label>
           <input
             type="number"
             value={minRent}
             onChange={e => setMinRent(Number(e.target.value))}
-            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={inputClass}
+            style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)', border: '1px solid var(--border)' }}
             min={0}
             step={100}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-400 mb-1">Max rent</label>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-dim)' }}>Max rent</label>
           <input
             type="number"
             value={maxRent}
             onChange={e => setMaxRent(Number(e.target.value))}
-            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={inputClass}
+            style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)', border: '1px solid var(--border)' }}
             min={0}
             step={100}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-400 mb-1">Bedrooms</label>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-dim)' }}>Bedrooms</label>
           <select
             value={bedrooms}
             onChange={e => setBedrooms(e.target.value)}
-            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={inputClass}
+            style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)', border: '1px solid var(--border)' }}
           >
             <option value="any">Any</option>
             <option value="0">Studio</option>
@@ -75,12 +80,13 @@ export function SearchForm({ onSearch, loading }: Props) {
         </div>
 
         <div className="sm:col-span-2 lg:col-span-1">
-          <label className="block text-sm font-medium text-slate-400 mb-1">Office address (for commute)</label>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-dim)' }}>Office address (for commute)</label>
           <input
             type="text"
             value={officeAddress}
             onChange={e => setOfficeAddress(e.target.value)}
-            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={inputClass}
+            style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)', border: '1px solid var(--border)' }}
             placeholder="123 Market St, SF"
             required
           />
@@ -90,7 +96,8 @@ export function SearchForm({ onSearch, loading }: Props) {
           <button
             type="submit"
             disabled={loading || metros.length === 0}
-            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800"
+            className="w-full font-medium py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ backgroundColor: 'var(--accent)', color: 'var(--bg)' }}
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">

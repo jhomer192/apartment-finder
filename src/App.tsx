@@ -4,6 +4,7 @@ import { SortControls } from './components/SortControls';
 import { FilterSidebar } from './components/FilterSidebar';
 import { ResultsGrid } from './components/ResultsGrid';
 import { MapView } from './components/MapView';
+import { ThemePicker } from './components/ThemePicker';
 import { useSearch } from './hooks/useSearch';
 
 type ViewMode = 'grid' | 'map';
@@ -28,16 +29,19 @@ export default function App() {
   } = useSearch();
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)' }}>
       {/* Header */}
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-30">
+      <header className="border-b sticky top-0 z-30 backdrop-blur-sm" style={{ borderColor: 'var(--border)', backgroundColor: 'color-mix(in srgb, var(--bg) 80%, transparent)' }}>
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
-          <svg className="w-7 h-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="w-7 h-7" style={{ color: 'var(--accent-2)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
             <polyline points="9,22 9,12 15,12 15,22" />
           </svg>
-          <h1 className="text-xl font-bold text-slate-100">Apartment Finder</h1>
-          <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full ml-1">Demo</span>
+          <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Apartment Finder</h1>
+          <span className="text-xs px-2 py-0.5 rounded-full ml-1" style={{ color: 'var(--text-dim)', backgroundColor: 'var(--surface)' }}>Demo</span>
+          <div className="ml-auto">
+            <ThemePicker />
+          </div>
         </div>
       </header>
 
@@ -67,14 +71,13 @@ export default function App() {
               />
 
               {/* View toggle */}
-              <div className="flex items-center bg-slate-800 rounded-lg border border-slate-700 p-0.5">
+              <div className="flex items-center rounded-lg border p-0.5" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === 'grid'
-                      ? 'bg-slate-700 text-slate-100'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors`}
+                  style={viewMode === 'grid'
+                    ? { backgroundColor: 'var(--border)', color: 'var(--text)' }
+                    : { color: 'var(--text-dim)' }}
                 >
                   <span className="flex items-center gap-1.5">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -88,11 +91,10 @@ export default function App() {
                 </button>
                 <button
                   onClick={() => setViewMode('map')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === 'map'
-                      ? 'bg-slate-700 text-slate-100'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors`}
+                  style={viewMode === 'map'
+                    ? { backgroundColor: 'var(--border)', color: 'var(--text)' }
+                    : { color: 'var(--text-dim)' }}
                 >
                   <span className="flex items-center gap-1.5">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -133,23 +135,23 @@ export default function App() {
         {/* Empty state */}
         {hasSearched && !loading && results.length === 0 && !error && (
           <div className="text-center py-20">
-            <svg className="w-16 h-16 mx-auto text-slate-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+            <svg className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-dim)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="text-slate-400 text-lg">No apartments found</p>
-            <p className="text-slate-500 text-sm mt-1">Try expanding your price range or changing the city</p>
+            <p className="text-lg" style={{ color: 'var(--text-dim)' }}>No apartments found</p>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>Try expanding your price range or changing the city</p>
           </div>
         )}
 
         {/* Initial state */}
         {!hasSearched && (
           <div className="text-center py-20">
-            <svg className="w-20 h-20 mx-auto text-slate-700 mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+            <svg className="w-20 h-20 mx-auto mb-6" style={{ color: 'var(--border)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
               <polyline points="9,22 9,12 15,12 15,22" />
             </svg>
-            <h2 className="text-2xl font-bold text-slate-300 mb-2">Find your next apartment</h2>
-            <p className="text-slate-500 max-w-md mx-auto">
+            <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text)' }}>Find your next apartment</h2>
+            <p className="max-w-md mx-auto" style={{ color: 'var(--text-dim)' }}>
               Enter your city, budget, and office address above. We'll search across multiple listing sites
               and score each apartment by commute time.
             </p>
@@ -159,18 +161,18 @@ export default function App() {
         {/* Loading state */}
         {loading && (
           <div className="text-center py-20">
-            <svg className="animate-spin w-10 h-10 mx-auto text-blue-400 mb-4" viewBox="0 0 24 24">
+            <svg className="animate-spin w-10 h-10 mx-auto mb-4" style={{ color: 'var(--accent-2)' }} viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            <p className="text-slate-400">Searching listing sources...</p>
+            <p style={{ color: 'var(--text-dim)' }}>Searching listing sources...</p>
           </div>
         )}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800 mt-12">
-        <div className="max-w-7xl mx-auto px-4 py-6 text-center text-xs text-slate-600">
+      <footer className="border-t mt-12" style={{ borderColor: 'var(--border)' }}>
+        <div className="max-w-7xl mx-auto px-4 py-6 text-center text-xs" style={{ color: 'var(--text-dim)' }}>
           Apartment Finder — Demo with mock data. Pluggable data source architecture for real integrations.
         </div>
       </footer>

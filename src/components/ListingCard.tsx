@@ -22,7 +22,10 @@ export function ListingCard({ listing, onToggleFavorite }: Props) {
       href={listing.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block bg-slate-800 rounded-xl border border-slate-700 overflow-hidden hover:border-slate-500 transition-colors group cursor-pointer"
+      className="block rounded-xl border overflow-hidden transition-colors group cursor-pointer"
+      style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+      onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--text-dim)')}
+      onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
     >
       {/* Hero banner with price and key stats */}
       <div className="relative h-36 overflow-hidden" style={{
@@ -58,7 +61,7 @@ export function ListingCard({ listing, onToggleFavorite }: Props) {
 
         {/* Source count badge */}
         {listing.sourceCount > 1 && (
-          <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-blue-600/80 text-xs font-medium text-white">
+          <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-xs font-medium text-white" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-2) 80%, transparent)' }}>
             Seen on {listing.sourceCount} sites
           </div>
         )}
@@ -76,25 +79,25 @@ export function ListingCard({ listing, onToggleFavorite }: Props) {
       {/* Info */}
       <div className="p-4 space-y-2">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="text-lg font-semibold text-slate-100 leading-tight line-clamp-1">{listing.title}</h3>
-          <span className="text-lg font-bold text-emerald-400 whitespace-nowrap">
+          <h3 className="text-lg font-semibold leading-tight line-clamp-1" style={{ color: 'var(--text)' }}>{listing.title}</h3>
+          <span className="text-lg font-bold whitespace-nowrap" style={{ color: 'var(--accent)' }}>
             ${listing.price.toLocaleString()}
           </span>
         </div>
 
-        <p className="text-sm text-slate-400">{listing.address}, {listing.neighborhood}</p>
+        <p className="text-sm" style={{ color: 'var(--text-dim)' }}>{listing.address}, {listing.neighborhood}</p>
 
-        <div className="flex items-center gap-3 text-sm text-slate-300">
+        <div className="flex items-center gap-3 text-sm" style={{ color: 'var(--text)' }}>
           <span>{bedroomLabel}</span>
-          <span className="text-slate-600">|</span>
+          <span style={{ color: 'var(--text-dim)' }}>|</span>
           <span>{listing.bathrooms} BA</span>
-          <span className="text-slate-600">|</span>
+          <span style={{ color: 'var(--text-dim)' }}>|</span>
           <span>{listing.sqft.toLocaleString()} sqft</span>
-          <span className="text-slate-600">|</span>
-          <span className="text-slate-400">${listing.pricePerSqft}/sqft</span>
+          <span style={{ color: 'var(--text-dim)' }}>|</span>
+          <span style={{ color: 'var(--text-dim)' }}>${listing.pricePerSqft}/sqft</span>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-slate-500">
+        <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-dim)' }}>
           <span>{listing.commute.distanceMiles} mi away</span>
           <span>|</span>
           <span>Posted {listing.datePosted}</span>
@@ -103,12 +106,12 @@ export function ListingCard({ listing, onToggleFavorite }: Props) {
         {/* Amenity pills */}
         <div className="flex flex-wrap gap-1 pt-1">
           {listing.amenities.slice(0, 4).map(a => (
-            <span key={a} className="px-2 py-0.5 bg-slate-700 text-slate-300 rounded text-xs">
+            <span key={a} className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
               {a}
             </span>
           ))}
           {listing.amenities.length > 4 && (
-            <span className="px-2 py-0.5 text-slate-500 text-xs">
+            <span className="px-2 py-0.5 text-xs" style={{ color: 'var(--text-dim)' }}>
               +{listing.amenities.length - 4} more
             </span>
           )}
@@ -117,7 +120,7 @@ export function ListingCard({ listing, onToggleFavorite }: Props) {
         {/* Sources */}
         <div className="flex items-center gap-2 text-xs pt-1">
           {listing.sources.map(s => (
-            <span key={s} className={SOURCE_COLORS[s] ?? 'text-slate-400'}>
+            <span key={s} className={SOURCE_COLORS[s] ?? ''} style={!SOURCE_COLORS[s] ? { color: 'var(--text-dim)' } : undefined}>
               {s}
             </span>
           ))}
