@@ -18,10 +18,11 @@ export function ListingCard({ listing, onToggleFavorite }: Props) {
   const bedroomLabel = listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} BR`;
 
   return (
-    <a
-      href={listing.url}
-      target="_blank"
-      rel="noopener noreferrer"
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={() => window.open(listing.url, '_blank', 'noopener,noreferrer')}
+      onKeyDown={(e) => { if (e.key === 'Enter') window.open(listing.url, '_blank', 'noopener,noreferrer'); }}
       className="block rounded-xl border overflow-hidden transition-colors group cursor-pointer"
       style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
       onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--text-dim)')}
@@ -126,15 +127,20 @@ export function ListingCard({ listing, onToggleFavorite }: Props) {
           )}
         </div>
 
-        {/* Sources */}
-        <div className="flex items-center gap-2 text-xs pt-1">
-          {listing.sources.map(s => (
-            <span key={s} className={SOURCE_COLORS[s] ?? ''} style={!SOURCE_COLORS[s] ? { color: 'var(--text-dim)' } : undefined}>
-              {s}
-            </span>
-          ))}
+        {/* Sources + View link */}
+        <div className="flex items-center justify-between text-xs pt-1">
+          <div className="flex items-center gap-2">
+            {listing.sources.map(s => (
+              <span key={s} className={SOURCE_COLORS[s] ?? ''} style={!SOURCE_COLORS[s] ? { color: 'var(--text-dim)' } : undefined}>
+                {s}
+              </span>
+            ))}
+          </div>
+          <span style={{ color: 'var(--accent)' }} className="font-medium">
+            View Listing &rarr;
+          </span>
         </div>
       </div>
-    </a>
+    </div>
   );
 }
