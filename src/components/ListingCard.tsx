@@ -19,12 +19,21 @@ export function ListingCard({ listing, onToggleFavorite }: Props) {
 
   return (
     <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden hover:border-slate-500 transition-colors group">
-      {/* Photo placeholder */}
-      <div className="relative h-40 bg-gradient-to-br from-slate-700 to-slate-600 flex items-center justify-center">
-        <svg className="w-12 h-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-          <polyline points="9,22 9,12 15,12 15,22" />
-        </svg>
+      {/* Photo */}
+      <div className="relative h-40 bg-gradient-to-br from-slate-700 to-slate-600 flex items-center justify-center overflow-hidden">
+        {listing.photoUrl ? (
+          <img
+            src={listing.photoUrl}
+            alt={listing.title}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <svg className="w-12 h-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+        )}
 
         {/* Favorite button */}
         <button

@@ -137,7 +137,7 @@ function generateListing(index: number, rand: () => number): Listing {
     bedrooms,
     bathrooms,
     sqft: Math.max(300, sqft),
-    photoUrl: null,
+    photoUrl: `https://picsum.photos/seed/${source}${index}/640/400`,
     amenities,
     description: pick(DESCRIPTIONS, rand),
     url: `https://${source}.com/listing/${index}`,
