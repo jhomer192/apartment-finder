@@ -2,16 +2,7 @@ import type { Listing } from '../types';
 import { METROS } from './metros';
 import type { Metro, Neighborhood } from './metros';
 
-// ── Apartment photos via picsum.photos (deterministic by ID, always available) ──
-// Using specific picsum IDs that look like interiors/architecture/buildings
-const APARTMENT_PHOTO_IDS = [
-  164, 165, 166, 177, 178, 188, 189, 190, 191, 193,
-  199, 200, 201, 202, 204, 209, 210, 211, 214, 216,
-  217, 218, 219, 221, 225, 228, 229, 230, 231, 234,
-];
-const APARTMENT_PHOTOS = APARTMENT_PHOTO_IDS.map(
-  id => `https://picsum.photos/id/${id}/640/400`
-);
+// Photos removed -- cards use a styled gradient banner with price/stats instead
 
 const AMENITY_POOL = [
   'In-unit laundry', 'Shared laundry', 'Parking included', 'Garage parking',
@@ -56,7 +47,7 @@ function pickN<T>(arr: T[], n: number, rand: () => number): T[] {
 
 function generateListing(
   index: number,
-  globalIndex: number,
+  _globalIndex: number,
   metro: Metro,
   hood: Neighborhood,
   rand: () => number,
@@ -107,7 +98,7 @@ function generateListing(
     bedrooms,
     bathrooms,
     sqft: Math.max(300, sqft),
-    photoUrl: APARTMENT_PHOTOS[globalIndex % APARTMENT_PHOTOS.length],
+    photoUrl: null,
     amenities,
     description: pick(DESCRIPTIONS, rand),
     url: `https://${source}.com/listing/${metro.id}-${index}`,

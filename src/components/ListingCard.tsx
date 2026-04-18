@@ -19,21 +19,20 @@ export function ListingCard({ listing, onToggleFavorite }: Props) {
 
   return (
     <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden hover:border-slate-500 transition-colors group">
-      {/* Photo */}
-      <div className="relative h-40 bg-gradient-to-br from-slate-700 to-slate-600 flex items-center justify-center overflow-hidden">
-        {listing.photoUrl ? (
-          <img
-            src={listing.photoUrl}
-            alt={listing.title}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <svg className="w-12 h-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-            <polyline points="9,22 9,12 15,12 15,22" />
-          </svg>
-        )}
+      {/* Hero banner with price and key stats */}
+      <div className="relative h-36 overflow-hidden" style={{
+        background: `linear-gradient(135deg, hsl(${(listing.price * 7) % 360}, 25%, 18%) 0%, hsl(${(listing.price * 7 + 40) % 360}, 30%, 12%) 100%)`,
+      }}>
+        <div className="absolute inset-0 flex flex-col justify-between p-4">
+          <div className="flex justify-between items-start">
+            <span className="text-2xl font-bold text-white">${listing.price.toLocaleString()}<span className="text-sm font-normal text-slate-300">/mo</span></span>
+          </div>
+          <div className="flex gap-3 text-sm">
+            <span className="bg-white/15 backdrop-blur-sm px-2 py-0.5 rounded text-white">{listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} BR`}</span>
+            <span className="bg-white/15 backdrop-blur-sm px-2 py-0.5 rounded text-white">{listing.sqft.toLocaleString()} sqft</span>
+            <span className="bg-white/15 backdrop-blur-sm px-2 py-0.5 rounded text-white">{listing.neighborhood}</span>
+          </div>
+        </div>
 
         {/* Favorite button */}
         <button
