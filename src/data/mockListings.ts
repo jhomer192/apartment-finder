@@ -1,52 +1,33 @@
 import type { Listing } from '../types';
+import { METROS } from './metros';
+import type { Metro, Neighborhood } from './metros';
 
-const SF_NEIGHBORHOODS: Array<{
-  name: string;
-  lat: number;
-  lng: number;
-  priceMultiplier: number;
-}> = [
-  { name: 'Mission District', lat: 37.7599, lng: -122.4148, priceMultiplier: 1.0 },
-  { name: 'SOMA', lat: 37.7785, lng: -122.3950, priceMultiplier: 1.25 },
-  { name: 'Pacific Heights', lat: 37.7925, lng: -122.4382, priceMultiplier: 1.5 },
-  { name: 'Marina District', lat: 37.8015, lng: -122.4368, priceMultiplier: 1.4 },
-  { name: 'Hayes Valley', lat: 37.7759, lng: -122.4245, priceMultiplier: 1.2 },
-  { name: 'Nob Hill', lat: 37.7930, lng: -122.4161, priceMultiplier: 1.35 },
-  { name: 'Russian Hill', lat: 37.8011, lng: -122.4194, priceMultiplier: 1.3 },
-  { name: 'North Beach', lat: 37.8060, lng: -122.4103, priceMultiplier: 1.15 },
-  { name: 'Castro', lat: 37.7609, lng: -122.4350, priceMultiplier: 1.1 },
-  { name: 'Haight-Ashbury', lat: 37.7692, lng: -122.4481, priceMultiplier: 1.05 },
-  { name: 'Inner Sunset', lat: 37.7601, lng: -122.4658, priceMultiplier: 0.85 },
-  { name: 'Outer Sunset', lat: 37.7554, lng: -122.4950, priceMultiplier: 0.7 },
-  { name: 'Richmond District', lat: 37.7800, lng: -122.4784, priceMultiplier: 0.8 },
-  { name: 'Potrero Hill', lat: 37.7605, lng: -122.3926, priceMultiplier: 1.1 },
-  { name: 'Dogpatch', lat: 37.7580, lng: -122.3870, priceMultiplier: 1.05 },
-  { name: 'Tenderloin', lat: 37.7847, lng: -122.4141, priceMultiplier: 0.65 },
-  { name: 'Financial District', lat: 37.7946, lng: -122.3999, priceMultiplier: 1.45 },
-  { name: 'Japantown', lat: 37.7853, lng: -122.4296, priceMultiplier: 1.0 },
-  { name: 'Noe Valley', lat: 37.7502, lng: -122.4337, priceMultiplier: 1.2 },
-  { name: 'Glen Park', lat: 37.7340, lng: -122.4332, priceMultiplier: 0.9 },
-];
-
-const STREET_NAMES = [
-  'Valencia St', 'Mission St', 'Folsom St', 'Howard St', 'Market St',
-  'Divisadero St', 'Fillmore St', 'Haight St', 'Castro St', 'Church St',
-  'Guerrero St', 'Dolores St', 'Sanchez St', 'Noe St', 'Bryant St',
-  'Harrison St', 'Brannan St', 'Townsend St', 'King St', 'Berry St',
-  'Van Ness Ave', 'Polk St', 'Larkin St', 'Hyde St', 'Leavenworth St',
-  'Jones St', 'Taylor St', 'Mason St', 'Powell St', 'Stockton St',
-  'Grant Ave', 'Columbus Ave', 'Broadway St', 'Green St', 'Union St',
-  'Chestnut St', 'Lombard St', 'Bay St', 'Francisco St', 'Irving St',
-  'Judah St', 'Kirkham St', 'Lawton St', 'Moraga St', 'Noriega St',
-  'Ortega St', 'Pacheco St', 'Quintara St', 'Rivera St', 'Taraval St',
-];
-
-const BUILDING_NAMES = [
-  'The Aria', 'Avalon', 'The Paramount', 'One Rincon', 'Jasper',
-  'The Harrison', 'NEMA', 'Potrero 1010', 'The Gateway', 'Etta',
-  'Hanover', 'Arc Light', 'The Linden', 'Solaire', '888 Seventh',
-  'The Civic', 'AVA', 'The Martin', 'Channel Mission Bay', 'Archstone',
-  'Duboce', 'The Fillmore Center', 'West Creek', 'Parkview', 'Skyline',
+// ── Real Unsplash apartment photo IDs ───────────────────────
+const APARTMENT_PHOTOS = [
+  'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1502672260-1e0b4029a5c7?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1560185893-a5e827cf24e5?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1600585154-0ecb13263544?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1558618666-fcd25c85f7e6?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1522708323590-b9a634b6a6a?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1600566753-e7a32ff846af?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1600573472-232eea51e4a7?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1574362848-4bedc31f94af?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1600210492-b2daf0a1f02c?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1600585152-3c99b77b12b4?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1560449752-d3f1f2e91187?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1600047509-579d6df4a0cd?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1600607688-bca6a3979651?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1564078290-57e8f0e085c4?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1600566752-59f6a6b4efef?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1600210491-5be30ee71bbb?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1560185127-6a4f1b9a3b3e?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1600585153-086e4f9a0f8c?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1600047508-b5d6a3c7f50e?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1502672023-a5f9ef83ab10?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1560448075-25ab0e46e4be?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1600573473-232eea51e4a8?w=640&h=400&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1574362849-4bedc31f94b0?w=640&h=400&fit=crop&auto=format',
 ];
 
 const AMENITY_POOL = [
@@ -64,11 +45,11 @@ const DESCRIPTIONS = [
   'Recently renovated with designer touches. Chef\'s kitchen with quartz countertops and premium appliances.',
   'Spacious layout with generous closet space. Building features 24/7 security and maintained common areas.',
   'Top-floor unit with panoramic city views. Quiet and bright, perfect for working from home.',
-  'Classic San Francisco charm meets modern convenience. Victorian details with updated kitchen and bath.',
+  'Classic charm meets modern convenience. Original details with updated kitchen and bath.',
   'Move-in ready with fresh paint and new carpet. Centrally located near parks and public transit.',
   'Corner unit with cross-ventilation and abundant natural light. In-unit washer/dryer included.',
   'Luxury living with high-end finishes. Resort-style amenities including pool, gym, and rooftop lounge.',
-  'Cozy and well-maintained in a great neighborhood. Walking distance to shops and BART station.',
+  'Cozy and well-maintained in a great neighborhood. Walking distance to shops and transit.',
 ];
 
 const SOURCES = ['zillow', 'apartments.com', 'craigslist', 'trulia', 'redfin'];
@@ -90,13 +71,15 @@ function pickN<T>(arr: T[], n: number, rand: () => number): T[] {
   return shuffled.slice(0, n);
 }
 
-function generateListing(index: number, rand: () => number): Listing {
-  const hood = pick(SF_NEIGHBORHOODS, rand);
+function generateListing(
+  index: number,
+  globalIndex: number,
+  metro: Metro,
+  hood: Neighborhood,
+  rand: () => number,
+): Listing {
   const bedrooms = pick([0, 1, 1, 1, 2, 2, 2, 3, 3, 4], rand);
-  const basePrices: Record<number, number> = {
-    0: 1800, 1: 2400, 2: 3200, 3: 3900, 4: 4500,
-  };
-  const basePrice = basePrices[bedrooms] ?? 2400;
+  const basePrice = metro.basePrice[bedrooms] ?? 2400;
   const price = Math.round((basePrice * hood.priceMultiplier + (rand() - 0.5) * 600) / 50) * 50;
   const bathrooms = bedrooms === 0 ? 1 : bedrooms <= 2 ? pick([1, 1, 1.5, 2], rand) : pick([1.5, 2, 2, 2.5], rand);
   const baseSqft: Record<number, number> = {
@@ -104,7 +87,7 @@ function generateListing(index: number, rand: () => number): Listing {
   };
   const sqft = Math.round(((baseSqft[bedrooms] ?? 650) + (rand() - 0.5) * 200) / 25) * 25;
   const streetNum = Math.floor(rand() * 3000) + 100;
-  const street = pick(STREET_NAMES, rand);
+  const street = pick(metro.streetNames, rand);
   const source = pick(SOURCES, rand);
   const numAmenities = Math.floor(rand() * 8) + 2;
   const amenities = pickN(AMENITY_POOL, numAmenities, rand);
@@ -113,7 +96,7 @@ function generateListing(index: number, rand: () => number): Listing {
   const lngJitter = (rand() - 0.5) * 0.008;
 
   const hasName = rand() > 0.5;
-  const buildingName = hasName ? pick(BUILDING_NAMES, rand) : null;
+  const buildingName = hasName ? pick(metro.buildingNames, rand) : null;
   const bedroomLabel = bedrooms === 0 ? 'Studio' : `${bedrooms}BR`;
   const title = buildingName
     ? `${buildingName} — ${bedroomLabel} in ${hood.name}`
@@ -122,32 +105,72 @@ function generateListing(index: number, rand: () => number): Listing {
   const daysAgo = Math.floor(rand() * 30);
   const datePosted = new Date(Date.now() - daysAgo * 86400000).toISOString().split('T')[0];
 
+  // Determine city name from neighborhood + metro
+  const city = deriveCityName(metro, hood);
+
   return {
-    id: `mock-${source}-${index}`,
+    id: `mock-${source}-${metro.id}-${index}`,
     source,
     title,
     address: `${streetNum} ${street}`,
     neighborhood: hood.name,
-    city: 'San Francisco',
-    state: 'CA',
-    zip: `941${String(Math.floor(rand() * 30) + 10).padStart(2, '0')}`,
+    city,
+    metro: metro.id,
+    state: metro.state,
+    zip: `${metro.zipPrefix}${String(Math.floor(rand() * 900) + 100)}`,
     lat: hood.lat + latJitter,
     lng: hood.lng + lngJitter,
-    price: Math.max(1500, Math.min(4500, price)),
+    price: Math.max(800, price),
     bedrooms,
     bathrooms,
     sqft: Math.max(300, sqft),
-    photoUrl: `https://picsum.photos/seed/${source}${index}/640/400`,
+    photoUrl: APARTMENT_PHOTOS[globalIndex % APARTMENT_PHOTOS.length],
     amenities,
     description: pick(DESCRIPTIONS, rand),
-    url: `https://${source}.com/listing/${index}`,
+    url: `https://${source}.com/listing/${metro.id}-${index}`,
     datePosted,
   };
 }
 
+/** Derive a human-readable city name from metro + neighborhood */
+function deriveCityName(metro: Metro, hood: Neighborhood): string {
+  if (metro.id === 'bay-area') {
+    const oaklandHoods = ['Temescal', 'Rockridge', 'Lake Merritt', 'Jack London Square'];
+    const sjHoods = ['Downtown San Jose', 'Willow Glen', 'Santana Row'];
+    if (oaklandHoods.includes(hood.name)) return 'Oakland';
+    if (sjHoods.includes(hood.name)) return 'San Jose';
+    if (hood.name === 'Berkeley') return 'Berkeley';
+    if (hood.name === 'Palo Alto') return 'Palo Alto';
+    if (hood.name === 'Mountain View') return 'Mountain View';
+    if (hood.name === 'Sunnyvale') return 'Sunnyvale';
+    return 'San Francisco';
+  }
+  if (metro.id === 'los-angeles') return hood.name === 'Long Beach' ? 'Long Beach' : 'Los Angeles';
+  if (metro.id === 'new-york') {
+    const bkHoods = ['Williamsburg', 'Park Slope', 'DUMBO', 'Bushwick', 'Crown Heights', 'Bed-Stuy', 'Greenpoint'];
+    const qnHoods = ['Astoria', 'Long Island City', 'Jackson Heights'];
+    if (bkHoods.includes(hood.name)) return 'Brooklyn';
+    if (qnHoods.includes(hood.name)) return 'Queens';
+    return 'New York';
+  }
+  if (metro.id === 'dc-metro') {
+    const dcHoods = ['Dupont Circle', 'Adams Morgan', 'Capitol Hill', 'Georgetown', 'Navy Yard', 'Shaw', 'U Street', 'Logan Circle', 'Columbia Heights'];
+    const arlingtonHoods = ['Clarendon', 'Ballston', 'Crystal City', 'Rosslyn'];
+    const alexHoods = ['Old Town Alexandria', 'Del Ray'];
+    if (dcHoods.includes(hood.name)) return 'Washington';
+    if (arlingtonHoods.includes(hood.name)) return 'Arlington';
+    if (alexHoods.includes(hood.name)) return 'Alexandria';
+    if (hood.name === 'Falls Church') return 'Falls Church';
+    if (hood.name === 'Tysons') return 'Tysons';
+    if (hood.name === 'Reston') return 'Reston';
+    return 'Washington';
+  }
+  return metro.name;
+}
+
 function generateDuplicates(listings: Listing[], rand: () => number): Listing[] {
   const duplicates: Listing[] = [];
-  const numDupes = 8;
+  const numDupes = Math.min(8, Math.floor(listings.length * 0.1));
   for (let i = 0; i < numDupes; i++) {
     const original = listings[Math.floor(rand() * Math.min(40, listings.length))];
     const altSource = pick(SOURCES.filter(s => s !== original.source), rand);
@@ -156,19 +179,34 @@ function generateDuplicates(listings: Listing[], rand: () => number): Listing[] 
       id: `mock-${altSource}-dup-${i}`,
       source: altSource,
       url: `https://${altSource}.com/listing/dup-${i}`,
-      // Slightly different price to simulate cross-site variation
       price: original.price + pick([-50, 0, 0, 25, 50], rand),
     });
   }
   return duplicates;
 }
 
-export function generateMockListings(): Listing[] {
+/**
+ * Generate mock listings for the given metro IDs.
+ * ~40 listings per metro, plus cross-site duplicates.
+ */
+export function generateMockListings(metroIds?: string[]): Listing[] {
   const rand = seededRandom(42);
   const listings: Listing[] = [];
-  for (let i = 0; i < 55; i++) {
-    listings.push(generateListing(i, rand));
+  let globalIndex = 0;
+
+  const selectedMetros = metroIds && metroIds.length > 0
+    ? METROS.filter(m => metroIds.includes(m.id))
+    : METROS;
+
+  for (const metro of selectedMetros) {
+    const listingsPerMetro = 40;
+    for (let i = 0; i < listingsPerMetro; i++) {
+      const hood = metro.neighborhoods[i % metro.neighborhoods.length];
+      listings.push(generateListing(i, globalIndex, metro, hood, rand));
+      globalIndex++;
+    }
   }
+
   const dupes = generateDuplicates(listings, rand);
   return [...listings, ...dupes];
 }

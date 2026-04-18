@@ -3,23 +3,19 @@ import { generateMockListings } from '../data/mockListings';
 
 export class MockSource implements ApartmentSource {
   name = 'mock';
-  private listings: Listing[] | null = null;
+  private listingsCache: Map<string, Listing[]> = new Map();
 
-  private getListings(): Listing[] {
-    if (!this.listings) {
-      this.listings = generateMockListings();
+  private getListings(metroIds: string[]): Listing[] {
+    const key = metroIds.sort().join(',');
+    if (!this.listingsCache.has(key)) {
+      this.listingsCache.set(key, generateMockListings(metroIds));
     }
-    return this.listings;
+    return this.listingsCache.get(key)!;
   }
 
   async search(params: SearchParams): Promise<Listing[]> {
-    const all = this.getListings();
+    const all = this.getListings(params.metros);
     return all.filter(listing => {
-      if (listing.city.toLowerCase() !== params.city.toLowerCase()
-          && !params.city.toLowerCase().includes('san francisco')
-          && !params.city.toLowerCase().includes('sf')) {
-        return false;
-      }
       if (listing.price < params.minRent || listing.price > params.maxRent) {
         return false;
       }

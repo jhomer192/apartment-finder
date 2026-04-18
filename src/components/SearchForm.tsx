@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { SearchParams } from '../types';
+import { MetroSelector } from './MetroSelector';
 
 interface Props {
   onSearch: (params: SearchParams) => void;
@@ -7,16 +8,16 @@ interface Props {
 }
 
 export function SearchForm({ onSearch, loading }: Props) {
-  const [city, setCity] = useState('San Francisco');
+  const [metros, setMetros] = useState<string[]>(['bay-area']);
   const [minRent, setMinRent] = useState(1500);
-  const [maxRent, setMaxRent] = useState(4500);
+  const [maxRent, setMaxRent] = useState(6000);
   const [bedrooms, setBedrooms] = useState<string>('any');
   const [officeAddress, setOfficeAddress] = useState('Salesforce Tower');
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     onSearch({
-      city,
+      metros,
       minRent,
       maxRent,
       bedrooms: bedrooms === 'any' ? null : parseInt(bedrooms, 10),
@@ -28,16 +29,9 @@ export function SearchForm({ onSearch, loading }: Props) {
     <form onSubmit={handleSubmit} className="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700">
       <h2 className="text-lg font-semibold text-slate-100 mb-4">Find apartments</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-400 mb-1">City</label>
-          <input
-            type="text"
-            value={city}
-            onChange={e => setCity(e.target.value)}
-            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="San Francisco"
-            required
-          />
+        <div className="sm:col-span-2 lg:col-span-1">
+          <label className="block text-sm font-medium text-slate-400 mb-1">Metro areas</label>
+          <MetroSelector selected={metros} onChange={setMetros} />
         </div>
 
         <div>
@@ -95,7 +89,7 @@ export function SearchForm({ onSearch, loading }: Props) {
         <div className="flex items-end">
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || metros.length === 0}
             className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800"
           >
             {loading ? (

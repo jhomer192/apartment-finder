@@ -1,5 +1,5 @@
 export interface SearchParams {
-  city: string;
+  metros: string[];
   minRent: number;
   maxRent: number;
   bedrooms: number | null;
@@ -13,6 +13,7 @@ export interface Listing {
   address: string;
   neighborhood: string;
   city: string;
+  metro: string;
   state: string;
   zip: string;
   lat: number;

@@ -92,6 +92,7 @@ function googleMapsCommute(
 
 // Simple geocoding fallback: hardcoded well-known locations
 const KNOWN_LOCATIONS: Record<string, { lat: number; lng: number }> = {
+  // Bay Area
   'downtown san francisco': { lat: 37.7749, lng: -122.4194 },
   'financial district sf': { lat: 37.7946, lng: -122.3999 },
   'soma sf': { lat: 37.7785, lng: -122.3950 },
@@ -100,6 +101,25 @@ const KNOWN_LOCATIONS: Record<string, { lat: number; lng: number }> = {
   'salesforce tower': { lat: 37.7897, lng: -122.3972 },
   'twitter hq': { lat: 37.7764, lng: -122.4165 },
   'union square sf': { lat: 37.7879, lng: -122.4074 },
+  'google hq': { lat: 37.4220, lng: -122.0841 },
+  'apple park': { lat: 37.3349, lng: -122.0090 },
+  // NYC
+  'times square': { lat: 40.7580, lng: -73.9855 },
+  'wall street': { lat: 40.7068, lng: -74.0089 },
+  'grand central': { lat: 40.7527, lng: -73.9772 },
+  'penn station': { lat: 40.7506, lng: -73.9935 },
+  'hudson yards': { lat: 40.7536, lng: -74.0009 },
+  // LA
+  'downtown la': { lat: 34.0407, lng: -118.2468 },
+  'downtown los angeles': { lat: 34.0407, lng: -118.2468 },
+  'lax': { lat: 33.9425, lng: -118.4081 },
+  'century city': { lat: 34.0567, lng: -118.4177 },
+  // DC
+  'downtown dc': { lat: 38.9072, lng: -77.0369 },
+  'the pentagon': { lat: 38.8719, lng: -77.0563 },
+  'capitol hill': { lat: 38.8899, lng: -77.0091 },
+  'white house': { lat: 38.8977, lng: -77.0365 },
+  'tysons corner': { lat: 38.9187, lng: -77.2311 },
 };
 
 export function geocodeOfficeAddress(address: string): { lat: number; lng: number } | null {
@@ -112,8 +132,22 @@ export function geocodeOfficeAddress(address: string): { lat: number; lng: numbe
     }
   }
 
-  // Default to downtown SF for demo purposes
-  if (lower.includes('sf') || lower.includes('san francisco') || lower.length > 0) {
+  // Fall back to approximate center based on keywords
+  if (lower.includes('sf') || lower.includes('san francisco')) {
+    return { lat: 37.7749, lng: -122.4194 };
+  }
+  if (lower.includes('new york') || lower.includes('nyc') || lower.includes('manhattan')) {
+    return { lat: 40.7580, lng: -73.9855 };
+  }
+  if (lower.includes('los angeles') || lower.includes('la')) {
+    return { lat: 34.0522, lng: -118.2437 };
+  }
+  if (lower.includes('dc') || lower.includes('washington') || lower.includes('arlington') || lower.includes('virginia')) {
+    return { lat: 38.9072, lng: -77.0369 };
+  }
+
+  // Last resort — return something if there's any text
+  if (lower.length > 0) {
     return { lat: 37.7749, lng: -122.4194 };
   }
 
