@@ -18,7 +18,12 @@ export function ListingCard({ listing, onToggleFavorite }: Props) {
   const bedroomLabel = listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} BR`;
 
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden hover:border-slate-500 transition-colors group">
+    <a
+      href={listing.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block bg-slate-800 rounded-xl border border-slate-700 overflow-hidden hover:border-slate-500 transition-colors group cursor-pointer"
+    >
       {/* Hero banner with price and key stats */}
       <div className="relative h-36 overflow-hidden" style={{
         background: `linear-gradient(135deg, hsl(${(listing.price * 7) % 360}, 25%, 18%) 0%, hsl(${(listing.price * 7 + 40) % 360}, 30%, 12%) 100%)`,
@@ -36,7 +41,7 @@ export function ListingCard({ listing, onToggleFavorite }: Props) {
 
         {/* Favorite button */}
         <button
-          onClick={() => onToggleFavorite(listing.id)}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFavorite(listing.id); }}
           className="absolute top-2 right-2 p-1.5 rounded-full bg-slate-900/60 hover:bg-slate-900/80 transition-colors"
           aria-label={listing.isFavorite ? 'Unsave' : 'Save'}
         >
@@ -118,6 +123,6 @@ export function ListingCard({ listing, onToggleFavorite }: Props) {
           ))}
         </div>
       </div>
-    </div>
+    </a>
   );
 }
