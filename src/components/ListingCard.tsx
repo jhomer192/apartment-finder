@@ -27,18 +27,27 @@ export function ListingCard({ listing, onToggleFavorite }: Props) {
       onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--text-dim)')}
       onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
     >
-      {/* Hero banner with price and key stats */}
-      <div className="relative h-36 overflow-hidden" style={{
+      {/* Photo + overlay */}
+      <div className="relative h-44 overflow-hidden" style={{
         background: `linear-gradient(135deg, hsl(${(listing.price * 7) % 360}, 25%, 18%) 0%, hsl(${(listing.price * 7 + 40) % 360}, 30%, 12%) 100%)`,
       }}>
+        {listing.photoUrl && (
+          <img
+            src={listing.photoUrl}
+            alt={listing.title}
+            className="absolute inset-0 w-full h-full object-cover"
+            loading="lazy"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         <div className="absolute inset-0 flex flex-col justify-between p-4">
           <div className="flex justify-between items-start">
-            <span className="text-2xl font-bold text-white">${listing.price.toLocaleString()}<span className="text-sm font-normal text-slate-300">/mo</span></span>
+            <span className="text-2xl font-bold text-white drop-shadow-lg">${listing.price.toLocaleString()}<span className="text-sm font-normal text-white/80">/mo</span></span>
           </div>
-          <div className="flex gap-3 text-sm">
-            <span className="bg-white/15 backdrop-blur-sm px-2 py-0.5 rounded text-white">{listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} BR`}</span>
-            <span className="bg-white/15 backdrop-blur-sm px-2 py-0.5 rounded text-white">{listing.sqft.toLocaleString()} sqft</span>
-            <span className="bg-white/15 backdrop-blur-sm px-2 py-0.5 rounded text-white">{listing.neighborhood}</span>
+          <div className="flex gap-2 text-xs">
+            <span className="bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded text-white">{listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} BR`}</span>
+            <span className="bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded text-white">{listing.sqft.toLocaleString()} sqft</span>
+            <span className="bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded text-white">{listing.neighborhood}</span>
           </div>
         </div>
 

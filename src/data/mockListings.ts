@@ -2,7 +2,50 @@ import type { Listing } from '../types';
 import { METROS } from './metros';
 import type { Metro, Neighborhood } from './metros';
 
-// Photos removed -- cards use a styled gradient banner with price/stats instead
+// Verified working Unsplash apartment/interior photo IDs
+const APARTMENT_PHOTOS = [
+  '1560448204-e02f11c3d0e2',
+  '1615529182904-14819c35db37',
+  '1505691938895-1758d7feb511',
+  '1501183638710-841dd1904471',
+  '1512917774080-9991f1c4c750',
+  '1613545325278-f24b0cae1224',
+  '1536376072261-38c75010e6c9',
+  '1513694203232-719a280e022f',
+  '1540518614846-7eded433c457',
+  '1618219908412-a29a1bb7b86e',
+  '1449844908441-8829872d2607',
+  '1493663284031-b7e3aefcae8e',
+  '1565182999561-18d7dc61c393',
+  '1564013799919-ab600027ffc6',
+  '1560185007-5f0bb1866cab',
+  '1586023492125-27b2c045efd7',
+  '1583847268964-b28dc8f51f92',
+  '1616627561839-074385245ff6',
+  '1588854337236-6889d631faa8',
+].map(id => `https://images.unsplash.com/photo-${id}?w=640&h=400&fit=crop&auto=format`);
+
+// Real search URLs per source
+const SOURCE_SEARCH_URLS: Record<string, (hood: string, city: string, state: string) => string> = {
+  zillow: (hood, city, state) =>
+    `https://www.zillow.com/homes/for_rent/${encodeURIComponent(hood)}-${encodeURIComponent(city)}-${state}/`,
+  'apartments.com': (_hood, city, state) =>
+    `https://www.apartments.com/${encodeURIComponent(city.toLowerCase().replace(/ /g, '-'))}-${state.toLowerCase()}/`,
+  craigslist: (_hood, city) => {
+    const citySlug = city.toLowerCase().replace(/ /g, '');
+    const slugMap: Record<string, string> = {
+      'sanfrancisco': 'sfbay', 'oakland': 'sfbay', 'sanjose': 'sfbay', 'berkeley': 'sfbay',
+      'newyork': 'newyork', 'brooklyn': 'newyork', 'queens': 'newyork',
+      'losangeles': 'losangeles', 'boston': 'boston', 'chicago': 'chicago',
+      'seattle': 'seattle', 'austin': 'austin', 'denver': 'denver', 'miami': 'miami',
+    };
+    return `https://${slugMap[citySlug] ?? citySlug}.craigslist.org/search/apa`;
+  },
+  trulia: (hood, city, state) =>
+    `https://www.trulia.com/for_rent/${encodeURIComponent(city)},${state}/${encodeURIComponent(hood)}/`,
+  redfin: (_hood, city, state) =>
+    `https://www.redfin.com/city/${encodeURIComponent(city.replace(/ /g, '-'))}/${state}/apartments-for-rent`,
+};
 
 const AMENITY_POOL = [
   'In-unit laundry', 'Shared laundry', 'Parking included', 'Garage parking',
@@ -98,10 +141,10 @@ function generateListing(
     bedrooms,
     bathrooms,
     sqft: Math.max(300, sqft),
-    photoUrl: null,
+    photoUrl: APARTMENT_PHOTOS[(index * 7 + metro.id.length) % APARTMENT_PHOTOS.length],
     amenities,
     description: pick(DESCRIPTIONS, rand),
-    url: `https://${source}.com/listing/${metro.id}-${index}`,
+    url: (SOURCE_SEARCH_URLS[source] ?? SOURCE_SEARCH_URLS.zillow)(hood.name, metro.name === 'Bay Area' ? 'San Francisco' : metro.name, metro.state),
     datePosted,
   };
 }
