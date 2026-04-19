@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { SearchParams } from '../types';
-import { MetroSelector } from './MetroSelector';
+import { MetroSelector, hoodKey } from './MetroSelector';
+import { METROS } from '../data/metros';
 
 interface Props {
   onSearch: (params: SearchParams) => void;
@@ -9,15 +10,46 @@ interface Props {
 
 export function SearchForm({ onSearch, loading }: Props) {
   const [metros, setMetros] = useState<string[]>(['bay-area']);
+  const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<Set<string>>(() => {
+    // Initialize: all Bay Area neighborhoods selected
+    const initial = new Set<string>();
+    const bayArea = METROS.find(m => m.id === 'bay-area');
+    if (bayArea) {
+      bayArea.neighborhoods.forEach(n => initial.add(hoodKey('bay-area', n.name)));
+    }
+    return initial;
+  });
   const [minRent, setMinRent] = useState(1500);
   const [maxRent, setMaxRent] = useState(6000);
   const [bedrooms, setBedrooms] = useState<string>('any');
   const [officeAddress, setOfficeAddress] = useState('Salesforce Tower');
 
+  // When metros change externally (shouldn't happen often), ensure neighborhood set stays consistent
+  useEffect(() => {
+    // Remove neighborhoods for metros that are no longer selected
+    setSelectedNeighborhoods(prev => {
+      const next = new Set<string>();
+      prev.forEach(key => {
+        const metroId = key.split('::')[0];
+        if (metros.includes(metroId)) {
+          next.add(key);
+        }
+      });
+      return next;
+    });
+  // Only re-run when metros array identity changes (it won't on every render thanks to MetroSelector)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metros.join(',')]);
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // Convert Set<string> to string[] for the search params
+    const neighborhoods = Array.from(selectedNeighborhoods);
+
     onSearch({
       metros,
+      selectedNeighborhoods: neighborhoods.length > 0 ? neighborhoods : undefined,
       minRent,
       maxRent,
       bedrooms: bedrooms === 'any' ? null : parseInt(bedrooms, 10),
@@ -33,7 +65,12 @@ export function SearchForm({ onSearch, loading }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="sm:col-span-2 lg:col-span-1">
           <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-dim)' }}>Metro areas</label>
-          <MetroSelector selected={metros} onChange={setMetros} />
+          <MetroSelector
+            selected={metros}
+            onChange={setMetros}
+            selectedNeighborhoods={selectedNeighborhoods}
+            onNeighborhoodsChange={setSelectedNeighborhoods}
+          />
         </div>
 
         <div>
