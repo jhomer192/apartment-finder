@@ -23,6 +23,11 @@ export function useSearch() {
       }
       setOfficeCoords(office);
 
+      // Build a Set from selectedNeighborhoods for fast lookup
+      const hoodFilter = params.selectedNeighborhoods
+        ? new Set(params.selectedNeighborhoods)
+        : null;
+
       const searchResults: SearchResult[] = params.metros.map(metroId => {
         const metro = getMetroById(metroId);
         if (!metro) throw new Error(`Unknown metro: ${metroId}`);
@@ -45,8 +50,12 @@ export function useSearch() {
           url: source.buildUrl(urlParams),
         }));
 
-        // Calculate commute for each neighborhood
-        const neighborhoods: NeighborhoodCommute[] = metro.neighborhoods.map(hood => {
+        // Filter neighborhoods by selection, then calculate commute
+        const activeHoods = hoodFilter
+          ? metro.neighborhoods.filter(hood => hoodFilter.has(`${metroId}::${hood.name}`))
+          : metro.neighborhoods;
+
+        const neighborhoods: NeighborhoodCommute[] = activeHoods.map(hood => {
           const dist = haversineDistance(hood.lat, hood.lng, officeLoc.lat, officeLoc.lng);
           const minutes = Math.round(dist / 12 * 60 + 5);
           return {
@@ -59,9 +68,10 @@ export function useSearch() {
           };
         }).sort((a, b) => a.estimatedMinutes - b.estimatedMinutes);
 
-        // Center of the metro area
-        const centerLat = metro.neighborhoods.reduce((s, n) => s + n.lat, 0) / metro.neighborhoods.length;
-        const centerLng = metro.neighborhoods.reduce((s, n) => s + n.lng, 0) / metro.neighborhoods.length;
+        // Center of the selected neighborhoods (or all if none selected)
+        const centerSource = activeHoods.length > 0 ? activeHoods : metro.neighborhoods;
+        const centerLat = centerSource.reduce((s, n) => s + n.lat, 0) / centerSource.length;
+        const centerLng = centerSource.reduce((s, n) => s + n.lng, 0) / centerSource.length;
 
         return {
           metroId: metro.id,

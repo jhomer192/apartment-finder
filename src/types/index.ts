@@ -1,5 +1,6 @@
 export interface SearchParams {
   metros: string[];
+  selectedNeighborhoods?: string[];  // if set, only show these neighborhoods; if undefined, show all
   minRent: number;
   maxRent: number;
   bedrooms: number | null;

@@ -4,9 +4,16 @@ import { METROS } from '../data/metros';
 interface Props {
   selected: string[];
   onChange: (metros: string[]) => void;
+  selectedNeighborhoods: Set<string>;
+  onNeighborhoodsChange: (neighborhoods: Set<string>) => void;
 }
 
-export function MetroSelector({ selected, onChange }: Props) {
+/** Unique key for a neighborhood across metros */
+function hoodKey(metroId: string, hoodName: string): string {
+  return `${metroId}::${hoodName}`;
+}
+
+export function MetroSelector({ selected, onChange, selectedNeighborhoods, onNeighborhoodsChange }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -23,15 +30,61 @@ export function MetroSelector({ selected, onChange }: Props) {
   }, []);
 
   function toggleMetro(id: string) {
+    const metro = METROS.find(m => m.id === id);
+    if (!metro) return;
+
     if (selected.includes(id)) {
+      // Deselecting metro: remove it and all its neighborhoods
       onChange(selected.filter(m => m !== id));
+      const next = new Set(selectedNeighborhoods);
+      metro.neighborhoods.forEach(n => next.delete(hoodKey(id, n.name)));
+      onNeighborhoodsChange(next);
     } else {
+      // Selecting metro: add it and all its neighborhoods
       onChange([...selected, id]);
+      const next = new Set(selectedNeighborhoods);
+      metro.neighborhoods.forEach(n => next.add(hoodKey(id, n.name)));
+      onNeighborhoodsChange(next);
+      // Auto-expand so user sees the neighborhoods
+      setExpanded(prev => new Set(prev).add(id));
     }
   }
 
   function removeMetro(id: string) {
+    const metro = METROS.find(m => m.id === id);
     onChange(selected.filter(m => m !== id));
+    if (metro) {
+      const next = new Set(selectedNeighborhoods);
+      metro.neighborhoods.forEach(n => next.delete(hoodKey(id, n.name)));
+      onNeighborhoodsChange(next);
+    }
+  }
+
+  function toggleHood(metroId: string, hoodName: string) {
+    const key = hoodKey(metroId, hoodName);
+    const next = new Set(selectedNeighborhoods);
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
+    onNeighborhoodsChange(next);
+  }
+
+  function selectAllHoods(metroId: string) {
+    const metro = METROS.find(m => m.id === metroId);
+    if (!metro) return;
+    const next = new Set(selectedNeighborhoods);
+    metro.neighborhoods.forEach(n => next.add(hoodKey(metroId, n.name)));
+    onNeighborhoodsChange(next);
+  }
+
+  function deselectAllHoods(metroId: string) {
+    const metro = METROS.find(m => m.id === metroId);
+    if (!metro) return;
+    const next = new Set(selectedNeighborhoods);
+    metro.neighborhoods.forEach(n => next.delete(hoodKey(metroId, n.name)));
+    onNeighborhoodsChange(next);
   }
 
   function toggleExpand(id: string) {
@@ -41,6 +94,14 @@ export function MetroSelector({ selected, onChange }: Props) {
       else next.add(id);
       return next;
     });
+  }
+
+  function hoodCount(metroId: string): { on: number; total: number } {
+    const metro = METROS.find(m => m.id === metroId);
+    if (!metro) return { on: 0, total: 0 };
+    const total = metro.neighborhoods.length;
+    const on = metro.neighborhoods.filter(n => selectedNeighborhoods.has(hoodKey(metroId, n.name))).length;
+    return { on, total };
   }
 
   const lowerSearch = search.toLowerCase();
@@ -63,6 +124,7 @@ export function MetroSelector({ selected, onChange }: Props) {
         {selected.map(id => {
           const metro = METROS.find(m => m.id === id);
           if (!metro) return null;
+          const { on, total } = hoodCount(id);
           return (
             <span
               key={id}
@@ -70,6 +132,7 @@ export function MetroSelector({ selected, onChange }: Props) {
               style={{ backgroundColor: 'color-mix(in srgb, var(--accent) 20%, transparent)', color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)' }}
             >
               {metro.name}
+              <span className="opacity-70">({on}/{total})</span>
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); removeMetro(id); }}
@@ -89,9 +152,9 @@ export function MetroSelector({ selected, onChange }: Props) {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-lg shadow-xl max-h-72 overflow-y-auto" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="absolute z-50 mt-1 w-full rounded-lg shadow-xl max-h-[28rem] overflow-y-auto" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           {/* Search input */}
-          <div className="p-2 border-b sticky top-0" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface)' }}>
+          <div className="p-2 border-b sticky top-0 z-10" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface)' }}>
             <input
               type="text"
               value={search}
@@ -110,6 +173,9 @@ export function MetroSelector({ selected, onChange }: Props) {
             const matchingHoods = search
               ? metro.neighborhoods.filter(n => n.name.toLowerCase().includes(lowerSearch))
               : [];
+            const showHoods = isExpanded || matchingHoods.length > 0;
+            const hoodsToShow = search ? matchingHoods : metro.neighborhoods;
+            const { on, total } = hoodCount(metro.id);
 
             return (
               <div key={metro.id} className="last:border-b-0" style={{ borderBottom: '1px solid color-mix(in srgb, var(--border) 50%, transparent)' }}>
@@ -123,7 +189,13 @@ export function MetroSelector({ selected, onChange }: Props) {
                       style={{ accentColor: 'var(--accent)' }}
                     />
                     <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>{metro.name}</span>
-                    <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{metro.neighborhoods.length} neighborhoods</span>
+                    {isSelected ? (
+                      <span className="text-xs" style={{ color: on === total ? 'var(--accent)' : 'var(--text-dim)' }}>
+                        {on}/{total} neighborhoods
+                      </span>
+                    ) : (
+                      <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{total} neighborhoods</span>
+                    )}
                   </label>
                   <button
                     type="button"
@@ -137,18 +209,51 @@ export function MetroSelector({ selected, onChange }: Props) {
                   </button>
                 </div>
 
-                {(isExpanded || matchingHoods.length > 0) && (
+                {showHoods && (
                   <div className="px-3 pb-2">
-                    <div className="flex flex-wrap gap-1 pl-6">
-                      {(search ? matchingHoods : metro.neighborhoods).map(n => (
-                        <span
-                          key={n.name}
-                          className="text-xs px-2 py-0.5 rounded"
+                    {/* Select All / Deselect All buttons (only when metro is selected) */}
+                    {isSelected && (
+                      <div className="flex gap-2 pl-6 mb-1.5">
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); selectAllHoods(metro.id); }}
+                          className="text-xs px-2 py-0.5 rounded transition-colors hover:opacity-80"
+                          style={{ color: 'var(--accent)', backgroundColor: 'color-mix(in srgb, var(--accent) 10%, transparent)' }}
+                        >
+                          Select all
+                        </button>
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); deselectAllHoods(metro.id); }}
+                          className="text-xs px-2 py-0.5 rounded transition-colors hover:opacity-80"
                           style={{ color: 'var(--text-dim)', backgroundColor: 'color-mix(in srgb, var(--border) 50%, transparent)' }}
                         >
-                          {n.name}
-                        </span>
-                      ))}
+                          Deselect all
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-1 pl-6">
+                      {hoodsToShow.map(n => {
+                        const key = hoodKey(metro.id, n.name);
+                        const isOn = selectedNeighborhoods.has(key);
+                        return (
+                          <button
+                            key={n.name}
+                            type="button"
+                            onClick={e => { e.stopPropagation(); if (isSelected) toggleHood(metro.id, n.name); }}
+                            className="text-xs px-2 py-0.5 rounded-full transition-all"
+                            style={
+                              !isSelected
+                                ? { color: 'var(--text-dim)', backgroundColor: 'color-mix(in srgb, var(--border) 50%, transparent)', cursor: 'default', opacity: 0.6 }
+                                : isOn
+                                  ? { color: 'var(--accent)', backgroundColor: 'color-mix(in srgb, var(--accent) 20%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 40%, transparent)', cursor: 'pointer' }
+                                  : { color: 'var(--text-dim)', backgroundColor: 'color-mix(in srgb, var(--border) 30%, transparent)', border: '1px solid transparent', opacity: 0.5, cursor: 'pointer' }
+                            }
+                          >
+                            {n.name}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -164,3 +269,5 @@ export function MetroSelector({ selected, onChange }: Props) {
     </div>
   );
 }
+
+export { hoodKey };
