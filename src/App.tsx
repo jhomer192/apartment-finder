@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { SearchForm } from './components/SearchForm';
-import { SourcesGrid } from './components/SourcesGrid';
+import { ResultsGrid } from './components/ResultsGrid';
+import { NeighborhoodFilter } from './components/NeighborhoodFilter';
+import { SourceLinksBar } from './components/SourceLinksBar';
 import { MapView } from './components/MapView';
 import { ThemePicker } from './components/ThemePicker';
 import { useSearch } from './hooks/useSearch';
 
-type ViewMode = 'sources' | 'map';
+type ViewMode = 'listings' | 'map';
 
 export default function App() {
-  const [viewMode, setViewMode] = useState<ViewMode>('sources');
+  const [viewMode, setViewMode] = useState<ViewMode>('listings');
+  const [neighborhoodFilters, setNeighborhoodFilters] = useState<Map<string, Set<string>>>(new Map());
   const {
     results,
     loading,
@@ -18,8 +21,34 @@ export default function App() {
     search,
   } = useSearch();
 
-  const totalNeighborhoods = results.reduce((s, r) => s + r.neighborhoods.length, 0);
-  const totalSources = results.length > 0 ? results[0].sources.length : 0;
+  // Filter listings by selected neighborhoods
+  const filteredResults = useMemo(() => {
+    return results.map(result => {
+      const selected = neighborhoodFilters.get(result.metroId);
+      if (!selected || selected.size === 0) return result;
+      return {
+        ...result,
+        listings: result.listings.filter(l => selected.has(l.neighborhood)),
+      };
+    });
+  }, [results, neighborhoodFilters]);
+
+  const totalListings = filteredResults.reduce((s, r) => s + r.listings.length, 0);
+
+  // Initialize neighborhood filters when results change
+  function handleSearch(params: Parameters<typeof search>[0]) {
+    search(params);
+    // Reset filters -- they'll default to showing all
+    setNeighborhoodFilters(new Map());
+  }
+
+  function updateNeighborhoodFilter(metroId: string, selected: Set<string>) {
+    setNeighborhoodFilters(prev => {
+      const next = new Map(prev);
+      next.set(metroId, selected);
+      return next;
+    });
+  }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)' }}>
@@ -39,7 +68,7 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* Search form */}
-        <SearchForm onSearch={search} loading={loading} />
+        <SearchForm onSearch={handleSearch} loading={loading} />
 
         {/* Error */}
         {error && (
@@ -54,17 +83,16 @@ export default function App() {
             {/* Controls bar */}
             <div className="flex flex-wrap items-center justify-between gap-4">
               <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
-                <span className="font-medium" style={{ color: 'var(--text)' }}>{totalSources}</span> search engines across{' '}
-                <span className="font-medium" style={{ color: 'var(--text)' }}>{results.length}</span> metro{results.length !== 1 ? 's' : ''}{' '}
-                <span style={{ color: 'var(--text-dim)' }}>({totalNeighborhoods} neighborhoods)</span>
+                <span className="font-medium" style={{ color: 'var(--text)' }}>{totalListings}</span> listing{totalListings !== 1 ? 's' : ''} across{' '}
+                <span className="font-medium" style={{ color: 'var(--text)' }}>{results.length}</span> metro{results.length !== 1 ? 's' : ''}
               </p>
 
               {/* View toggle */}
               <div className="flex items-center rounded-lg border p-0.5" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                 <button
-                  onClick={() => setViewMode('sources')}
+                  onClick={() => setViewMode('listings')}
                   className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                  style={viewMode === 'sources'
+                  style={viewMode === 'listings'
                     ? { backgroundColor: 'var(--border)', color: 'var(--text)' }
                     : { color: 'var(--text-dim)' }}
                 >
@@ -75,7 +103,7 @@ export default function App() {
                       <rect x="3" y="14" width="7" height="7" rx="1" />
                       <rect x="14" y="14" width="7" height="7" rx="1" />
                     </svg>
-                    Sources
+                    Listings
                   </span>
                 </button>
                 <button
@@ -96,8 +124,38 @@ export default function App() {
             </div>
 
             {/* Main content */}
-            {viewMode === 'sources' ? (
-              <SourcesGrid results={results} />
+            {viewMode === 'listings' ? (
+              <div className="space-y-8">
+                {filteredResults.map(result => (
+                  <div key={result.metroId} className="space-y-4">
+                    {results.length > 1 && (
+                      <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                        <svg className="w-5 h-5" style={{ color: 'var(--accent)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        {result.metroName}
+                      </h3>
+                    )}
+
+                    {/* Neighborhood filter pills */}
+                    <NeighborhoodFilter
+                      neighborhoods={result.neighborhoods.map(n => n.name)}
+                      selected={neighborhoodFilters.get(result.metroId) ?? new Set(result.neighborhoods.map(n => n.name))}
+                      onChange={(sel) => updateNeighborhoodFilter(result.metroId, sel)}
+                    />
+
+                    {/* Listing cards grid */}
+                    <ResultsGrid
+                      listings={result.listings}
+                      metroName={result.metroName}
+                    />
+
+                    {/* Source links bar */}
+                    <SourceLinksBar sources={result.sources} />
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="space-y-4">
                 <MapView results={results} officeCoords={officeCoords} />
@@ -156,8 +214,8 @@ export default function App() {
             </svg>
             <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text)' }}>Find your next apartment</h2>
             <p className="max-w-md mx-auto" style={{ color: 'var(--text-dim)' }}>
-              Enter your metro area, budget, and office address above. We'll generate pre-filled search links
-              across 9 apartment sites and show commute times to every neighborhood.
+              Enter your metro area, budget, and office address above. We'll show estimated listings with
+              prices, amenities, and commute times across every neighborhood.
             </p>
           </div>
         )}
@@ -169,7 +227,7 @@ export default function App() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            <p style={{ color: 'var(--text-dim)' }}>Building search links...</p>
+            <p style={{ color: 'var(--text-dim)' }}>Finding apartments...</p>
           </div>
         )}
       </main>
@@ -177,7 +235,9 @@ export default function App() {
       {/* Footer */}
       <footer className="border-t mt-12" style={{ borderColor: 'var(--border)' }}>
         <div className="max-w-7xl mx-auto px-4 py-6 text-center text-xs" style={{ color: 'var(--text-dim)' }}>
-          Apartment Finder — Search aggregator across 9 rental sites. Commute times are estimates based on straight-line distance.
+          Estimated listings based on market data. Click "View Listing" to see real listings on each source.
+          <br />
+          Commute times are estimates based on straight-line distance.
         </div>
       </footer>
     </div>

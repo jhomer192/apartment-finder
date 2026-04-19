@@ -33,6 +33,31 @@ export interface NeighborhoodCommute {
   commuteColor: 'green' | 'yellow' | 'orange' | 'red';
 }
 
+export type SourceId = 'zillow' | 'apartments' | 'craigslist' | 'trulia' | 'redfin' | 'facebook' | 'hotpads' | 'rent' | 'padmapper';
+
+export interface Listing {
+  id: string;
+  title: string;
+  price: number;
+  bedrooms: number;
+  bathrooms: number;
+  sqft: number;
+  address: string;
+  neighborhood: string;
+  amenities: string[];
+  sourceId: SourceId;
+  sourceName: string;
+  sourceColor: string;
+  url: string;
+  commuteMinutes: number;
+  commuteColor: 'green' | 'yellow' | 'orange' | 'red';
+  metroId: string;
+  gradientFrom: string;
+  gradientTo: string;
+}
+
+export type SortOption = 'price-asc' | 'price-desc' | 'commute' | 'sqft-desc' | 'ppsqft';
+
 export interface SearchResult {
   metroId: string;
   metroName: string;
@@ -47,4 +72,5 @@ export interface SearchResult {
     url: string;
   }>;
   neighborhoods: NeighborhoodCommute[];
+  listings: Listing[];
 }

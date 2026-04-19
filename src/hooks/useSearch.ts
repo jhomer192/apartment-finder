@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import type { SearchParams, SearchResult, NeighborhoodCommute } from '../types';
 import { SEARCH_SOURCES } from '../data/sources';
 import { getMetroById } from '../data/metros';
+import { generateListings } from '../data/mockListings';
 import { haversineDistance, getCommuteColor, geocodeOfficeAddress } from '../utils/commute';
 
 export function useSearch() {
@@ -59,6 +60,16 @@ export function useSearch() {
           };
         }).sort((a, b) => a.estimatedMinutes - b.estimatedMinutes);
 
+        // Generate mock listings
+        const listings = generateListings(
+          metro,
+          neighborhoods,
+          null, // all neighborhoods initially
+          params.bedrooms,
+          params.minRent,
+          params.maxRent,
+        );
+
         // Center of the metro area
         const centerLat = metro.neighborhoods.reduce((s, n) => s + n.lat, 0) / metro.neighborhoods.length;
         const centerLng = metro.neighborhoods.reduce((s, n) => s + n.lng, 0) / metro.neighborhoods.length;
@@ -74,6 +85,7 @@ export function useSearch() {
           centerLng,
           sources,
           neighborhoods,
+          listings,
         };
       });
 
