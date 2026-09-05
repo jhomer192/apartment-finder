@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { bathroomsInRange } from './rooms';
+import { bathroomsInRange, pricePerBedroom } from './rooms';
 import { DEFAULT_SEARCH } from '../data/search';
-import type { SearchParams } from '../types';
+import type { Listing, SearchParams } from '../types';
+
+function listing(price: number, bedrooms: number): Listing {
+  return { price, bedrooms } as Listing;
+}
 
 function params(overrides: Partial<SearchParams> = {}): SearchParams {
   return { ...DEFAULT_SEARCH, ...overrides };
@@ -24,5 +28,16 @@ describe('bathroomsInRange', () => {
   it('drops listings whose bath count nobody published once a bound is set', () => {
     expect(bathroomsInRange(null, params({ minBathrooms: 2 }))).toBe(false);
     expect(bathroomsInRange(null, params({ maxBathrooms: 2 }))).toBe(false);
+  });
+});
+
+describe('pricePerBedroom', () => {
+  it('splits rent across the bedrooms', () => {
+    expect(pricePerBedroom(listing(6000, 4))).toBe(1500);
+    expect(pricePerBedroom(listing(3000, 1))).toBe(3000);
+  });
+
+  it('charges a studio its whole rent instead of dividing by zero', () => {
+    expect(pricePerBedroom(listing(2400, 0))).toBe(2400);
   });
 });

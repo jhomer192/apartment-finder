@@ -1,8 +1,9 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import type { SearchParams } from './types';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import type { SearchParams, SortOption } from './types';
 import { SearchForm } from './components/SearchForm';
 import { DEFAULT_SEARCH } from './data/search';
 import { ResultsGrid } from './components/ResultsGrid';
+import { SortSelect } from './components/SortSelect';
 import { NeighborhoodFilter } from './components/NeighborhoodFilter';
 import { SourceLinksBar } from './components/SourceLinksBar';
 import { MapView } from './components/MapView';
@@ -24,6 +25,30 @@ type ViewMode = 'listings' | 'map';
 
 const parseNeighborhoods = (raw: string): Set<string> => new Set(JSON.parse(raw) as string[]);
 const serializeNeighborhoods = (value: Set<string>): string => JSON.stringify([...value]);
+const parseSort = (raw: string): SortOption => raw as SortOption;
+const serializeSort = (value: SortOption): string => value;
+
+function roomLabel(min: number | null, max: number | null, unit: string): string | null {
+  if (min === null && max === null) return null;
+  if (min !== null && min === max) return `${min} ${unit}`;
+  if (min === null) return `up to ${max} ${unit}`;
+  if (max === null) return `${min}+ ${unit}`;
+  return `${min}\u2013${max} ${unit}`;
+}
+
+/** Plain-language summary of what is narrowing the list, so nobody wonders why it is short. */
+function filterLabels(params: SearchParams, neighborhoods: Set<string>): string[] {
+  const labels: string[] = [];
+  if (params.minRent !== DEFAULT_SEARCH.minRent || params.maxRent !== DEFAULT_SEARCH.maxRent) {
+    labels.push(`$${params.minRent.toLocaleString()}\u2013$${params.maxRent.toLocaleString()}`);
+  }
+  const beds = roomLabel(params.minBedrooms, params.maxBedrooms, 'bd');
+  if (beds) labels.push(beds);
+  const baths = roomLabel(params.minBathrooms, params.maxBathrooms, 'ba');
+  if (baths) labels.push(baths);
+  for (const name of neighborhoods) labels.push(name);
+  return labels;
+}
 
 export default function App() {
   const { user, loading: authLoading, error: authError, signOut, refresh } = useAuth();
@@ -61,6 +86,7 @@ function Finder({
   onPasswordSet: () => void;
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>('listings');
+  const [sort, setSort] = useStickyState<SortOption>('sort', 'scam', parseSort, serializeSort);
   const [neighborhoods, setNeighborhoods] = useStickyState<Set<string>>(
     'neighborhoods',
     new Set(),
@@ -75,15 +101,15 @@ function Finder({
     search,
   } = useSearch();
 
-  const lastSearch = useRef<SearchParams>(DEFAULT_SEARCH);
+  const [activeSearch, setActiveSearch] = useState<SearchParams>(DEFAULT_SEARCH);
 
   useEffect(() => {
     search(DEFAULT_SEARCH);
   }, [search]);
 
   const rerunSearch = useCallback(() => {
-    search(lastSearch.current);
-  }, [search]);
+    search(activeSearch);
+  }, [search, activeSearch]);
 
   const result = results[0] ?? null;
 
@@ -107,10 +133,16 @@ function Finder({
   );
 
   function handleSearch(params: SearchParams) {
-    lastSearch.current = params;
+    setActiveSearch(params);
     search(params);
     setNeighborhoods(new Set());
   }
+
+  function handleClearAll() {
+    handleSearch(DEFAULT_SEARCH);
+  }
+
+  const activeFilters = filterLabels(activeSearch, neighborhoods);
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)' }}>
@@ -141,7 +173,7 @@ function Finder({
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         <ClaudeSearch />
 
-        <SearchForm onSearch={handleSearch} loading={loading} />
+        <SearchForm onSearch={handleSearch} onClearAll={handleClearAll} loading={loading} />
 
         {/* Error */}
         {error && (
@@ -156,45 +188,77 @@ function Finder({
             <SourceStatusBar sources={result.sourceStatuses} />
             <InventoryBar onRefreshed={rerunSearch} />
 
-            {/* Controls bar */}
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            {/* Controls bar: count, sort, active filters and view live together so the
+                results header is the one place to steer the list from. */}
+            <div
+              className="sticky top-[61px] z-20 -mx-4 px-4 py-3 flex flex-wrap items-center gap-3 border-b backdrop-blur-sm"
+              style={{ borderColor: 'var(--border)', backgroundColor: 'color-mix(in srgb, var(--bg) 85%, transparent)' }}
+            >
               <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
                 <span className="font-medium" style={{ color: 'var(--text)' }}>{visibleListings.length}</span> apartment{visibleListings.length !== 1 ? 's' : ''} in San Francisco
               </p>
 
-              {/* View toggle */}
-              <div className="flex items-center rounded-lg border p-0.5" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-                <button
-                  onClick={() => setViewMode('listings')}
-                  className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                  style={viewMode === 'listings'
-                    ? { backgroundColor: 'var(--border)', color: 'var(--text)' }
-                    : { color: 'var(--text-dim)' }}
+              {activeFilters.map((label) => (
+                <span
+                  key={label}
+                  className="text-xs px-2 py-0.5 rounded-full"
+                  style={{
+                    backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)',
+                    color: 'var(--accent)',
+                  }}
                 >
-                  <span className="flex items-center gap-1.5">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <rect x="3" y="3" width="7" height="7" rx="1" />
-                      <rect x="14" y="3" width="7" height="7" rx="1" />
-                      <rect x="3" y="14" width="7" height="7" rx="1" />
-                      <rect x="14" y="14" width="7" height="7" rx="1" />
-                    </svg>
-                    Listings
-                  </span>
-                </button>
+                  {label}
+                </span>
+              ))}
+
+              {activeFilters.length > 0 && (
                 <button
-                  onClick={() => setViewMode('map')}
-                  className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                  style={viewMode === 'map'
-                    ? { backgroundColor: 'var(--border)', color: 'var(--text)' }
-                    : { color: 'var(--text-dim)' }}
+                  type="button"
+                  onClick={handleClearAll}
+                  className="text-xs font-medium underline"
+                  style={{ color: 'var(--accent)' }}
                 >
-                  <span className="flex items-center gap-1.5">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                    </svg>
-                    Map
-                  </span>
+                  Clear all
                 </button>
+              )}
+
+              <div className="ml-auto flex items-center gap-3">
+                <SortSelect sort={sort} onChange={setSort} />
+
+                {/* View toggle */}
+                <div className="flex items-center rounded-lg border p-0.5" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  <button
+                    onClick={() => setViewMode('listings')}
+                    className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                    style={viewMode === 'listings'
+                      ? { backgroundColor: 'var(--border)', color: 'var(--text)' }
+                      : { color: 'var(--text-dim)' }}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <rect x="3" y="3" width="7" height="7" rx="1" />
+                        <rect x="14" y="3" width="7" height="7" rx="1" />
+                        <rect x="3" y="14" width="7" height="7" rx="1" />
+                        <rect x="14" y="14" width="7" height="7" rx="1" />
+                      </svg>
+                      Listings
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('map')}
+                    className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                    style={viewMode === 'map'
+                      ? { backgroundColor: 'var(--border)', color: 'var(--text)' }
+                      : { color: 'var(--text-dim)' }}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                      </svg>
+                      Map
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -209,7 +273,7 @@ function Finder({
 
             {viewMode === 'listings' ? (
               <div className="space-y-4">
-                <ResultsGrid listings={visibleListings} onClearNeighborhoods={() => setNeighborhoods(new Set())} />
+                <ResultsGrid listings={visibleListings} sort={sort} onClearNeighborhoods={() => setNeighborhoods(new Set())} />
                 <SourceLinksBar sources={result.sources} />
               </div>
             ) : (

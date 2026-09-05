@@ -73,6 +73,7 @@ export type SortOption =
   | 'scam-desc'
   | 'sqft-desc'
   | 'ppsqft'
+  | 'ppbed'
   | 'scam'
   | 'transit'
   | 'incidents'

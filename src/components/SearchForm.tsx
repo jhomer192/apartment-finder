@@ -4,6 +4,8 @@ import { DEFAULT_SEARCH } from '../data/search';
 
 interface Props {
   onSearch: (params: SearchParams) => void;
+  /** Puts the search back to every SF listing, including any neighborhood pills. */
+  onClearAll: () => void;
   loading: boolean;
 }
 
@@ -79,13 +81,23 @@ function RoomRange({ id, label, optionLabel, min, max, onMin, onMax }: RangeProp
   );
 }
 
-export function SearchForm({ onSearch, loading }: Props) {
+export function SearchForm({ onSearch, onClearAll, loading }: Props) {
   const [minRent, setMinRent] = useState(DEFAULT_SEARCH.minRent);
   const [maxRent, setMaxRent] = useState(DEFAULT_SEARCH.maxRent);
   const [minBedrooms, setMinBedrooms] = useState<string>('any');
   const [maxBedrooms, setMaxBedrooms] = useState<string>('any');
   const [minBathrooms, setMinBathrooms] = useState<string>('any');
   const [maxBathrooms, setMaxBathrooms] = useState<string>('any');
+
+  function handleClear() {
+    setMinRent(DEFAULT_SEARCH.minRent);
+    setMaxRent(DEFAULT_SEARCH.maxRent);
+    setMinBedrooms('any');
+    setMaxBedrooms('any');
+    setMinBathrooms('any');
+    setMaxBathrooms('any');
+    onClearAll();
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -101,7 +113,7 @@ export function SearchForm({ onSearch, loading }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 items-end">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 items-end">
         <div>
           <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-dim)' }} htmlFor="min-rent">
             Rent from
@@ -161,6 +173,16 @@ export function SearchForm({ onSearch, loading }: Props) {
           style={{ backgroundColor: 'var(--accent)', color: 'var(--bg)' }}
         >
           {loading ? 'Loading…' : 'Update listings'}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleClear}
+          disabled={loading}
+          className="font-medium py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50"
+          style={{ border: '1px solid var(--border)', color: 'var(--text-dim)' }}
+        >
+          Clear all
         </button>
       </div>
     </form>

@@ -5,6 +5,7 @@ import { ScamBadge } from './ScamBadge';
 import { useCommute } from '../hooks/useCommute';
 import { clockLabel, commuteUrl, googleMapsUrl } from '../utils/maps';
 import { AreaFactsRow } from './AreaFactsRow';
+import { pricePerBedroom } from '../utils/rooms';
 import { ListingMiniMap } from './ListingMiniMap';
 import { SafetyRating } from './SafetyRating';
 
@@ -41,6 +42,7 @@ export function ListingCard({ listing }: Props) {
   });
 
   const ppsqft = listing.sqft ? Math.round((listing.price / listing.sqft) * 100) / 100 : null;
+  const perBedroom = Math.round(pricePerBedroom(listing));
   const bedsLabel = listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} bd`;
   const bathsLabel = listing.bathrooms === null ? '— ba' : `${listing.bathrooms} ba`;
   const sqftLabel = listing.sqft === null ? 'sqft n/a' : `${listing.sqft.toLocaleString()} sqft`;
@@ -236,6 +238,9 @@ export function ListingCard({ listing }: Props) {
         <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-dim)' }}>
           <span>{bedsLabel} / {bathsLabel}</span>
           <span>{sqftLabel}</span>
+          <span title="Rent split evenly by bedroom, so a big place shared by the group can beat a cheaper small one.">
+            ${perBedroom.toLocaleString()}/bd
+          </span>
           {ppsqft !== null && <span>${ppsqft.toFixed(2)}/sqft</span>}
           {listing.factsFrom && (
             <span

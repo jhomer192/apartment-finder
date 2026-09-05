@@ -1,9 +1,10 @@
 import type { Listing, SortOption } from '../types';
 import { ListingCard } from './ListingCard';
-import { useStickyState } from '../hooks/useStickyState';
+import { pricePerBedroom } from '../utils/rooms';
 
 interface Props {
   listings: Listing[];
+  sort: SortOption;
   onClearNeighborhoods: () => void;
 }
 
@@ -38,6 +39,8 @@ function sortListings(listings: Listing[], sort: SortOption): Listing[] {
       return copy.sort((a, b) => (b.sqft ?? 0) - (a.sqft ?? 0));
     case 'ppsqft':
       return copy.sort((a, b) => pricePerSqft(a) - pricePerSqft(b));
+    case 'ppbed':
+      return copy.sort((a, b) => pricePerBedroom(a) - pricePerBedroom(b));
     case 'scam':
       return copy.sort((a, b) => a.scam.score - b.scam.score || a.price - b.price);
     case 'transit':
@@ -51,43 +54,11 @@ function sortListings(listings: Listing[], sort: SortOption): Listing[] {
   }
 }
 
-const parseSort = (raw: string): SortOption => raw as SortOption;
-const serializeSort = (value: SortOption): string => value;
-
-export function ResultsGrid({ listings, onClearNeighborhoods }: Props) {
-  const [sort, setSort] = useStickyState<SortOption>('sort', 'scam', parseSort, serializeSort);
-
+export function ResultsGrid({ listings, sort, onClearNeighborhoods }: Props) {
   const sorted = sortListings(listings, sort);
 
   return (
     <div>
-      {/* Header bar */}
-      <div className="flex flex-wrap items-center justify-end gap-3 mb-4">
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-medium" style={{ color: 'var(--text-dim)' }}>Sort by:</label>
-          <select
-            value={sort}
-            onChange={e => setSort(e.target.value as SortOption)}
-            className="text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-            style={{
-              backgroundColor: 'var(--surface)',
-              border: '1px solid var(--border)',
-              color: 'var(--text)',
-            }}
-          >
-            <option value="scam">Safest first</option>
-            <option value="price-asc">Price: Low to High</option>
-            <option value="price-desc">Price: High to Low</option>
-            <option value="scam-desc">Riskiest first</option>
-            <option value="sqft-desc">Largest</option>
-            <option value="ppsqft">Price/sqft</option>
-            <option value="transit">Closest to a train</option>
-            <option value="safety">Best area safety rating</option>
-            <option value="incidents">Lowest incident rate per resident</option>
-          </select>
-        </div>
-      </div>
-
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {sorted.map(listing => (
