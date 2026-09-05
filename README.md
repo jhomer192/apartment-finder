@@ -9,6 +9,8 @@ scam risk, and lets the group ask Claude questions about what's on screen.
 - **Scam probability score** — 0–100 per listing with the reasons that produced it
 - **Invite-only access** — email sign-in links, restricted to an email allowlist
 - **Ask Claude** — questions answered against the listings currently displayed
+- **Shared shortlist** — one list for the whole group, with per-listing status, notes, and a
+  Claude-drafted inquiry message
 - **Neighborhood filter, commute estimates, map view** — as before
 
 ## Running it
@@ -87,6 +89,16 @@ Backed by the Claude Code CLI in headless mode (`claude -p`), which uses a Claud
 rather than a metered API key. Set `CLAUDE_CODE_OAUTH_TOKEN` to a token from `claude setup-token`.
 Without it the app still runs; `/api/ask` returns 503 and scoring falls back to heuristics only.
 
+## Shortlist and contacting
+
+The shortlist is server-side and shared: whoever hearts a listing, everyone sees it, along with
+the status (`saved`/`contacted`/`touring`/`applied`/`passed`) and the group's notes. Saving stores
+a snapshot of the listing, so a place stays readable after the source delists it.
+
+`POST /api/contact-draft` writes an inquiry with Claude and hands it back for the group to send —
+the server never sends anything. Contact affordances only use what the source published: a `tel:`
+link when it gave a leasing phone, `mailto:` when it gave an email, and otherwise the listing URL.
+
 ## Deploying
 
 Node 22+ required. On the VPS:
@@ -103,4 +115,4 @@ app and a writable `data/` directory for the SQLite file.
 ## Tech
 
 React + TypeScript + Vite frontend, Express + SQLite (better-sqlite3) backend. `npm test` covers
-the scam heuristics.
+the scam heuristics, the ApartmentList parser, and the shortlist.
