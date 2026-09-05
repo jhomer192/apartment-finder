@@ -110,22 +110,53 @@ export function ClaudeSearch() {
 
   return (
     <div
-      className="rounded-xl border p-5 space-y-4"
-      style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+      className="rounded-2xl border-2 p-6 sm:p-8 space-y-5"
+      style={{
+        backgroundColor: 'var(--surface)',
+        borderColor: 'var(--accent)',
+        boxShadow: '0 10px 40px -20px var(--accent)',
+      }}
     >
-      <div>
-        <h2 className="font-semibold" style={{ color: 'var(--text)' }}>
-          Ask Claude
-        </h2>
-        <p className="text-xs mt-0.5" style={{ color: 'var(--text-dim)' }}>
-          {history.length > 0
-            ? 'Ask a follow-up — Claude remembers the last few questions.'
-            : 'Describe what you want; Claude searches every listing we have and ranks the deals.'}
-        </p>
+      <div className="flex items-start gap-3">
+        <span
+          className="flex items-center justify-center w-10 h-10 rounded-xl text-white shrink-0"
+          style={{ backgroundColor: 'var(--accent)' }}
+          aria-hidden
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2l1.9 5.6L19.5 9l-5.6 1.9L12 16.5l-1.9-5.6L4.5 9l5.6-1.4L12 2z" />
+            <path d="M18.5 14l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9.9-2.6z" opacity="0.7" />
+          </svg>
+        </span>
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>
+            Ask Claude
+          </h2>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>
+            {history.length > 0
+              ? 'Ask a follow-up in plain English — Claude remembers the last few questions.'
+              : 'Chat in plain English. Claude reads every listing we have, ranks the deals and flags the sketchy ones.'}
+          </p>
+        </div>
       </div>
 
+      {history.length > 0 && (
+        <div className="space-y-2">
+          {history.map((turn) => (
+            <div key={turn.question} className="flex justify-end">
+              <p
+                className="text-sm rounded-2xl rounded-br-sm px-3.5 py-2 max-w-[80%] text-white"
+                style={{ backgroundColor: 'var(--accent)' }}
+              >
+                {turn.question}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
       <form
-        className="flex gap-2"
+        className="flex flex-col sm:flex-row gap-2"
         onSubmit={(event) => {
           event.preventDefault();
           void submit(question);
@@ -134,18 +165,18 @@ export function ClaudeSearch() {
         <input
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
-          placeholder="2br under $4,500 walkable to Caltrain, no scams"
+          placeholder="e.g. 2br under $4,500 walkable to Caltrain, nothing sketchy"
           maxLength={500}
-          className="flex-1 rounded-lg px-3 py-2 text-sm border outline-none"
+          className="flex-1 rounded-xl px-4 py-3.5 text-base border-2 outline-none"
           style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
         />
         <button
           type="submit"
           disabled={pending || question.trim().length < 3}
-          className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
+          className="px-6 py-3.5 rounded-xl text-base font-semibold text-white disabled:opacity-50"
           style={{ backgroundColor: 'var(--accent)' }}
         >
-          {pending ? 'Searching…' : history.length > 0 ? 'Ask' : 'Search'}
+          {pending ? 'Thinking…' : history.length > 0 ? 'Ask' : 'Ask Claude'}
         </button>
         {history.length > 0 && (
           <button
@@ -154,7 +185,7 @@ export function ClaudeSearch() {
               setHistory([]);
               setResult(null);
             }}
-            className="px-3 py-2 rounded-lg text-sm font-medium border"
+            className="px-4 py-3.5 rounded-xl text-sm font-medium border"
             style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
           >
             Start over
@@ -162,7 +193,7 @@ export function ClaudeSearch() {
         )}
       </form>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-2">
         {SUGGESTIONS.map((suggestion) => (
           <button
             key={suggestion}
@@ -171,13 +202,19 @@ export function ClaudeSearch() {
               setQuestion(suggestion);
               void submit(suggestion);
             }}
-            className="text-[11px] px-2.5 py-1 rounded-full border"
+            className="text-xs px-3 py-1.5 rounded-full border"
             style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
           >
             {suggestion}
           </button>
         ))}
       </div>
+
+      {pending && (
+        <p className="text-sm animate-pulse" style={{ color: 'var(--text-dim)' }}>
+          Claude is reading every listing — this can take up to a minute.
+        </p>
+      )}
 
       {error && (
         <p
@@ -191,7 +228,7 @@ export function ClaudeSearch() {
       {result && (
         <div className="space-y-3">
           <p
-            className="text-sm whitespace-pre-wrap leading-relaxed rounded-lg px-3 py-2"
+            className="text-base whitespace-pre-wrap leading-relaxed rounded-xl px-4 py-3"
             style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
           >
             {result.answer}
