@@ -24,22 +24,23 @@ const BAND_LABEL: Record<ScamBand, string> = {
 
 function createPriceIcon(listing: Listing): L.DivIcon {
   const color = BAND_COLOR[listing.scam.band];
+  const text = listing.scam.band === 'high' ? '#ffffff' : '#0b1220';
   return L.divIcon({
     className: 'listing-marker',
     html: `<div style="
-      background: rgba(15,23,42,0.92);
-      border: 2px solid ${color};
-      border-radius: 14px;
-      padding: 2px 7px;
-      white-space: nowrap;
-      font-size: 11px;
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; height: 100%;
+      background: ${color};
+      border: 1px solid rgba(0,0,0,0.45);
+      border-radius: 11px;
+      font-size: 12px;
       font-weight: 700;
-      color: ${color};
-      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-    ">$${Math.round(listing.price / 100) / 10}k</div>`,
-    iconSize: [0, 0],
-    iconAnchor: [22, 12],
-    popupAnchor: [0, -12],
+      color: ${text};
+      box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+    ">$${(Math.round(listing.price / 100) / 10).toFixed(1)}k</div>`,
+    iconSize: [52, 22],
+    iconAnchor: [26, 11],
+    popupAnchor: [0, -14],
   });
 }
 

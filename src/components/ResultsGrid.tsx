@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import type { Listing, SortOption } from '../types';
 import { ListingCard } from './ListingCard';
+import { useStickyState } from '../hooks/useStickyState';
 
 interface Props {
   listings: Listing[];
@@ -32,8 +32,11 @@ function sortListings(listings: Listing[], sort: SortOption): Listing[] {
   }
 }
 
+const parseSort = (raw: string): SortOption => raw as SortOption;
+const serializeSort = (value: SortOption): string => value;
+
 export function ResultsGrid({ listings, onClearNeighborhoods }: Props) {
-  const [sort, setSort] = useState<SortOption>('scam');
+  const [sort, setSort] = useStickyState<SortOption>('sort', 'scam', parseSort, serializeSort);
 
   const sorted = sortListings(listings, sort);
 

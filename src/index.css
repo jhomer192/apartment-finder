@@ -18,6 +18,11 @@ body {
   filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9);
 }
 
+.listing-marker {
+  background: transparent;
+  border: 0;
+}
+
 .leaflet-popup-content-wrapper {
   background: var(--surface);
   color: var(--text);

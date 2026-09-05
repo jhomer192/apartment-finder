@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { ScamAssessment } from '../api/types';
 
 const BAND_STYLES = {
-  low: { color: '#22c55e', label: 'Nothing suspicious found' },
+  low: { color: '#22c55e', label: 'Nothing suspicious found', labelWithReasons: 'Minor things to check' },
   medium: { color: '#eab308', label: 'Worth a closer look' },
   high: { color: '#ef4444', label: 'Several scam warning signs' },
 } as const;
@@ -14,6 +14,7 @@ interface Props {
 export function ScamBadge({ scam }: Props) {
   const [open, setOpen] = useState(false);
   const band = BAND_STYLES[scam.band];
+  const label = scam.band === 'low' && scam.reasons.length > 0 ? BAND_STYLES.low.labelWithReasons : band.label;
   const hasDetail = scam.reasons.length > 0 || scam.checks.length > 0;
   const summary = scam.reasons[0]
     ?? (scam.checks.length > 0 ? `Passed ${scam.checks.length} check${scam.checks.length === 1 ? '' : 's'} on price, photos and address` : null);
@@ -31,7 +32,7 @@ export function ScamBadge({ scam }: Props) {
         }}
         aria-expanded={open}
       >
-        <span>{band.label}</span>
+        <span>{label}</span>
         <span aria-hidden>{hasDetail ? (open ? '▲ hide' : '▼ why') : ''}</span>
       </button>
 

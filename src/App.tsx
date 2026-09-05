@@ -14,8 +14,12 @@ import { ShortlistProvider } from './components/ShortlistProvider';
 import { ShortlistPanel } from './components/ShortlistPanel';
 import { useSearch } from './hooks/useSearch';
 import { useAuth } from './hooks/useAuth';
+import { useStickyState } from './hooks/useStickyState';
 
 type ViewMode = 'listings' | 'map';
+
+const parseNeighborhoods = (raw: string): Set<string> => new Set(JSON.parse(raw) as string[]);
+const serializeNeighborhoods = (value: Set<string>): string => JSON.stringify([...value]);
 
 export default function App() {
   const { user, loading: authLoading, error: authError, signOut } = useAuth();
@@ -43,7 +47,12 @@ function Gate({ loading, error }: { loading: boolean; error: string | null }) {
 
 function Finder({ email, signOut }: { email: string; signOut: () => Promise<void> }) {
   const [viewMode, setViewMode] = useState<ViewMode>('listings');
-  const [neighborhoods, setNeighborhoods] = useState<Set<string>>(new Set());
+  const [neighborhoods, setNeighborhoods] = useStickyState<Set<string>>(
+    'neighborhoods',
+    new Set(),
+    parseNeighborhoods,
+    serializeNeighborhoods,
+  );
   const {
     results,
     loading,
