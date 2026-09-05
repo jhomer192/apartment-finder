@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { crossListingSignals, mergeAssessments, scoreHeuristics } from './scam.js';
+import { describe, expect, it, vi } from 'vitest';
+import { askClaude } from './claude.js';
+import { assessWithClaude, crossListingSignals, mergeAssessments, scoreHeuristics } from './scam.js';
 import type { RawListing } from './sources/types.js';
+
+vi.mock('./claude.js', () => ({ askClaude: vi.fn(async () => '{"score": 0, "reasons": []}') }));
 
 function listing(overrides: Partial<RawListing> = {}): RawListing {
   return {
@@ -154,6 +157,24 @@ describe('scoreHeuristics', () => {
     );
     expect(result.score).toBe(100);
     expect(result.band).toBe('high');
+  });
+});
+
+describe('assessWithClaude', () => {
+  it('tells Claude a summary listing is missing its text rather than showing it as empty', async () => {
+    await assessWithClaude(listing({ detail: 'summary', description: '', photoCount: 0 }));
+
+    const prompt = vi.mocked(askClaude).mock.calls.at(-1)?.[0] ?? '';
+    expect(prompt).toContain('Photos: not published by this source');
+    expect(prompt).toContain('do not');
+    expect(prompt).not.toContain('Photos: 0');
+  });
+
+  it('shows a full listing its real photo count', async () => {
+    await assessWithClaude(listing({ detail: 'full', photoCount: 0 }));
+
+    const prompt = vi.mocked(askClaude).mock.calls.at(-1)?.[0] ?? '';
+    expect(prompt).toContain('Photos: 0');
   });
 });
 
