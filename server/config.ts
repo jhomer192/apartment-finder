@@ -69,6 +69,11 @@ export const config = {
   smtp: smtp(),
   mailFrom: process.env.MAIL_FROM ?? process.env.SMTP_USER ?? 'apartment-finder@localhost',
   publicUrl: process.env.PUBLIC_URL ?? '',
+  /** Optional: without it, Discord stays unavailable and only email alerts send. */
+  discordWebhookUrl: process.env.DISCORD_WEBHOOK_URL ?? '',
+  alertIntervalMinutes: Number(process.env.ALERT_INTERVAL_MINUTES ?? 60),
+  /** Per sweep, per person — a source glitch should not mail out 300 listings. */
+  alertsPerRun: Number(process.env.ALERTS_PER_RUN ?? 8),
 };
 
 export type Config = typeof config;

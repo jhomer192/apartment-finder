@@ -57,6 +57,34 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_notes_listing ON listing_notes(listing_key);
+
+  CREATE TABLE IF NOT EXISTS alert_prefs (
+    email          TEXT PRIMARY KEY,
+    enabled        INTEGER NOT NULL DEFAULT 0,
+    min_rent       INTEGER NOT NULL DEFAULT 0,
+    max_rent       INTEGER NOT NULL DEFAULT 8000,
+    min_bedrooms   INTEGER NOT NULL DEFAULT 0,
+    neighborhoods  TEXT NOT NULL DEFAULT '[]',
+    max_scam_score INTEGER NOT NULL DEFAULT 25,
+    via_email      INTEGER NOT NULL DEFAULT 1,
+    via_discord    INTEGER NOT NULL DEFAULT 0,
+    updated_at     INTEGER NOT NULL
+  );
+
+  -- What the sweep has ever seen. The first sweep only fills this in, so nobody
+  -- gets mailed the entire back catalogue when alerts are switched on.
+  CREATE TABLE IF NOT EXISTS listings_seen (
+    listing_key   TEXT PRIMARY KEY,
+    first_seen_at INTEGER NOT NULL
+  );
+
+  -- Per person, so two roommates with overlapping filters each get told once.
+  CREATE TABLE IF NOT EXISTS alerts_sent (
+    email       TEXT NOT NULL,
+    listing_key TEXT NOT NULL,
+    sent_at     INTEGER NOT NULL,
+    PRIMARY KEY (email, listing_key)
+  );
 `);
 
 export function purgeExpired(now = Date.now()): void {

@@ -1,4 +1,6 @@
 import type {
+  AlertPrefs,
+  AlertSettings,
   ClaudeSearchResult,
   ContactDraft,
   ListingNote,
@@ -88,6 +90,14 @@ export function fetchListings(query: ListingQuery, signal?: AbortSignal): Promis
   }
   const suffix = params.toString();
   return request(`/api/listings${suffix ? `?${suffix}` : ''}`, { signal });
+}
+
+export function fetchAlertPrefs(): Promise<AlertSettings> {
+  return request('/api/alerts/prefs');
+}
+
+export function saveAlertPrefs(prefs: AlertPrefs): Promise<{ prefs: AlertPrefs }> {
+  return request('/api/alerts/prefs', { method: 'PUT', body: JSON.stringify(prefs) });
 }
 
 export function claudeSearch(question: string): Promise<ClaudeSearchResult> {

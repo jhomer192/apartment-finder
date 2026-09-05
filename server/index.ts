@@ -18,6 +18,13 @@ import {
   sessionTokenFrom,
   setSessionCookie,
 } from './auth.js';
+import {
+  alertPrefsSchema,
+  discordConfigured,
+  getPrefs,
+  setPrefs,
+  startAlertLoop,
+} from './alerts.js';
 import { ClaudeUnavailableError } from './claude.js';
 import { config } from './config.js';
 import { draftInquiry } from './contact.js';
@@ -179,6 +186,27 @@ app.post('/api/search/claude', askLimiter, requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/alerts/prefs', requireAuth, (req, res) => {
+  res.json({
+    prefs: getPrefs(req.user!.email),
+    channels: { email: mailConfigured(), discord: discordConfigured() },
+  });
+});
+
+app.put('/api/alerts/prefs', requireAuth, (req, res) => {
+  const body = alertPrefsSchema.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'Those alert settings are not valid.' });
+    return;
+  }
+  if (body.data.minRent > body.data.maxRent) {
+    res.status(400).json({ error: 'Minimum rent cannot exceed maximum rent.' });
+    return;
+  }
+
+  res.json({ prefs: setPrefs(req.user!.email, body.data) });
+});
+
 const listingKeyParam = z.string().min(3).max(200);
 
 app.get('/api/saved', requireAuth, (_req, res) => {
@@ -276,6 +304,7 @@ if (existsSync(distDir)) {
 
 purgeExpired();
 setInterval(purgeExpired, 60 * 60 * 1000).unref();
+startAlertLoop();
 
 app.listen(config.port, () => {
   console.log(`apartment-finder listening on http://localhost:${config.port}`);

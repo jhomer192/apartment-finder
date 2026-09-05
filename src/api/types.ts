@@ -46,6 +46,22 @@ export interface ListingsResponse {
   fetchedAt: number;
 }
 
+export interface AlertPrefs {
+  enabled: boolean;
+  minRent: number;
+  maxRent: number;
+  minBedrooms: number;
+  neighborhoods: string[];
+  maxScamScore: number;
+  viaEmail: boolean;
+  viaDiscord: boolean;
+}
+
+export interface AlertSettings {
+  prefs: AlertPrefs;
+  channels: { email: boolean; discord: boolean };
+}
+
 export interface SearchPlan {
   minRent: number;
   maxRent: number;

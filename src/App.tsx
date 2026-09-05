@@ -6,6 +6,7 @@ import { SourceLinksBar } from './components/SourceLinksBar';
 import { MapView } from './components/MapView';
 import { ThemePicker } from './components/ThemePicker';
 import { ClaudeSearch } from './components/ClaudeSearch';
+import { AlertSettings } from './components/AlertSettings';
 import { SignInGate } from './components/SignInGate';
 import { SourceStatusBar } from './components/SourceStatusBar';
 import { ShortlistProvider } from './components/ShortlistProvider';
@@ -113,6 +114,8 @@ function Finder({ email, signOut }: { email: string; signOut: () => Promise<void
         <SearchForm onSearch={handleSearch} loading={loading} />
 
         <ShortlistPanel />
+
+        <AlertSettings />
 
         {/* Error */}
         {error && (

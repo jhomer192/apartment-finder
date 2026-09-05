@@ -10,6 +10,7 @@ scam risk, and lets the group ask Claude questions about what's on screen.
 - **Invite-only access** — email sign-in links, restricted to an email allowlist
 - **Claude search** — plain-English requests answered against every listing, ranked good deal to
   scam risk
+- **New-listing alerts** — per-person filters, delivered by email and/or Discord
 - **Shared shortlist** — one list for the whole group, with per-listing status, notes, and a
   Claude-drafted inquiry message
 - **Neighborhood filter, commute estimates, map view** — as before
@@ -114,6 +115,20 @@ a snapshot of the listing, so a place stays readable after the source delists it
 `POST /api/contact-draft` writes an inquiry with Claude and hands it back for the group to send —
 the server never sends anything. Contact affordances only use what the source published: a `tel:`
 link when it gave a leasing phone, `mailto:` when it gave an email, and otherwise the listing URL.
+
+## New-listing alerts
+
+Every hour (`ALERT_INTERVAL_MINUTES`) the server pulls the sources and diffs them against
+`listings_seen`. Anything it has never seen is new; the first sweep after a fresh database only
+fills that table, so turning alerts on never mails out the existing back catalogue.
+
+Each person sets their own filter (rent range, minimum bedrooms, neighborhoods, scam ceiling) and
+channels via `GET`/`PUT /api/alerts/prefs`. Delivery is capped at `ALERTS_PER_RUN` per person per
+sweep, and a listing is recorded as sent only after a channel actually accepted it, so a failed
+send retries on the next sweep rather than disappearing.
+
+Email reuses the sign-in SMTP settings. Discord posts to `DISCORD_WEBHOOK_URL`; without it the
+Discord toggle is disabled in the UI and ignored server-side.
 
 ## Deploying
 

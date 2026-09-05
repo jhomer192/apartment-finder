@@ -28,6 +28,17 @@ export function mailConfigured(): boolean {
   return config.smtp !== null;
 }
 
+export async function sendAlertEmail(email: string, entries: string[]): Promise<void> {
+  const heading = `${entries.length} new SF listing${entries.length === 1 ? '' : 's'}`;
+  const settings = config.publicUrl ? `\n\nChange or turn off alerts: ${config.publicUrl}` : '';
+  await transporter().sendMail({
+    from: config.mailFrom,
+    to: email,
+    subject: `Apartment Finder: ${heading}`,
+    text: [`${heading} matching your alert filter:`, '', entries.join('\n\n'), settings].join('\n'),
+  });
+}
+
 export async function sendSignInLink(email: string, url: string, expiresAt: number): Promise<void> {
   const expires = new Date(expiresAt).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' });
   await transporter().sendMail({
