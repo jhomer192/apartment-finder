@@ -119,6 +119,17 @@ describe('applyPlan', () => {
     expect(kept.map((item) => item.key).sort()).toEqual(['ensuite', 'unknown']);
   });
 
+  it('sorts a group budget by the share each person pays, not the whole rent', () => {
+    const listings = [
+      listing({ key: 'studio', price: 2400, bedrooms: 0 }),
+      listing({ key: 'four-share', price: 6800, bedrooms: 4 }),
+    ];
+    expect(applyPlan(listings, plan({ sort: 'per-bedroom-asc' })).map((i) => i.key)).toEqual([
+      'four-share',
+      'studio',
+    ]);
+  });
+
   it('fills in an unconstrained plan when Claude omits keys', () => {
     expect(plan()).toEqual({
       minRent: 0,

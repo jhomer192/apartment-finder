@@ -22,7 +22,7 @@ export const planSchema = z.object({
   neighborhoods: z.array(z.string().max(60)).max(20).default([]),
   maxScamScore: z.number().int().min(0).max(100).default(100),
   keywords: z.array(z.string().max(40)).max(10).default([]),
-  sort: z.enum(['value', 'price-asc', 'price-desc', 'safest']).default('value'),
+  sort: z.enum(['value', 'price-asc', 'price-desc', 'per-bedroom-asc', 'safest']).default('value'),
 });
 
 export type SearchPlan = z.infer<typeof planSchema>;
@@ -127,6 +127,7 @@ export function applyPlan(listings: ScoredListing[], plan: SearchPlan): ScoredLi
   const order: Record<SearchPlan['sort'], (a: ScoredListing, b: ScoredListing) => number> = {
     'price-asc': (a, b) => a.price - b.price,
     'price-desc': (a, b) => b.price - a.price,
+    'per-bedroom-asc': (a, b) => a.price / shares(a) - b.price / shares(b),
     safest: (a, b) => a.scam.score - b.scam.score || a.price - b.price,
     value: (a, b) => valueDelta(b, medians) - valueDelta(a, medians),
   };
@@ -176,7 +177,10 @@ async function planFor(question: string, history: Turn[]): Promise<SearchPlan> {
     'Return ONLY JSON with these keys, omitting any that the request does not constrain:',
     '{"minRent": int, "maxRent": int, "maxRentPerBedroom": int, "bedrooms": int[],',
     ' "minBathrooms": number, "bathsPerBedroom": number, "neighborhoods": string[],',
-    ' "maxScamScore": int (0-100), "keywords": string[], "sort": "value"|"price-asc"|"price-desc"|"safest"}',
+    ' "maxScamScore": int (0-100), "keywords": string[],',
+    ' "sort": "value"|"price-asc"|"price-desc"|"per-bedroom-asc"|"safest"}',
+    'Cheapest for a group splitting rent is per-bedroom-asc; price-asc just finds',
+    'the smallest units.',
     'Use a studio as bedrooms 0. Keywords match listing text; use them only for',
     'concrete features (parking, laundry, pets), never for neighborhoods, price,',
     'bedroom or bathroom counts, which have their own keys.',

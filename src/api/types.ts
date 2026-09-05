@@ -112,7 +112,7 @@ export interface SearchPlan {
   neighborhoods: string[];
   maxScamScore: number;
   keywords: string[];
-  sort: 'value' | 'price-asc' | 'price-desc' | 'safest';
+  sort: 'value' | 'price-asc' | 'price-desc' | 'per-bedroom-asc' | 'safest';
 }
 
 export interface RankedListing {
