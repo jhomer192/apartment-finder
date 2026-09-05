@@ -75,6 +75,12 @@ describe('railKind', () => {
     expect(railKind({ operator: 'Peninsula Corridor Joint Powers Board' })).toBe('Caltrain');
   });
 
+  it('keeps stations that name their line only on the network tag', () => {
+    expect(railKind({ network: 'Caltrain', railway: 'station', name: '22nd Street' })).toBe(
+      'Caltrain',
+    );
+  });
+
   it('drops stops from operators we cannot name', () => {
     expect(railKind({ operator: 'Some Heritage Railway' })).toBeNull();
     expect(railKind({})).toBeNull();

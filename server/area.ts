@@ -149,8 +149,10 @@ interface OverpassNode {
 
 export function railKind(tags: Record<string, string>): RailKind | null {
   const operator = tags.operator ?? '';
-  if (/Bay Area Rapid Transit/i.test(operator)) return 'BART';
-  if (/Peninsula Corridor|Caltrain/i.test(operator) || /Caltrain/i.test(tags.name ?? '')) {
+  const network = tags.network ?? '';
+  if (/Bay Area Rapid Transit/i.test(operator) || /BART/i.test(network)) return 'BART';
+  // 22nd Street and Bayshore carry the line only on `network`, so operator alone loses them.
+  if (/Peninsula Corridor|Caltrain/i.test(`${operator} ${network} ${tags.name ?? ''}`)) {
     return 'Caltrain';
   }
   if (/Municipal (Railway|Transportation)/i.test(operator)) {
@@ -270,7 +272,7 @@ async function datasets(): Promise<Datasets> {
   inFlight ??= (async () => {
     const violentList = VIOLENT_CATEGORIES.map((category) => `'${category}'`).join(',');
     const [rail, incidentCells, violentCells, meterCells] = await Promise.all([
-      cached<RailStop[]>('rail-stops', RAIL_TTL_MS, loadRailStops),
+      cached<RailStop[]>('rail-stops-v2', RAIL_TTL_MS, loadRailStops),
       cached<GridCell[]>('incidents', INCIDENT_TTL_MS, () =>
         loadGrid(INCIDENTS_URL, `incident_datetime > '${trailingYearStart()}' AND latitude IS NOT NULL`),
       ),
