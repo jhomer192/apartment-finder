@@ -76,10 +76,16 @@ const VIOLENT_CATEGORIES = [
   'Human Trafficking, Commercial Sex Acts',
 ];
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+/** The main instance sheds load with a 504 often enough to be worth a mirror. */
+const OVERPASS_URLS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+];
 const INCIDENTS_URL = 'https://data.sfgov.org/resource/wg3w-h783.json';
 const METERS_URL = 'https://data.sfgov.org/resource/8vzz-qzz9.json';
 
+/** Bumped when the parsing changes, so cached stops are refetched rather than trusted. */
+const RAIL_KEY = 'rail-stops-v2';
 const RAIL_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const INCIDENT_TTL_MS = 24 * 60 * 60 * 1000;
 const PARKING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -115,6 +121,14 @@ async function cached<T>(key: string, ttlMs: number, load: () => Promise<T>): Pr
     console.error(`area data "${key}" refresh failed:`, error instanceof Error ? error.message : error);
     return row ? (JSON.parse(row.payload) as T) : null;
   }
+}
+
+/** Whatever a key last held, however old, for falling back across a key rename. */
+function lastCached<T>(key: string): T | null {
+  const row = db.prepare('SELECT payload FROM area_cache WHERE key = ?').get(key) as
+    | { payload: string }
+    | undefined;
+  return row ? (JSON.parse(row.payload) as T) : null;
 }
 
 /**
@@ -163,10 +177,24 @@ export function railKind(tags: Record<string, string>): RailKind | null {
 
 async function loadRailStops(): Promise<RailStop[]> {
   const query = `[out:json][timeout:60];(node["railway"~"^(station|halt|tram_stop)$"](${SF_BBOX.south},${SF_BBOX.west},${SF_BBOX.north},${SF_BBOX.east}););out body;`;
-  const response = await fetchJson(`${OVERPASS_URL}?data=${encodeURIComponent(query)}`, 60_000);
-  if (!response.ok) throw new Error(`Overpass responded ${response.status}`);
 
-  const body = (await response.json()) as { elements?: OverpassNode[] };
+  let body: { elements?: OverpassNode[] } | null = null;
+  let failure = 'no Overpass endpoint tried';
+  for (const endpoint of OVERPASS_URLS) {
+    try {
+      const response = await fetchJson(`${endpoint}?data=${encodeURIComponent(query)}`, 60_000);
+      if (!response.ok) {
+        failure = `Overpass responded ${response.status}`;
+        continue;
+      }
+      body = (await response.json()) as { elements?: OverpassNode[] };
+      break;
+    } catch (error) {
+      failure = error instanceof Error ? error.message : String(error);
+    }
+  }
+  if (!body) throw new Error(failure);
+
   const stops: RailStop[] = [];
   for (const node of body.elements ?? []) {
     const tags = node.tags ?? {};
@@ -272,7 +300,11 @@ async function datasets(): Promise<Datasets> {
   inFlight ??= (async () => {
     const violentList = VIOLENT_CATEGORIES.map((category) => `'${category}'`).join(',');
     const [rail, incidentCells, violentCells, meterCells] = await Promise.all([
-      cached<RailStop[]>('rail-stops-v2', RAIL_TTL_MS, loadRailStops),
+      cached<RailStop[]>(RAIL_KEY, RAIL_TTL_MS, loadRailStops).then(
+        // Overpass answers 504 often enough that a new key must not leave a
+        // deployment with no stops at all while the older copy is still on disk.
+        (stops) => stops ?? lastCached<RailStop[]>('rail-stops'),
+      ),
       cached<GridCell[]>('incidents', INCIDENT_TTL_MS, () =>
         loadGrid(INCIDENTS_URL, `incident_datetime > '${trailingYearStart()}' AND latitude IS NOT NULL`),
       ),
