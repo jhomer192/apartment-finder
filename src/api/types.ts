@@ -105,7 +105,10 @@ export interface AlertSettings {
 export interface SearchPlan {
   minRent: number;
   maxRent: number;
+  maxRentPerBedroom: number;
   bedrooms: number[];
+  minBathrooms: number;
+  bathsPerBedroom: number;
   neighborhoods: string[];
   maxScamScore: number;
   keywords: string[];
@@ -124,6 +127,7 @@ export interface ClaudeSearchResult {
   plan: SearchPlan;
   matched: number;
   ranked: RankedListing[];
+  relaxed: string[];
 }
 
 export const SAVED_STATUSES = ['saved', 'contacted', 'touring', 'applied', 'passed'] as const;

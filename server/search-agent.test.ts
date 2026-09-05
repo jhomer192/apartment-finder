@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ScoredListing } from './listings.js';
-import { applyPlan, planSchema } from './search-agent.js';
+import { applyPlan, matchWithFallback, planSchema } from './search-agent.js';
 
 function listing(overrides: Partial<ScoredListing>): ScoredListing {
   return {
@@ -85,11 +85,48 @@ describe('applyPlan', () => {
     expect(applyPlan(listings, plan({ keywords: ['laundry'] })).map((i) => i.key)).toEqual(['with']);
   });
 
+  it('keeps listings a keyword cannot be checked against, since the source published no text', () => {
+    const listings = [
+      listing({ key: 'text', description: 'Cats and dogs welcome' }),
+      listing({ key: 'other-text', description: 'Cozy studio' }),
+      listing({ key: 'no-text', description: '', detail: 'summary' }),
+    ];
+    expect(applyPlan(listings, plan({ keywords: ['dogs'] })).map((i) => i.key)).toEqual([
+      'text',
+      'no-text',
+    ]);
+  });
+
+  it('reads a per-person budget as rent split by bedroom, not the whole unit', () => {
+    const listings = [
+      listing({ key: 'four-share', price: 9000, bedrooms: 4 }),
+      listing({ key: 'pricey-four', price: 11_000, bedrooms: 4 }),
+      listing({ key: 'studio', price: 2400, bedrooms: 0 }),
+    ];
+
+    const kept = applyPlan(listings, plan({ maxRentPerBedroom: 2500 }));
+    expect(kept.map((item) => item.key).sort()).toEqual(['four-share', 'studio']);
+  });
+
+  it('reads a bathroom each as one bath per bedroom, keeping unknown bath counts', () => {
+    const listings = [
+      listing({ key: 'ensuite', bedrooms: 3, bathrooms: 3 }),
+      listing({ key: 'shared', bedrooms: 3, bathrooms: 1 }),
+      listing({ key: 'unknown', bedrooms: 3, bathrooms: null }),
+    ];
+
+    const kept = applyPlan(listings, plan({ bathsPerBedroom: 1 }));
+    expect(kept.map((item) => item.key).sort()).toEqual(['ensuite', 'unknown']);
+  });
+
   it('fills in an unconstrained plan when Claude omits keys', () => {
     expect(plan()).toEqual({
       minRent: 0,
       maxRent: 100_000,
+      maxRentPerBedroom: 0,
       bedrooms: [],
+      minBathrooms: 0,
+      bathsPerBedroom: 0,
       neighborhoods: [],
       maxScamScore: 100,
       keywords: [],
@@ -99,5 +136,43 @@ describe('applyPlan', () => {
 
   it('rejects a plan with out-of-range numbers rather than trusting it', () => {
     expect(() => planSchema.parse({ maxScamScore: 900 })).toThrow();
+  });
+});
+
+describe('matchWithFallback', () => {
+  it('answers with something and names what it ignored instead of matching nothing', () => {
+    const listings = [listing({ key: 'a', price: 8000, bedrooms: 4, bathrooms: 4 })];
+
+    const { matches, relaxed } = matchWithFallback(
+      listings,
+      plan({ maxRentPerBedroom: 2500, bathsPerBedroom: 1, keywords: ['pets'] }),
+    );
+
+    expect(matches.map((item) => item.key)).toEqual(['a']);
+    expect(relaxed).toEqual(['"pets" in the listing text']);
+  });
+
+  it('drops the bathroom requirement too when the keyword alone was not the problem', () => {
+    const listings = [listing({ key: 'a', price: 8000, bedrooms: 4, bathrooms: 1, description: '' })];
+
+    const { matches, relaxed } = matchWithFallback(
+      listings,
+      plan({ maxRentPerBedroom: 2500, bathsPerBedroom: 1, keywords: ['pets'] }),
+    );
+
+    expect(matches.map((item) => item.key)).toEqual(['a']);
+    expect(relaxed).toEqual(['the bathroom requirement']);
+  });
+
+  it('relaxes nothing when the plan already matches', () => {
+    const listings = [listing({ key: 'a', price: 3000, bedrooms: 2, bathrooms: 2 })];
+    expect(matchWithFallback(listings, plan({ maxRent: 4000 })).relaxed).toEqual([]);
+  });
+
+  it('leaves the budget alone when even a fully relaxed filter finds nothing', () => {
+    const listings = [listing({ key: 'a', price: 9000, bedrooms: 1 })];
+    const { matches, relaxed } = matchWithFallback(listings, plan({ maxRent: 2000 }));
+    expect(matches).toEqual([]);
+    expect(relaxed).toEqual([]);
   });
 });

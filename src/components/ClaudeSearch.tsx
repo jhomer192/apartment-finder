@@ -21,9 +21,12 @@ function planSummary(plan: SearchPlan): string {
   if (plan.minRent > 0 || plan.maxRent < 100_000) {
     parts.push(`$${plan.minRent.toLocaleString()}–$${plan.maxRent.toLocaleString()}`);
   }
+  if (plan.maxRentPerBedroom > 0) parts.push(`≤ $${plan.maxRentPerBedroom.toLocaleString()}/bedroom`);
   if (plan.bedrooms.length) {
     parts.push(plan.bedrooms.map((beds) => (beds === 0 ? 'studio' : `${beds}bd`)).join('/'));
   }
+  if (plan.bathsPerBedroom > 0) parts.push('a bathroom per bedroom');
+  else if (plan.minBathrooms > 0) parts.push(`${plan.minBathrooms}+ ba`);
   if (plan.neighborhoods.length) parts.push(plan.neighborhoods.join(', '));
   if (plan.keywords.length) parts.push(plan.keywords.join(', '));
   if (plan.maxScamScore < 100) parts.push(`scam risk ≤ ${plan.maxScamScore}`);
@@ -235,6 +238,7 @@ export function ClaudeSearch() {
           </p>
           <p className="text-[11px]" style={{ color: 'var(--text-dim)' }}>
             {result.matched} listing{result.matched === 1 ? '' : 's'} matched · {planSummary(result.plan)}
+            {result.relaxed.length > 0 && ` · ignored ${result.relaxed.join(' and ')} to find these`}
           </p>
           {result.ranked.map((pick) => (
             <Pick key={pick.listing.key} pick={pick} />
