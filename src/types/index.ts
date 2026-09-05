@@ -3,7 +3,6 @@ import type { ScamAssessment, SourceStatus } from '../api/types';
 export type { ScamAssessment, ScamBand, SourceStatus } from '../api/types';
 
 export interface SearchParams {
-  metros: string[];
   minRent: number;
   maxRent: number;
   bedrooms: number | null;
@@ -44,6 +43,8 @@ export interface Listing {
   sqft: number | null;
   address: string;
   neighborhood: string;
+  lat: number | null;
+  lng: number | null;
   amenities: string[];
   sourceId: SourceId;
   sourceName: string;

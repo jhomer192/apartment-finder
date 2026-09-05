@@ -10,6 +10,9 @@ const SOURCE_COLORS: Record<string, string> = {
   craigslist: '#6d28d9',
 };
 
+/** The server only fetches San Francisco, so offering other metros would lie. */
+const SEARCHED_METRO = 'bay-area';
+
 const GRADIENTS: Array<[string, string]> = [
   ['#0ea5e9', '#6366f1'],
   ['#f97316', '#ec4899'],
@@ -42,6 +45,8 @@ function toListing(listing: ApiListing, metroId: string, index: number): Listing
     sqft: listing.sqft,
     address: listing.address,
     neighborhood: listing.neighborhood,
+    lat: listing.lat,
+    lng: listing.lng,
     amenities,
     sourceId: listing.sourceId as SourceId,
     sourceName: listing.sourceName,
@@ -72,7 +77,7 @@ export function useSearch() {
     setHasSearched(true);
 
     try {
-      const metro = getMetroById(params.metros[0] ?? 'bay-area');
+      const metro = getMetroById(SEARCHED_METRO);
       if (!metro) throw new Error('Unknown metro');
 
       const neighborhoods: NeighborhoodPin[] = metro.neighborhoods.map((hood) => ({

@@ -25,4 +25,4 @@ dist-ssr
 *.sw?
 
 # Local server data
-data/
+/data/

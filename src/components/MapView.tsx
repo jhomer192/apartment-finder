@@ -1,56 +1,104 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { SearchResult } from '../types';
+import type { Listing, ScamBand } from '../types';
+import { googleMapsUrl } from '../utils/maps';
 
 interface Props {
-  results: SearchResult[];
+  listings: Listing[];
+  centerLat: number;
+  centerLng: number;
 }
 
-const PIN_COLOR = '#6366f1';
+const BAND_COLOR: Record<ScamBand, string> = {
+  low: '#22c55e',
+  medium: '#eab308',
+  high: '#ef4444',
+};
 
-function createNeighborhoodIcon(color: string, label: string): L.DivIcon {
+const BAND_LABEL: Record<ScamBand, string> = {
+  low: 'Nothing suspicious found',
+  medium: 'Worth a closer look',
+  high: 'Several scam warning signs',
+};
+
+function createPriceIcon(listing: Listing): L.DivIcon {
+  const color = BAND_COLOR[listing.scam.band];
   return L.divIcon({
-    className: 'neighborhood-marker',
+    className: 'listing-marker',
     html: `<div style="
-      display: flex; align-items: center; gap: 4px;
-      background: ${color}22;
+      background: rgba(15,23,42,0.92);
       border: 2px solid ${color};
-      border-radius: 16px;
-      padding: 2px 8px 2px 4px;
+      border-radius: 14px;
+      padding: 2px 7px;
       white-space: nowrap;
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 700;
       color: ${color};
-      backdrop-filter: blur(4px);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-    ">
-      <div style="
-        width: 10px; height: 10px;
-        background: ${color};
-        border-radius: 50%;
-        flex-shrink: 0;
-      "></div>
-      ${label}
-    </div>`,
+      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+    ">$${Math.round(listing.price / 100) / 10}k</div>`,
     iconSize: [0, 0],
-    iconAnchor: [6, 10],
+    iconAnchor: [22, 12],
     popupAnchor: [0, -12],
   });
 }
 
-export function MapView({ results }: Props) {
+/** Listing text is untrusted, so the popup is built from nodes, never HTML. */
+function createPopup(listing: Listing): HTMLElement {
+  const root = document.createElement('div');
+  root.style.minWidth = '190px';
+  root.style.fontSize = '13px';
+
+  const price = document.createElement('div');
+  price.style.fontWeight = '700';
+  price.textContent = `$${listing.price.toLocaleString()}/mo · ${listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} bd`}`;
+  root.appendChild(price);
+
+  const address = document.createElement('div');
+  address.style.margin = '2px 0 4px';
+  address.textContent = `${listing.address || listing.neighborhood}`;
+  root.appendChild(address);
+
+  const risk = document.createElement('div');
+  risk.style.color = BAND_COLOR[listing.scam.band];
+  risk.style.fontWeight = '600';
+  risk.textContent = BAND_LABEL[listing.scam.band];
+  root.appendChild(risk);
+
+  const links = document.createElement('div');
+  links.style.marginTop = '6px';
+  links.style.display = 'flex';
+  links.style.gap = '10px';
+
+  const listingLink = document.createElement('a');
+  listingLink.href = listing.url;
+  listingLink.target = '_blank';
+  listingLink.rel = 'noopener noreferrer';
+  listingLink.textContent = 'View listing';
+  links.appendChild(listingLink);
+
+  const mapsLink = document.createElement('a');
+  mapsLink.href = googleMapsUrl(listing);
+  mapsLink.target = '_blank';
+  mapsLink.rel = 'noopener noreferrer';
+  mapsLink.textContent = 'Google Maps';
+  links.appendChild(mapsLink);
+
+  root.appendChild(links);
+  return root;
+}
+
+export function MapView({ listings, centerLat, centerLng }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.LayerGroup | null>(null);
 
-  // Initialize map once
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
     const map = L.map(containerRef.current, {
-      center: [39.8283, -98.5795], // US center
-      zoom: 4,
+      center: [centerLat, centerLng],
+      zoom: 12,
       zoomControl: true,
     });
 
@@ -67,48 +115,41 @@ export function MapView({ results }: Props) {
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [centerLat, centerLng]);
 
-  // Update markers when results change
   useEffect(() => {
     if (!mapRef.current || !markersRef.current) return;
 
     markersRef.current.clearLayers();
 
-    if (results.length === 0) return;
-
     const bounds: L.LatLngExpression[] = [];
 
-    // Add neighborhood markers
-    results.forEach(result => {
-      result.neighborhoods.forEach(hood => {
-        const icon = createNeighborhoodIcon(PIN_COLOR, hood.name);
-
-        const marker = L.marker([hood.lat, hood.lng], { icon });
-        marker.bindPopup(`
-          <div style="min-width: 160px; font-size: 13px;">
-            <div style="font-weight: 600; margin-bottom: 4px; color: var(--text, #e2e8f0);">${hood.name}</div>
-            <div style="font-size: 11px; color: var(--text-dim, #94a3b8);">
-              ${result.metroName}
-            </div>
-          </div>
-        `);
-
-        markersRef.current!.addLayer(marker);
-        bounds.push([hood.lat, hood.lng]);
-      });
+    listings.forEach(listing => {
+      if (listing.lat === null || listing.lng === null) return;
+      const marker = L.marker([listing.lat, listing.lng], { icon: createPriceIcon(listing) });
+      marker.bindPopup(createPopup(listing));
+      markersRef.current!.addLayer(marker);
+      bounds.push([listing.lat, listing.lng]);
     });
 
     if (bounds.length > 0) {
       mapRef.current.fitBounds(bounds as L.LatLngBoundsExpression, { padding: [40, 40] });
     }
-  }, [results]);
+  }, [listings]);
+
+  const plotted = listings.filter(l => l.lat !== null && l.lng !== null).length;
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-[600px] rounded-xl border overflow-hidden"
-      style={{ borderColor: 'var(--border)' }}
-    />
+    <div className="space-y-2">
+      <div
+        ref={containerRef}
+        className="w-full h-[600px] rounded-xl border overflow-hidden"
+        style={{ borderColor: 'var(--border)' }}
+      />
+      <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+        {plotted} of {listings.length} apartments have coordinates. Pin colour is scam risk, the label is rent.
+        Click a pin to open the block in Google Maps for transit, street view and your own commute.
+      </p>
+    </div>
   );
 }

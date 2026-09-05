@@ -4,7 +4,7 @@ import { ListingCard } from './ListingCard';
 
 interface Props {
   listings: Listing[];
-  metroName: string;
+  onClearNeighborhoods: () => void;
 }
 
 /** Listings without square footage sort last rather than polluting the top. */
@@ -32,7 +32,7 @@ function sortListings(listings: Listing[], sort: SortOption): Listing[] {
   }
 }
 
-export function ResultsGrid({ listings, metroName }: Props) {
+export function ResultsGrid({ listings, onClearNeighborhoods }: Props) {
   const [sort, setSort] = useState<SortOption>('scam');
 
   const sorted = sortListings(listings, sort);
@@ -40,11 +40,7 @@ export function ResultsGrid({ listings, metroName }: Props) {
   return (
     <div>
       {/* Header bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
-          <span className="font-semibold" style={{ color: 'var(--text)' }}>{listings.length}</span>{' '}
-          listing{listings.length !== 1 ? 's' : ''} in {metroName}
-        </p>
+      <div className="flex flex-wrap items-center justify-end gap-3 mb-4">
         <div className="flex items-center gap-2">
           <label className="text-xs font-medium" style={{ color: 'var(--text-dim)' }}>Sort by:</label>
           <select
@@ -57,10 +53,10 @@ export function ResultsGrid({ listings, metroName }: Props) {
               color: 'var(--text)',
             }}
           >
-            <option value="scam">Scam risk: Lowest</option>
+            <option value="scam">Safest first</option>
             <option value="price-asc">Price: Low to High</option>
             <option value="price-desc">Price: High to Low</option>
-            <option value="scam-desc">Scam risk: Highest</option>
+            <option value="scam-desc">Riskiest first</option>
             <option value="sqft-desc">Largest</option>
             <option value="ppsqft">Price/sqft</option>
           </select>
@@ -75,10 +71,18 @@ export function ResultsGrid({ listings, metroName }: Props) {
       </div>
 
       {listings.length === 0 && (
-        <div className="text-center py-12">
+        <div className="text-center py-12 space-y-3">
           <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
-            No listings match your filters. Try adjusting your budget or selecting more neighborhoods.
+            Nothing here right now. Try a wider budget, or put the neighborhoods back.
           </p>
+          <button
+            type="button"
+            onClick={onClearNeighborhoods}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+            style={{ backgroundColor: 'var(--accent)', color: 'var(--bg)' }}
+          >
+            Show every neighborhood
+          </button>
         </div>
       )}
     </div>
