@@ -61,6 +61,15 @@ export interface SourceStatus {
   error: string | null;
 }
 
+/** State of the nightly crawl that fills the searchable set. */
+export interface InventoryStatus {
+  listings: number;
+  refreshedAt: number | null;
+  refreshing: boolean;
+  sources: SourceStatus[];
+  error: string | null;
+}
+
 export interface ListingsResponse {
   listings: ApiListing[];
   sources: SourceStatus[];

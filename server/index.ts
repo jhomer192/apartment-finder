@@ -35,6 +35,7 @@ import { ClaudeUnavailableError } from './claude.js';
 import { config } from './config.js';
 import { draftInquiry } from './contact.js';
 import { purgeExpired } from './db.js';
+import { inventoryStatus, refreshInventory, startCrawlSchedule } from './inventory.js';
 import { findListings, getListings } from './listings.js';
 import { mailConfigured, sendSignInLink } from './mailer.js';
 import { claudeSearch } from './search-agent.js';
@@ -53,6 +54,8 @@ app.use(cookieParser(config.sessionSecret));
 /** Brute-forcing a 256-bit invite token is infeasible; this just caps the noise. */
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20 });
 const askLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10 });
+/** A crawl hits the sources hundreds of times, so the button cannot be spammed. */
+const refreshLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 3 });
 /** Tighter than authLimiter: this route sends mail, so it is the abusable one. */
 const signInLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5 });
 
@@ -204,7 +207,7 @@ const listingsQuery = z.object({
   maxRent: z.coerce.number().int().min(1).max(100_000).default(8000),
   minBedrooms: z.coerce.number().int().min(0).max(10).nullable().catch(null),
   maxBedrooms: z.coerce.number().int().min(0).max(10).nullable().catch(null),
-  limit: z.coerce.number().int().min(1).max(120).default(60),
+  limit: z.coerce.number().int().min(1).max(1000).default(300),
 });
 
 app.get('/api/listings', requireAuth, async (req, res) => {
@@ -223,6 +226,21 @@ app.get('/api/listings', requireAuth, async (req, res) => {
   } catch (error) {
     res.status(502).json({ error: error instanceof Error ? error.message : 'Search failed' });
   }
+});
+
+app.get('/api/inventory', requireAuth, (_req, res) => {
+  res.json(inventoryStatus());
+});
+
+/**
+ * Kicks the crawl and answers immediately: it walks both sources page by page
+ * and takes minutes, so nobody should be holding a request open for it.
+ */
+app.post('/api/inventory/refresh', refreshLimiter, requireAuth, (_req, res) => {
+  void refreshInventory().catch((error: unknown) => {
+    console.error('manual refresh failed:', error instanceof Error ? error.message : error);
+  });
+  res.json(inventoryStatus());
 });
 
 /** Claude plans the filter, the server runs it over every listing, Claude ranks. */
@@ -368,6 +386,7 @@ if (existsSync(distDir)) {
 purgeExpired();
 setInterval(purgeExpired, 60 * 60 * 1000).unref();
 startAlertLoop();
+startCrawlSchedule();
 // Civic datasets take a minute to pull, so the first roommate of the day does not wait on them.
 void primeAreaData();
 

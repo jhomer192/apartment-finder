@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import type { SearchParams } from './types';
 import { SearchForm } from './components/SearchForm';
 import { DEFAULT_SEARCH } from './data/search';
 import { ResultsGrid } from './components/ResultsGrid';
@@ -10,6 +11,7 @@ import { ClaudeSearch } from './components/ClaudeSearch';
 import { AlertSettings } from './components/AlertSettings';
 import { SignInGate } from './components/SignInGate';
 import { SourceStatusBar } from './components/SourceStatusBar';
+import { InventoryBar } from './components/InventoryBar';
 import { ShortlistProvider } from './components/ShortlistProvider';
 import { ShortlistPanel } from './components/ShortlistPanel';
 import { PasswordPanel } from './components/PasswordPanel';
@@ -73,8 +75,14 @@ function Finder({
     search,
   } = useSearch();
 
+  const lastSearch = useRef<SearchParams>(DEFAULT_SEARCH);
+
   useEffect(() => {
     search(DEFAULT_SEARCH);
+  }, [search]);
+
+  const rerunSearch = useCallback(() => {
+    search(lastSearch.current);
   }, [search]);
 
   const result = results[0] ?? null;
@@ -98,7 +106,8 @@ function Finder({
     [neighborhoodCounts],
   );
 
-  function handleSearch(params: Parameters<typeof search>[0]) {
+  function handleSearch(params: SearchParams) {
+    lastSearch.current = params;
     search(params);
     setNeighborhoods(new Set());
   }
@@ -145,6 +154,7 @@ function Finder({
         {hasSearched && !loading && result && (
           <>
             <SourceStatusBar sources={result.sourceStatuses} />
+            <InventoryBar onRefreshed={rerunSearch} />
 
             {/* Controls bar */}
             <div className="flex flex-wrap items-center justify-between gap-4">

@@ -3,6 +3,7 @@ import type {
   AlertSettings,
   ClaudeSearchResult,
   ContactDraft,
+  InventoryStatus,
   ListingNote,
   ListingsResponse,
   SavedListing,
@@ -105,6 +106,14 @@ export function fetchListings(query: ListingQuery, signal?: AbortSignal): Promis
   }
   const suffix = params.toString();
   return request(`/api/listings${suffix ? `?${suffix}` : ''}`, { signal });
+}
+
+export function fetchInventory(): Promise<InventoryStatus> {
+  return request('/api/inventory');
+}
+
+export function startInventoryRefresh(): Promise<InventoryStatus> {
+  return request('/api/inventory/refresh', { method: 'POST' });
 }
 
 export function fetchAlertPrefs(): Promise<AlertSettings> {

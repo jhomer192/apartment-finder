@@ -98,6 +98,45 @@ describe('apartmentListSource', () => {
   });
 });
 
+describe('apartmentListSource.fetchAll', () => {
+  /** Pages carry a total so the crawl knows when to stop asking for more. */
+  function pageOf(objects: unknown[], totalCount: number): string {
+    return `${page(...objects)}<script>{"totalCount": ${totalCount}}</script>`;
+  }
+
+  it('keeps every advertised unit size, not just the cheapest', async () => {
+    mockPage(pageOf([summary, card], 1));
+
+    const listings = await apartmentListSource.fetchAll!();
+
+    expect(listings.map((listing) => ({ beds: listing.bedrooms, price: listing.price }))).toEqual([
+      { beds: 1, price: 3200 },
+      { beds: 2, price: 4800 },
+    ]);
+    expect(new Set(listings.map((listing) => listing.externalId)).size).toBe(2);
+  });
+
+  it('walks the pages the total count implies and merges them', async () => {
+    const pages = [
+      pageOf([{ ...summary, rental_id: 'p1', slug: '/ca/san-francisco/one' }], 32),
+      pageOf([{ ...summary, rental_id: 'p2', slug: '/ca/san-francisco/two' }], 32),
+    ];
+    let call = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => {
+        const html = pages[Math.min(call, pages.length - 1)];
+        call += 1;
+        return Promise.resolve(new Response(html, { status: 200 }));
+      }),
+    );
+
+    const listings = await apartmentListSource.fetchAll!();
+
+    expect(new Set(listings.map((listing) => listing.url)).size).toBe(2);
+  });
+});
+
 describe('unitsFromPropertyPage', () => {
   it('reads floor plans out of an inline payload', () => {
     const html = '<script>{"available_units":[{"id":1,"bed":2,"bath":2,"sqft":1100},{"id":2,"bed":1,"bath":1,"sqft":700}]}</script>';

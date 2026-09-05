@@ -53,6 +53,13 @@ export interface ListingSource {
   name: string;
   enabled: boolean;
   fetchListings(query: SourceQuery): Promise<RawListing[]>;
+  /**
+   * Every listing the source publishes for SF, ignoring filters. Sources cap a
+   * single response well below their real inventory, so this walks whatever
+   * pagination they offer and is slow enough to belong in the nightly crawl
+   * rather than a search.
+   */
+  fetchAll?(): Promise<RawListing[]>;
 }
 
 export const BROWSER_HEADERS: Record<string, string> = {

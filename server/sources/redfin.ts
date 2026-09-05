@@ -4,6 +4,13 @@ import { bedroomsInRange, fetchWithTimeout, type ListingSource, type RawListing,
 const SF_REGION_ID = 17151;
 const SEARCH_URL = 'https://www.redfin.com/stingray/api/v1/search/rentals';
 const PHOTO_BASE = 'https://ssl.cdn-redfin.com/photo/rent';
+/** The API truncates at this many homes however many are asked for. */
+const RESULT_CAP = 350;
+/** Stops a pathological split from crawling Redfin all night. */
+const MAX_BAND_REQUESTS = 40;
+/** Below this width a band holds one price point and splitting cannot help. */
+const MIN_BAND_WIDTH = 100;
+const TOP_RENT = 100_000;
 /** Enough for a gallery without making a card pull down dozens of images. */
 const MAX_PHOTOS = 40;
 
@@ -103,29 +110,76 @@ function toListing(home: RedfinHome): RawListing | null {
   };
 }
 
+interface SearchResponse {
+  homes: RedfinHome[];
+  /** How many the filter actually matched, which exceeds what is returned. */
+  matched: number;
+}
+
+async function searchHomes(params: URLSearchParams): Promise<SearchResponse> {
+  const response = await fetchWithTimeout(`${SEARCH_URL}?${params}`);
+  if (!response.ok) throw new Error(`Redfin responded ${response.status}`);
+  const body = (await response.json()) as { homes?: RedfinHome[]; numMatchedHomes?: number };
+  const homes = body.homes ?? [];
+  return { homes, matched: body.numMatchedHomes ?? homes.length };
+}
+
+function searchParams(numHomes: number, band?: { min: number; max: number }): URLSearchParams {
+  const params = new URLSearchParams({
+    al: '1',
+    market: 'sanfrancisco',
+    num_homes: String(numHomes),
+    region_id: String(SF_REGION_ID),
+    region_type: '6',
+  });
+  if (band) {
+    params.set('min_price', String(band.min));
+    params.set('max_price', String(band.max));
+  }
+  return params;
+}
+
+/**
+ * SF has more rentals than one response returns, so the crawl narrows the rent
+ * filter until each slice fits under the cap. The response says how many the
+ * filter matched, which is how a truncated slice is told from a complete one.
+ */
+async function crawlByPriceBand(): Promise<RawListing[]> {
+  const found = new Map<string, RawListing>();
+  const queue: Array<{ min: number; max: number }> = [{ min: 0, max: TOP_RENT }];
+  let requests = 0;
+
+  while (queue.length > 0 && requests < MAX_BAND_REQUESTS) {
+    const band = queue.shift()!;
+    requests += 1;
+    const { homes, matched } = await searchHomes(searchParams(RESULT_CAP, band));
+
+    for (const home of homes) {
+      const listing = toListing(home);
+      if (listing) found.set(listing.externalId, listing);
+    }
+
+    if (matched > homes.length && band.max - band.min > MIN_BAND_WIDTH) {
+      const mid = Math.round((band.min + band.max) / 2);
+      queue.push({ min: band.min, max: mid }, { min: mid + 1, max: band.max });
+    }
+  }
+
+  return [...found.values()];
+}
+
 export const redfinSource: ListingSource = {
   id: 'redfin',
   name: 'Redfin',
   enabled: true,
 
+  fetchAll: crawlByPriceBand,
+
   async fetchListings(query: SourceQuery): Promise<RawListing[]> {
-    const params = new URLSearchParams({
-      al: '1',
-      market: 'sanfrancisco',
-      num_homes: String(Math.min(query.limit * 4, 350)),
-      region_id: String(SF_REGION_ID),
-      region_type: '6',
-    });
-
-    const response = await fetchWithTimeout(`${SEARCH_URL}?${params}`);
-    if (!response.ok) {
-      throw new Error(`Redfin responded ${response.status}`);
-    }
-
-    const body = (await response.json()) as { homes?: RedfinHome[] };
+    const { homes } = await searchHomes(searchParams(Math.min(query.limit * 4, RESULT_CAP)));
     const listings: RawListing[] = [];
 
-    for (const home of body.homes ?? []) {
+    for (const home of homes) {
       const listing = toListing(home);
       if (!listing) continue;
       if (listing.price < query.minRent || listing.price > query.maxRent) continue;

@@ -9,6 +9,12 @@ const MAX_HYDRATED = 100;
 const HYDRATE_CONCURRENCY = 8;
 /** Stop hydrating rather than let the backfill dominate search latency. */
 const HYDRATE_BUDGET_MS = 12_000;
+/** Only 16 properties per page carry address, photos and phone. */
+const PAGE_SIZE = 16;
+const MAX_PAGES = 30;
+/** Nothing waits on the nightly crawl, so it can hydrate the whole city. */
+const CRAWL_HYDRATED = 600;
+const CRAWL_HYDRATE_BUDGET_MS = 10 * 60 * 1000;
 
 /** Every property in the search area: name, coordinates, and price per bed count. */
 interface SearchResult {
@@ -164,11 +170,15 @@ export function unitFacts(units: UnitFacts[], bedrooms: number): { bathrooms: nu
  * so fetch a bounded number of those rather than showing "no photo" for a
  * property that has plenty, or "— ba" for one that publishes its bathrooms.
  */
-async function hydrateFromPropertyPages(listings: RawListing[]): Promise<void> {
+async function hydrateFromPropertyPages(
+  listings: RawListing[],
+  limit = MAX_HYDRATED,
+  budgetMs = HYDRATE_BUDGET_MS,
+): Promise<void> {
   const missing = listings
     .filter((listing) => listing.imageUrls.length === 0 || listing.bathrooms === null)
-    .slice(0, MAX_HYDRATED);
-  const deadline = Date.now() + HYDRATE_BUDGET_MS;
+    .slice(0, limit);
+  const deadline = Date.now() + budgetMs;
 
   for (let i = 0; i < missing.length && Date.now() < deadline; i += HYDRATE_CONCURRENCY) {
     await Promise.all(
@@ -254,23 +264,98 @@ function toListing(result: SearchResult, detail: CardDetail | undefined, query: 
   };
 }
 
+interface Page {
+  results: SearchResult[];
+  details: Map<string, CardDetail>;
+  totalCount: number | null;
+}
+
+async function fetchPage(page: number): Promise<Page> {
+  const url = page === 1 ? SEARCH_URL : `${SEARCH_URL}?page=${page}`;
+  const response = await fetchWithTimeout(url, 25_000);
+  if (!response.ok) {
+    throw new Error(`ApartmentList responded ${response.status}`);
+  }
+
+  const payload = flightPayload(await response.text());
+  const details = new Map<string, CardDetail>();
+  for (const detail of objectsWith<CardDetail>(payload, ['rental_id', 'formatted_address', 'phone'])) {
+    if (detail.rental_id) details.set(detail.rental_id, detail);
+  }
+  const total = /"totalCount":\s*(\d+)/.exec(payload);
+
+  return {
+    results: objectsWith<SearchResult>(payload, ['rental_id', 'prices', 'slug']),
+    details,
+    totalCount: total ? Number(total[1]) : null,
+  };
+}
+
+/**
+ * A property advertises one price per unit size, so the crawl keeps every size
+ * rather than only the cheapest: a 3-bed search must still find the building
+ * whose studio is its cheapest unit.
+ */
+function listingsPerSize(result: SearchResult, detail: CardDetail | undefined): RawListing[] {
+  const listings: RawListing[] = [];
+  for (const [beds, price] of Object.entries(result.prices ?? {})) {
+    const bedrooms = Number(beds);
+    if (typeof price !== 'number' || price <= 0 || !Number.isFinite(bedrooms)) continue;
+    const listing = toListing(result, detail, {
+      minRent: 0,
+      maxRent: Number.MAX_SAFE_INTEGER,
+      minBedrooms: bedrooms,
+      maxBedrooms: bedrooms,
+      limit: 1,
+    });
+    if (!listing) continue;
+    // One id per unit size, so the sizes of one property do not overwrite each other.
+    listing.externalId = `${listing.externalId}-${bedrooms}bd`;
+    listings.push(listing);
+  }
+  return listings;
+}
+
 export const apartmentListSource: ListingSource = {
   id: 'apartmentlist',
   name: 'ApartmentList',
   enabled: true,
 
-  async fetchListings(query: SourceQuery): Promise<RawListing[]> {
-    const response = await fetchWithTimeout(SEARCH_URL, 25_000);
-    if (!response.ok) {
-      throw new Error(`ApartmentList responded ${response.status}`);
+  /**
+   * The map data on any one page names every property in the city, but only the
+   * 16 it renders as cards carry addresses and photos, so the crawl walks the
+   * pages to collect those cards.
+   */
+  async fetchAll(): Promise<RawListing[]> {
+    const results = new Map<string, SearchResult>();
+    const details = new Map<string, CardDetail>();
+    let pages = MAX_PAGES;
+
+    for (let page = 1; page <= pages; page += 1) {
+      const fetched = await fetchPage(page);
+      for (const result of fetched.results) {
+        if (result.rental_id) results.set(result.rental_id, result);
+      }
+      for (const [id, detail] of fetched.details) details.set(id, detail);
+      if (fetched.totalCount !== null) {
+        pages = Math.min(MAX_PAGES, Math.ceil(fetched.totalCount / PAGE_SIZE));
+      }
     }
 
-    const payload = flightPayload(await response.text());
-    const results = objectsWith<SearchResult>(payload, ['rental_id', 'prices', 'slug']);
-    const details = new Map<string, CardDetail>();
-    for (const detail of objectsWith<CardDetail>(payload, ['rental_id', 'formatted_address', 'phone'])) {
-      if (detail.rental_id) details.set(detail.rental_id, detail);
+    const listings: RawListing[] = [];
+    for (const result of results.values()) {
+      listings.push(...listingsPerSize(result, details.get(result.rental_id ?? '')));
     }
+
+    await hydrateFromPropertyPages(listings, CRAWL_HYDRATED, CRAWL_HYDRATE_BUDGET_MS);
+    if (listings.length === 0) {
+      throw new Error('ApartmentList returned no parseable listings — the page markup likely changed.');
+    }
+    return listings;
+  },
+
+  async fetchListings(query: SourceQuery): Promise<RawListing[]> {
+    const { results, details } = await fetchPage(1);
 
     const listings: RawListing[] = [];
     const seen = new Set<string>();

@@ -174,7 +174,7 @@ export async function runSweep(): Promise<SweepResult> {
     maxRent: 100_000,
     minBedrooms: null,
     maxBedrooms: null,
-    limit: 200,
+    limit: 5000,
   });
   const fresh = recordSeen(listings);
   const result: SweepResult = { newListings: fresh.length, delivered: [] };
