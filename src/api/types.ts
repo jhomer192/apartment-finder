@@ -46,6 +46,30 @@ export interface ListingsResponse {
   fetchedAt: number;
 }
 
+export interface SearchPlan {
+  minRent: number;
+  maxRent: number;
+  bedrooms: number[];
+  neighborhoods: string[];
+  maxScamScore: number;
+  keywords: string[];
+  sort: 'value' | 'price-asc' | 'price-desc' | 'safest';
+}
+
+export interface RankedListing {
+  listing: ApiListing;
+  verdict: 'great deal' | 'fair' | 'overpriced' | 'scam risk';
+  why: string;
+  valueDelta: number;
+}
+
+export interface ClaudeSearchResult {
+  answer: string;
+  plan: SearchPlan;
+  matched: number;
+  ranked: RankedListing[];
+}
+
 export const SAVED_STATUSES = ['saved', 'contacted', 'touring', 'applied', 'passed'] as const;
 export type SavedStatus = (typeof SAVED_STATUSES)[number];
 

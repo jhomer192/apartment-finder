@@ -1,4 +1,5 @@
 import type {
+  ClaudeSearchResult,
   ContactDraft,
   ListingNote,
   ListingsResponse,
@@ -89,10 +90,10 @@ export function fetchListings(query: ListingQuery, signal?: AbortSignal): Promis
   return request(`/api/listings${suffix ? `?${suffix}` : ''}`, { signal });
 }
 
-export function askClaude(question: string, listingKeys: string[]): Promise<{ answer: string }> {
-  return request('/api/ask', {
+export function claudeSearch(question: string): Promise<ClaudeSearchResult> {
+  return request('/api/search/claude', {
     method: 'POST',
-    body: JSON.stringify({ question, listingKeys }),
+    body: JSON.stringify({ question }),
   });
 }
 

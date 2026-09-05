@@ -5,7 +5,7 @@ import { NeighborhoodFilter } from './components/NeighborhoodFilter';
 import { SourceLinksBar } from './components/SourceLinksBar';
 import { MapView } from './components/MapView';
 import { ThemePicker } from './components/ThemePicker';
-import { AskClaude } from './components/AskClaude';
+import { ClaudeSearch } from './components/ClaudeSearch';
 import { SignInGate } from './components/SignInGate';
 import { SourceStatusBar } from './components/SourceStatusBar';
 import { ShortlistProvider } from './components/ShortlistProvider';
@@ -64,10 +64,6 @@ function Finder({ email, signOut }: { email: string; signOut: () => Promise<void
   }, [results, neighborhoodFilters]);
 
   const totalListings = filteredResults.reduce((s, r) => s + r.listings.length, 0);
-  const visibleKeys = useMemo(
-    () => filteredResults.flatMap((result) => result.listings.map((listing) => listing.id)),
-    [filteredResults],
-  );
 
   // Initialize neighborhood filters when results change
   function handleSearch(params: Parameters<typeof search>[0]) {
@@ -111,6 +107,8 @@ function Finder({ email, signOut }: { email: string; signOut: () => Promise<void
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+        <ClaudeSearch />
+
         {/* Search form */}
         <SearchForm onSearch={handleSearch} loading={loading} />
 
@@ -127,8 +125,6 @@ function Finder({ email, signOut }: { email: string; signOut: () => Promise<void
         {hasSearched && !loading && results.length > 0 && (
           <>
             <SourceStatusBar sources={results.flatMap((result) => result.sourceStatuses)} />
-
-            <AskClaude listingKeys={visibleKeys} />
 
             {/* Controls bar */}
             <div className="flex flex-wrap items-center justify-between gap-4">

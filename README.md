@@ -8,7 +8,8 @@ scam risk, and lets the group ask Claude questions about what's on screen.
 - **Live listings** — real SF rentals fetched server-side (Redfin and ApartmentList, Craigslist behind a flag)
 - **Scam probability score** — 0–100 per listing with the reasons that produced it
 - **Invite-only access** — email sign-in links, restricted to an email allowlist
-- **Ask Claude** — questions answered against the listings currently displayed
+- **Claude search** — plain-English requests answered against every listing, ranked good deal to
+  scam risk
 - **Shared shortlist** — one list for the whole group, with per-listing status, notes, and a
   Claude-drafted inquiry message
 - **Neighborhood filter, commute estimates, map view** — as before
@@ -83,11 +84,26 @@ sent to Claude, and the more cautious of the two verdicts wins. Results are cach
 
 Scores are a prompt to look closer, not proof either way.
 
-## Ask Claude
+## Claude search
 
 Backed by the Claude Code CLI in headless mode (`claude -p`), which uses a Claude subscription
 rather than a metered API key. Set `CLAUDE_CODE_OAUTH_TOKEN` to a token from `claude setup-token`.
-Without it the app still runs; `/api/ask` returns 503 and scoring falls back to heuristics only.
+Without it the app still runs; `/api/search/claude` returns 503 and scoring falls back to
+heuristics only.
+
+`POST /api/search/claude` runs two passes instead of giving Claude tools that reach the machine:
+
+1. **Plan** — Claude turns the request into a JSON filter (rent range, bedrooms, neighborhoods,
+   scam ceiling, feature keywords, sort). This pass sees only the roommate's own words, and the
+   result is validated against a schema, so an out-of-range or invented field is rejected rather
+   than trusted.
+2. **Rank** — the server applies that filter to every listing it holds, then hands Claude the top
+   30 with each one's distance from the median rent for its bedroom count. Claude returns a short
+   answer plus up to six picks labelled `great deal`, `fair`, `overpriced`, or `scam risk`, each
+   with a reason. Keys that do not match a candidate are dropped.
+
+Filtering and sorting stay deterministic and server-side; Claude decides what to look for and how
+to judge what comes back. Listing text is fenced as untrusted data in the ranking prompt.
 
 ## Shortlist and contacting
 
