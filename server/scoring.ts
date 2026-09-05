@@ -12,9 +12,17 @@ import {
 import { apartmentListSource } from './sources/apartmentlist.js';
 import { craigslistSource } from './sources/craigslist.js';
 import { redfinSource } from './sources/redfin.js';
+import { rentSource } from './sources/rent.js';
 import type { ListingSource, RawListing } from './sources/types.js';
+import { zumperSource } from './sources/zumper.js';
 
-export const SOURCES: ListingSource[] = [redfinSource, apartmentListSource, craigslistSource];
+export const SOURCES: ListingSource[] = [
+  redfinSource,
+  apartmentListSource,
+  zumperSource,
+  rentSource,
+  craigslistSource,
+];
 
 export interface ScoredListing extends RawListing {
   key: string;

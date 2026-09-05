@@ -167,8 +167,16 @@ describe('crossListingSignals', () => {
     ]);
     expect(signals.get('test:real')).toBeUndefined();
     expect(signals.get('test:bait')?.reasons).toEqual([
-      'Same address is listed at $4,200 elsewhere but asks $1,800 here',
+      'Same address and size is listed at $4,200 elsewhere but asks $1,800 here',
     ]);
+  });
+
+  it('leaves a building whose bigger units cost more alone', () => {
+    const signals = crossListingSignals([
+      listing({ externalId: 'studio', price: 2500, bedrooms: 0 }),
+      listing({ externalId: 'three-bed', price: 6500, bedrooms: 3 }),
+    ]);
+    expect(signals.size).toBe(0);
   });
 
   it('leaves an ordinary cross-post alone', () => {

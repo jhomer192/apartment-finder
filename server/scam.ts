@@ -206,8 +206,14 @@ export function crossListingSignals(listings: RawListing[]): Map<string, ScamAss
   const byBedrooms = new Map<number, number[]>();
 
   for (const listing of listings) {
+    // Keyed by size as well as address: one building lists a studio and a
+    // three-bed at very different rents, and across sources it lists both
+    // twice, so only same-size postings are comparable.
     const address = normalizeAddress(listing.address);
-    if (address) byAddress.set(address, [...(byAddress.get(address) ?? []), listing]);
+    if (address) {
+      const key = `${address}|${listing.bedrooms ?? '?'}`;
+      byAddress.set(key, [...(byAddress.get(key) ?? []), listing]);
+    }
     if (listing.imageUrl) byPhoto.set(listing.imageUrl, [...(byPhoto.get(listing.imageUrl) ?? []), listing]);
 
     const description = normalizeText(listing.description);
@@ -242,7 +248,7 @@ export function crossListingSignals(listings: RawListing[]): Map<string, ScamAss
       add(
         listing,
         25,
-        `Same address is listed at $${dearest.toLocaleString()} elsewhere but asks $${cheapest.toLocaleString()} here`,
+        `Same address and size is listed at $${dearest.toLocaleString()} elsewhere but asks $${cheapest.toLocaleString()} here`,
       );
     }
   }
