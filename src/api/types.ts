@@ -119,6 +119,41 @@ export interface StoredRules {
   updatedAt: number | null;
 }
 
+export const SORT_OPTIONS = [
+  'price-asc',
+  'price-desc',
+  'scam-desc',
+  'sqft-desc',
+  'ppsqft',
+  'ppbed',
+  'scam',
+  'transit',
+  'incidents',
+  'safety',
+] as const;
+
+export type SortOption = (typeof SORT_OPTIONS)[number];
+
+/** A named search the group can run again; the shape the export file carries. */
+export interface SavedFilter {
+  name: string;
+  minRent: number;
+  maxRent: number;
+  minBedrooms: number | null;
+  maxBedrooms: number | null;
+  minBathrooms: number | null;
+  maxBathrooms: number | null;
+  dedupe: boolean;
+  neighborhoods: string[];
+  sort: SortOption;
+}
+
+export interface StoredFilter extends SavedFilter {
+  id: number;
+  createdBy: string;
+  createdAt: number;
+}
+
 export interface SearchPlan {
   minRent: number;
   maxRent: number;

@@ -7,8 +7,10 @@ import type {
   InventoryStatus,
   ListingNote,
   ListingsResponse,
+  SavedFilter,
   SavedListing,
   SavedStatus,
+  StoredFilter,
   SessionUser,
   StoredRules,
 } from './types';
@@ -133,6 +135,18 @@ export function fetchRules(): Promise<StoredRules> {
 
 export function saveRules(rules: HouseRules): Promise<StoredRules> {
   return request('/api/rules', { method: 'PUT', body: JSON.stringify(rules) });
+}
+
+export function fetchFilters(): Promise<{ filters: StoredFilter[] }> {
+  return request('/api/filters');
+}
+
+export function saveFilter(filter: SavedFilter): Promise<{ filter: StoredFilter }> {
+  return request('/api/filters', { method: 'POST', body: JSON.stringify(filter) });
+}
+
+export function deleteFilter(id: number): Promise<{ ok: boolean }> {
+  return request(`/api/filters/${id}`, { method: 'DELETE' });
 }
 
 export function claudeSearch(

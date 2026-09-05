@@ -35,6 +35,7 @@ import { ClaudeUnavailableError } from './claude.js';
 import { config } from './config.js';
 import { draftInquiry } from './contact.js';
 import { purgeExpired } from './db.js';
+import { deleteFilter, filterSchema, listFilters, saveFilter } from './filters.js';
 import { inventoryStatus, refreshInventory, startCrawlSchedule } from './inventory.js';
 import { findListings, getListings } from './listings.js';
 import { mailConfigured, sendSignInLink } from './mailer.js';
@@ -286,6 +287,34 @@ app.put('/api/rules', requireAuth, (req, res) => {
   }
 
   res.json(setHouseRules(body.data, req.user!.email));
+});
+
+/**
+ * Saved searches are shared too: the point is running the group's checks, not
+ * everyone rebuilding the same one.
+ */
+app.get('/api/filters', requireAuth, (_req, res) => {
+  res.json({ filters: listFilters() });
+});
+
+app.post('/api/filters', requireAuth, (req, res) => {
+  const body = filterSchema.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'That saved search is not valid. It needs a name and sensible numbers.' });
+    return;
+  }
+
+  res.json({ filter: saveFilter(body.data, req.user!.email) });
+});
+
+app.delete('/api/filters/:id', requireAuth, (req, res) => {
+  const id = z.coerce.number().int().positive().safeParse(req.params.id);
+  if (!id.success || !deleteFilter(id.data)) {
+    res.status(404).json({ error: 'No such saved search.' });
+    return;
+  }
+
+  res.json({ ok: true });
 });
 
 app.get('/api/alerts/prefs', requireAuth, (req, res) => {

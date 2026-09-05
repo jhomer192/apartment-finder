@@ -1,6 +1,6 @@
 import type { AreaFacts, ScamAssessment, SourceStatus } from '../api/types';
 
-export type { AreaFacts, ScamAssessment, ScamBand, SourceStatus } from '../api/types';
+export type { AreaFacts, ScamAssessment, ScamBand, SortOption, SourceStatus } from '../api/types';
 
 /** Inclusive ranges; `null` on either end of a range means unbounded. */
 export interface SearchParams {
@@ -70,18 +70,6 @@ export interface Listing {
   gradientFrom: string;
   gradientTo: string;
 }
-
-export type SortOption =
-  | 'price-asc'
-  | 'price-desc'
-  | 'scam-desc'
-  | 'sqft-desc'
-  | 'ppsqft'
-  | 'ppbed'
-  | 'scam'
-  | 'transit'
-  | 'incidents'
-  | 'safety';
 
 export interface SearchResult {
   metroId: string;

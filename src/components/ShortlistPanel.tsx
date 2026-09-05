@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { SAVED_STATUSES, type SavedListing } from '../api/types';
 import { useShortlist } from '../hooks/useShortlist';
 import { ContactDraft } from './ContactDraft';
+import { ShareButton } from './ShareButton';
 
 const STATUS_COLORS: Record<string, string> = {
   saved: '#64748b',
@@ -102,7 +103,8 @@ export function ShortlistPanel({ open, onOpenChange }: PanelProps) {
 
       {open && saved.length > 0 && (
         <div className="px-4 pb-4 space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end items-center gap-2">
+            <ShareButton listings={saved.map((entry) => entry.listing)} label={`Share all ${saved.length}`} />
             {confirmingRemoveAll ? (
               <span className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-dim)' }}>
                 Remove all {saved.length}?
@@ -152,6 +154,7 @@ export function ShortlistPanel({ open, onOpenChange }: PanelProps) {
                 <span className="ml-auto text-xs" style={{ color: 'var(--text-dim)' }}>
                   saved by {shortName(entry.savedBy)}
                 </span>
+                <ShareButton listings={[entry.listing]} compact />
                 <button
                   onClick={() => void toggle(entry.key)}
                   aria-label={`Remove ${entry.listing.title} from the shortlist`}

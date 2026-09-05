@@ -3,6 +3,8 @@ import type { SearchParams } from '../types';
 import { DEFAULT_SEARCH } from '../data/search';
 
 interface Props {
+  /** The search that is actually running, so applying a saved one fills the boxes in. */
+  params: SearchParams;
   onSearch: (params: SearchParams) => void;
   /** Puts the search back to every SF listing, including any neighborhood pills. */
   onClearAll: () => void;
@@ -13,6 +15,10 @@ const MAX_ROOMS = 6;
 
 function parseRoom(value: string): number | null {
   return value === 'any' ? null : parseInt(value, 10);
+}
+
+function roomValue(count: number | null): string {
+  return count === null ? 'any' : String(count);
 }
 
 const inputClass =
@@ -81,48 +87,42 @@ function RoomRange({ id, label, optionLabel, min, max, onMin, onMax }: RangeProp
   );
 }
 
-export function SearchForm({ onSearch, onClearAll, loading }: Props) {
-  const [minRent, setMinRent] = useState(DEFAULT_SEARCH.minRent);
-  const [maxRent, setMaxRent] = useState(DEFAULT_SEARCH.maxRent);
-  const [minBedrooms, setMinBedrooms] = useState<string>('any');
-  const [maxBedrooms, setMaxBedrooms] = useState<string>('any');
-  const [minBathrooms, setMinBathrooms] = useState<string>('any');
-  const [maxBathrooms, setMaxBathrooms] = useState<string>('any');
-  const [dedupe, setDedupe] = useState(DEFAULT_SEARCH.dedupe);
+export function SearchForm({ params, onSearch, onClearAll, loading }: Props) {
+  const [draft, setDraft] = useState(params);
+  const [shown, setShown] = useState(params);
 
-  function paramsWith(nextDedupe: boolean): SearchParams {
-    return {
-      minRent,
-      maxRent,
-      minBedrooms: parseRoom(minBedrooms),
-      maxBedrooms: parseRoom(maxBedrooms),
-      minBathrooms: parseRoom(minBathrooms),
-      maxBathrooms: parseRoom(maxBathrooms),
-      dedupe: nextDedupe,
-    };
+  // Applying a saved search changes the running search under the form, and the
+  // boxes have to follow it; anything typed since is on its way out anyway.
+  if (shown !== params) {
+    setShown(params);
+    setDraft(params);
   }
 
+  const change = (patch: Partial<SearchParams>) => setDraft((current) => ({ ...current, ...patch }));
+
+  const minRent = draft.minRent;
+  const maxRent = draft.maxRent;
+  const minBedrooms = roomValue(draft.minBedrooms);
+  const maxBedrooms = roomValue(draft.maxBedrooms);
+  const minBathrooms = roomValue(draft.minBathrooms);
+  const maxBathrooms = roomValue(draft.maxBathrooms);
+  const dedupe = draft.dedupe;
+
   function handleClear() {
-    setMinRent(DEFAULT_SEARCH.minRent);
-    setMaxRent(DEFAULT_SEARCH.maxRent);
-    setMinBedrooms('any');
-    setMaxBedrooms('any');
-    setMinBathrooms('any');
-    setMaxBathrooms('any');
-    setDedupe(DEFAULT_SEARCH.dedupe);
+    setDraft(DEFAULT_SEARCH);
     onClearAll();
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onSearch(paramsWith(dedupe));
+    onSearch(draft);
   }
 
   // Re-searches on the spot: a checkbox that needed a second button press to
   // take effect reads as broken.
   function handleDedupe(next: boolean) {
-    setDedupe(next);
-    onSearch(paramsWith(next));
+    setDraft({ ...draft, dedupe: next });
+    onSearch({ ...draft, dedupe: next });
   }
 
   return (
@@ -136,7 +136,7 @@ export function SearchForm({ onSearch, onClearAll, loading }: Props) {
             id="min-rent"
             type="number"
             value={minRent}
-            onChange={e => setMinRent(Number(e.target.value))}
+            onChange={e => change({ minRent: Number(e.target.value) })}
             className={inputClass}
             style={inputStyle}
             min={0}
@@ -152,7 +152,7 @@ export function SearchForm({ onSearch, onClearAll, loading }: Props) {
             id="max-rent"
             type="number"
             value={maxRent}
-            onChange={e => setMaxRent(Number(e.target.value))}
+            onChange={e => change({ maxRent: Number(e.target.value) })}
             className={inputClass}
             style={inputStyle}
             min={0}
@@ -166,8 +166,8 @@ export function SearchForm({ onSearch, onClearAll, loading }: Props) {
           optionLabel={(count) => (count === 0 ? 'Studio' : `${count} bd`)}
           min={minBedrooms}
           max={maxBedrooms}
-          onMin={setMinBedrooms}
-          onMax={setMaxBedrooms}
+          onMin={(value) => change({ minBedrooms: parseRoom(value) })}
+          onMax={(value) => change({ maxBedrooms: parseRoom(value) })}
         />
 
         <RoomRange
@@ -176,8 +176,8 @@ export function SearchForm({ onSearch, onClearAll, loading }: Props) {
           optionLabel={(count) => `${count} ba`}
           min={minBathrooms}
           max={maxBathrooms}
-          onMin={setMinBathrooms}
-          onMax={setMaxBathrooms}
+          onMin={(value) => change({ minBathrooms: parseRoom(value) })}
+          onMax={(value) => change({ maxBathrooms: parseRoom(value) })}
         />
 
         <button

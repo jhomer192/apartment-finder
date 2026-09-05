@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import type { SavedFilter } from './api/types';
 import type { SearchParams, SortOption } from './types';
 import { SearchForm } from './components/SearchForm';
+import { SavedFilters } from './components/SavedFilters';
 import { DEFAULT_SEARCH } from './data/search';
 import { ResultsGrid } from './components/ResultsGrid';
 import { SortSelect } from './components/SortSelect';
@@ -150,6 +152,23 @@ function Finder({
     handleSearch(DEFAULT_SEARCH);
   }
 
+  /** A saved search restores the neighborhoods and the sort too, not just the numbers. */
+  function applySavedFilter(filter: SavedFilter) {
+    const params: SearchParams = {
+      minRent: filter.minRent,
+      maxRent: filter.maxRent,
+      minBedrooms: filter.minBedrooms,
+      maxBedrooms: filter.maxBedrooms,
+      minBathrooms: filter.minBathrooms,
+      maxBathrooms: filter.maxBathrooms,
+      dedupe: filter.dedupe,
+    };
+    setActiveSearch(params);
+    search(params);
+    setNeighborhoods(new Set(filter.neighborhoods));
+    setSort(filter.sort);
+  }
+
   const activeFilters = filterLabels(activeSearch, neighborhoods);
 
   return (
@@ -190,7 +209,12 @@ function Finder({
 
         <HouseRulesBar onSaved={rerunSearch} />
 
-        <SearchForm onSearch={handleSearch} onClearAll={handleClearAll} loading={loading} />
+        <SearchForm params={activeSearch} onSearch={handleSearch} onClearAll={handleClearAll} loading={loading} />
+
+        <SavedFilters
+          current={{ ...activeSearch, neighborhoods: [...neighborhoods], sort }}
+          onApply={applySavedFilter}
+        />
 
         {/* Error */}
         {error && (
