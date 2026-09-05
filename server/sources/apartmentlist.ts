@@ -4,10 +4,10 @@ const SEARCH_URL = 'https://www.apartmentlist.com/ca/san-francisco';
 const ORIGIN = 'https://www.apartmentlist.com';
 const PHOTO_BASE = 'https://cdn.apartmentlist.com/image/upload/f_auto,q_auto,t_web-base';
 const MAX_PHOTOS = 40;
-/** Property pages fetched per search to fill in photos the search page omits. */
+/** Property pages fetched per search to fill in what the search page omits. */
 const MAX_HYDRATED = 100;
 const HYDRATE_CONCURRENCY = 8;
-/** Stop hydrating rather than let photo backfill dominate search latency. */
+/** Stop hydrating rather than let the backfill dominate search latency. */
 const HYDRATE_BUDGET_MS = 12_000;
 
 /** Every property in the search area: name, coordinates, and price per bed count. */
@@ -121,13 +121,53 @@ function galleryFromPropertyPage(html: string): string[] {
   }
 }
 
+interface UnitFacts {
+  bed: number;
+  bath: number;
+  sqft: number;
+}
+
 /**
- * The search page only embeds photos for the properties it renders as cards.
- * The rest carry their gallery on their own page, so fetch a bounded number of
- * those rather than showing "no photo" for a property that has plenty.
+ * The search page carries no floor-plan detail, but a property page lists every
+ * available unit as `{"bed":2,"bath":1,"sqft":790,...}`, inline or escaped
+ * inside a flight chunk.
  */
-async function hydratePhotos(listings: RawListing[]): Promise<void> {
-  const missing = listings.filter((listing) => listing.imageUrls.length === 0).slice(0, MAX_HYDRATED);
+export function unitsFromPropertyPage(html: string): UnitFacts[] {
+  const units: UnitFacts[] = [];
+  for (const match of html.matchAll(/\\?"bed\\?":\s*(\d+),\\?"bath\\?":\s*(\d+(?:\.\d+)?),\\?"sqft\\?":\s*(\d+)/g)) {
+    units.push({ bed: Number(match[1]), bath: Number(match[2]), sqft: Number(match[3]) });
+  }
+  return units;
+}
+
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor((sorted.length - 1) / 2)];
+}
+
+/**
+ * A property advertises several floor plans, so report the typical unit of the
+ * size we priced rather than a mix of studios and three-beds.
+ */
+export function unitFacts(units: UnitFacts[], bedrooms: number): { bathrooms: number | null; sqft: number | null } {
+  const matching = units.filter((unit) => unit.bed === bedrooms);
+  return {
+    bathrooms: median(matching.filter((unit) => unit.bath > 0).map((unit) => unit.bath)),
+    sqft: median(matching.filter((unit) => unit.sqft > 0).map((unit) => unit.sqft)),
+  };
+}
+
+/**
+ * The search page only embeds photos for the properties it renders as cards,
+ * and floor-plan detail for none of them. Both live on the property's own page,
+ * so fetch a bounded number of those rather than showing "no photo" for a
+ * property that has plenty, or "— ba" for one that publishes its bathrooms.
+ */
+async function hydrateFromPropertyPages(listings: RawListing[]): Promise<void> {
+  const missing = listings
+    .filter((listing) => listing.imageUrls.length === 0 || listing.bathrooms === null)
+    .slice(0, MAX_HYDRATED);
   const deadline = Date.now() + HYDRATE_BUDGET_MS;
 
   for (let i = 0; i < missing.length && Date.now() < deadline; i += HYDRATE_CONCURRENCY) {
@@ -136,13 +176,20 @@ async function hydratePhotos(listings: RawListing[]): Promise<void> {
         try {
           const response = await fetchWithTimeout(listing.url, 10_000);
           if (!response.ok) return;
-          const urls = galleryFromPropertyPage(await response.text());
-          if (urls.length === 0) return;
-          listing.imageUrl = urls[0];
-          listing.imageUrls = urls;
-          listing.photoCount = Math.max(listing.photoCount, urls.length);
+          const html = await response.text();
+
+          const urls = galleryFromPropertyPage(html);
+          if (urls.length > 0 && listing.imageUrls.length === 0) {
+            listing.imageUrl = urls[0];
+            listing.imageUrls = urls;
+            listing.photoCount = Math.max(listing.photoCount, urls.length);
+          }
+
+          const facts = unitFacts(unitsFromPropertyPage(html), listing.bedrooms ?? 0);
+          listing.bathrooms = listing.bathrooms ?? facts.bathrooms;
+          listing.sqft = listing.sqft ?? facts.sqft;
         } catch {
-          // A property without a reachable page just keeps its "no photo" state.
+          // A property without a reachable page just keeps what the search gave us.
         }
       }),
     );
@@ -238,7 +285,7 @@ export const apartmentListSource: ListingSource = {
       if (listings.length >= query.limit) break;
     }
 
-    await hydratePhotos(listings);
+    await hydrateFromPropertyPages(listings);
 
     if (listings.length === 0 && results.length === 0) {
       throw new Error('ApartmentList returned no parseable listings — the page markup likely changed.');

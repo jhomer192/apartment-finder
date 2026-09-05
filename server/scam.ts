@@ -27,7 +27,18 @@ const RED_FLAG_PATTERNS: Array<{ pattern: RegExp; weight: number; reason: string
   { pattern: /\b(urgent|asap|act\s+fast|first\s+come\s+first\s+serve)\b/i, weight: 8, reason: 'High-pressure urgency language' },
   { pattern: /\bcontact\s+me\s+(at|on|via)\b[^.]{0,40}@/i, weight: 15, reason: 'Pushes contact to a personal email address' },
   { pattern: /\btext\s+only\b|\bdo\s+not\s+call\b/i, weight: 8, reason: 'Refuses phone contact' },
+  { pattern: /\b(cashier'?s?\s+check|money\s+order|certified\s+funds|cash\s+only)\b/i, weight: 20, reason: 'Insists on cash, money order or certified funds' },
+  { pattern: /\b(hold|reserve|secure)\s+(the\s+|this\s+)?(unit|apartment|place|room|home)\b|\bholding\s+(fee|deposit)\b/i, weight: 15, reason: 'Wants money up front to "hold" the unit' },
+  { pattern: /\b(no\s+lease|lease\s+not\s+required|no\s+paperwork|no\s+application)\b/i, weight: 15, reason: 'Says no lease or application is needed' },
+  { pattern: /\bself\s*[- ]?\s*(tour|show)\b[^.]{0,40}\bkey\s*(box|code)\b|\bdrive\s+by\b[^.]{0,30}\bthen\s+send\b/i, weight: 20, reason: 'Offers a viewing with nobody present, then payment' },
+  { pattern: /\b(ssn|social\s+security\s+number)\b[^.]{0,40}\b(email|text|send)\b/i, weight: 20, reason: 'Asks for a Social Security number over email or text' },
+  { pattern: /\bagent\s+fee\b[^.]{0,30}\bbefore\b|\bapplication\s+fee\b[^.]{0,40}\b(zelle|venmo|cash\s?app|wire)\b/i, weight: 25, reason: 'Wants a fee paid through an untraceable channel' },
 ];
+
+/** SF proper plus a margin; anything outside is not the unit it claims to be. */
+const SF_BOUNDS = { minLat: 37.6, maxLat: 37.86, minLng: -122.55, maxLng: -122.32 };
+/** Even a rent-controlled SF unit clears this; below it the price is fiction. */
+const IMPLAUSIBLE_RENT_PER_SQFT = 1;
 
 const MEDIAN_SF_RENT_BY_BEDROOM: Record<number, number> = {
   0: 2300,
@@ -62,6 +73,26 @@ function hasStreetNumber(address: string): boolean {
   return /^\s*\d+\s+\S/.test(address);
 }
 
+function normalizeText(text: string): string {
+  return text.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/** The phone numbers and email addresses a listing can be reached on. */
+function contactHandles(listing: RawListing): string[] {
+  const handles: string[] = [];
+  if (listing.contactEmail) handles.push(listing.contactEmail.toLowerCase());
+  if (listing.contactPhone) {
+    const digits = listing.contactPhone.replace(/\D/g, '').slice(-10);
+    if (digits.length === 10) handles.push(digits);
+  }
+  return handles;
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor((sorted.length - 1) / 2)];
+}
+
 /**
  * Deterministic signals only — cheap, offline, and applied to every listing.
  * A listing priced far below market is the single strongest scam predictor.
@@ -79,8 +110,8 @@ export function scoreHeuristics(listing: RawListing): ScamAssessment {
     }
   }
 
-  const median = MEDIAN_SF_RENT_BY_BEDROOM[listing.bedrooms ?? 1] ?? MEDIAN_SF_RENT_BY_BEDROOM[1];
-  const ratio = listing.price / median;
+  const typical = MEDIAN_SF_RENT_BY_BEDROOM[listing.bedrooms ?? 1] ?? MEDIAN_SF_RENT_BY_BEDROOM[1];
+  const ratio = listing.price / typical;
   if (ratio < 0.4) {
     score += 35;
     reasons.push(`Rent is ${Math.round((1 - ratio) * 100)}% below the SF median for this size`);
@@ -115,9 +146,33 @@ export function scoreHeuristics(listing: RawListing): ScamAssessment {
     }
   }
 
-  if (listing.description.length > 0 && listing.description.length < 120) {
-    score += 8;
-    reasons.push('Unusually short description');
+  if (listing.detail === 'full' && listing.sqft !== null && listing.sqft > 0) {
+    const perSqft = listing.price / listing.sqft;
+    if (perSqft < IMPLAUSIBLE_RENT_PER_SQFT) {
+      score += 25;
+      reasons.push(`Asks $${perSqft.toFixed(2)} per sqft, far under anything real in SF`);
+    }
+  }
+
+  if (listing.detail === 'full' && listing.lat !== null && listing.lng !== null) {
+    const inCity =
+      listing.lat >= SF_BOUNDS.minLat &&
+      listing.lat <= SF_BOUNDS.maxLat &&
+      listing.lng >= SF_BOUNDS.minLng &&
+      listing.lng <= SF_BOUNDS.maxLng;
+    if (!inCity) {
+      score += 15;
+      reasons.push('Map pin falls outside San Francisco');
+    } else {
+      checks.push('Map pin lands in San Francisco');
+    }
+  }
+
+  // A terse description is normal for a property manager, so it only counts
+  // as corroboration once something else already looks wrong.
+  if (reasons.length > 0 && listing.description.length > 0 && listing.description.length < 120) {
+    score += 5;
+    reasons.push('Barely any description alongside the flags above');
   }
 
   const capped = Math.min(score, 100);
@@ -133,11 +188,27 @@ export function scoreHeuristics(listing: RawListing): ScamAssessment {
 export function crossListingSignals(listings: RawListing[]): Map<string, ScamAssessment> {
   const byAddress = new Map<string, RawListing[]>();
   const byPhoto = new Map<string, RawListing[]>();
+  const byDescription = new Map<string, RawListing[]>();
+  const byContact = new Map<string, RawListing[]>();
+  const byBedrooms = new Map<number, number[]>();
 
   for (const listing of listings) {
     const address = normalizeAddress(listing.address);
     if (address) byAddress.set(address, [...(byAddress.get(address) ?? []), listing]);
     if (listing.imageUrl) byPhoto.set(listing.imageUrl, [...(byPhoto.get(listing.imageUrl) ?? []), listing]);
+
+    const description = normalizeText(listing.description);
+    if (description.length >= 120) {
+      byDescription.set(description, [...(byDescription.get(description) ?? []), listing]);
+    }
+
+    for (const contact of contactHandles(listing)) {
+      byContact.set(contact, [...(byContact.get(contact) ?? []), listing]);
+    }
+
+    if (listing.bedrooms !== null && listing.price > 0) {
+      byBedrooms.set(listing.bedrooms, [...(byBedrooms.get(listing.bedrooms) ?? []), listing.price]);
+    }
   }
 
   const signals = new Map<string, ScamAssessment>();
@@ -168,6 +239,40 @@ export function crossListingSignals(listings: RawListing[]): Map<string, ScamAss
     if (addresses.size < 2) continue;
     for (const listing of group) {
       add(listing, 30, 'Lead photo is reused on a listing at a different address');
+    }
+  }
+
+  // Property managers reuse boilerplate within a portfolio, so this only counts
+  // when the same words describe buildings on different streets.
+  for (const group of byDescription.values()) {
+    const addresses = new Set(group.map((listing) => normalizeAddress(listing.address)).filter(Boolean));
+    if (addresses.size < 2) continue;
+    for (const listing of group) {
+      add(listing, 20, 'Word-for-word the same description as a listing at another address');
+    }
+  }
+
+  for (const [contact, group] of byContact) {
+    const addresses = new Set(group.map((listing) => normalizeAddress(listing.address)).filter(Boolean));
+    if (addresses.size < 3) continue;
+    for (const listing of group) {
+      add(listing, 15, `Same contact (${contact}) is posting ${addresses.size} different addresses`);
+    }
+  }
+
+  // The static medians age; what the rest of this batch asks for the same size
+  // today does not.
+  for (const [bedrooms, prices] of byBedrooms) {
+    if (prices.length < 8) continue;
+    const typical = median(prices);
+    for (const listing of listings) {
+      if (listing.bedrooms !== bedrooms || listing.price <= 0) continue;
+      if (listing.price > typical * 0.5) continue;
+      add(
+        listing,
+        20,
+        `Half the going rate: other ${bedrooms}-bed listings in this search ask around $${typical.toLocaleString()}`,
+      );
     }
   }
 

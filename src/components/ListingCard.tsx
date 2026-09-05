@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import type { Listing } from '../types';
 import { useShortlist } from '../hooks/useShortlist';
 import { ScamBadge } from './ScamBadge';
-import { googleMapsUrl } from '../utils/maps';
+import { useCommute } from '../hooks/useCommute';
+import { clockLabel, commuteUrl, googleMapsUrl } from '../utils/maps';
 
 interface Props {
   listing: Listing;
@@ -10,6 +11,7 @@ interface Props {
 
 export function ListingCard({ listing }: Props) {
   const { keys, toggle } = useShortlist();
+  const { commute } = useCommute();
   const [broken, setBroken] = useState<Set<string>>(new Set());
   const [index, setIndex] = useState(0);
   const [expanded, setExpanded] = useState(false);
@@ -210,6 +212,22 @@ export function ListingCard({ listing }: Props) {
           </svg>
           See the block on Google Maps
         </a>
+
+        {commute.destination.trim() && (
+          <a
+            href={commuteUrl(listing, commute.destination, commute.time, commute.mode)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs font-medium"
+            style={{ color: 'var(--accent)' }}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="9" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" />
+            </svg>
+            Directions to work, leaving {clockLabel(commute.time)}
+          </a>
+        )}
 
         {/* Stats row */}
         <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-dim)' }}>

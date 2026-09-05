@@ -8,7 +8,8 @@ function listing(overrides: Partial<RawListing> = {}): RawListing {
     sourceName: 'Test',
     externalId: 'abc',
     title: '2 Bedroom in the Mission',
-    description: 'A'.repeat(400),
+    // Distinct per listing so batch tests exercise one signal at a time.
+    description: `${'A'.repeat(400)} ref ${overrides.externalId ?? 'abc'}`,
     price: 4200,
     bedrooms: 2,
     bathrooms: 1,
@@ -73,8 +74,14 @@ describe('scoreHeuristics', () => {
     expect(result.reasons).toEqual([
       'No photos on the listing',
       'No street address given',
-      'Unusually short description',
+      'Barely any description alongside the flags above',
     ]);
+  });
+
+  it('does not penalise a terse description on its own', () => {
+    const result = scoreHeuristics(listing({ description: 'Two bed, one bath, available now.' }));
+    expect(result.score).toBe(0);
+    expect(result.reasons).toEqual([]);
   });
 
   it('reports the checks a clean listing passed', () => {
@@ -83,7 +90,33 @@ describe('scoreHeuristics', () => {
       'Rent is in line with the SF median for this size',
       '12 photos published',
       'Full street address published',
+      'Map pin lands in San Francisco',
     ]);
+  });
+
+  it('flags payment channels a renter cannot claw back', () => {
+    const result = scoreHeuristics(
+      listing({ description: `Cash only, bring a money order to hold the unit. ${'A'.repeat(400)}` }),
+    );
+    expect(result.reasons).toContain('Insists on cash, money order or certified funds');
+    expect(result.reasons).toContain('Wants money up front to "hold" the unit');
+  });
+
+  it('flags a listing that skips the paperwork', () => {
+    const result = scoreHeuristics(
+      listing({ description: `No lease required, move in today. ${'A'.repeat(400)}` }),
+    );
+    expect(result.reasons).toContain('Says no lease or application is needed');
+  });
+
+  it('flags a rent per square foot that cannot be real', () => {
+    const result = scoreHeuristics(listing({ price: 700, sqft: 900 }));
+    expect(result.reasons).toContain('Asks $0.78 per sqft, far under anything real in SF');
+  });
+
+  it('flags a pin that is not in San Francisco', () => {
+    const result = scoreHeuristics(listing({ lat: 34.05, lng: -118.24 }));
+    expect(result.reasons).toContain('Map pin falls outside San Francisco');
   });
 
   it('flags an address that cannot be pinned to a building', () => {
@@ -149,6 +182,48 @@ describe('crossListingSignals', () => {
       'Lead photo is reused on a listing at a different address',
     );
     expect(signals.get('test:b')?.score).toBe(30);
+  });
+
+  it('flags an identical description posted under another address', () => {
+    const copy = 'Bright top-floor unit with a remodeled kitchen and in-unit laundry. '.repeat(4);
+    const signals = crossListingSignals([
+      listing({ externalId: 'a', description: copy }),
+      listing({ externalId: 'b', description: copy, address: '900 Market St' }),
+    ]);
+    expect(signals.get('test:a')?.reasons).toContain(
+      'Word-for-word the same description as a listing at another address',
+    );
+  });
+
+  it('flags one contact posting several different addresses', () => {
+    const signals = crossListingSignals([
+      listing({ externalId: 'a', contactPhone: '(415) 555-0101' }),
+      listing({ externalId: 'b', contactPhone: '415-555-0101', address: '900 Market St' }),
+      listing({ externalId: 'c', contactPhone: '4155550101', address: '55 Page St' }),
+    ]);
+    expect(signals.get('test:c')?.reasons).toContain(
+      'Same contact (4155550101) is posting 3 different addresses',
+    );
+  });
+
+  it('leaves a manager with two listings on one contact alone', () => {
+    const signals = crossListingSignals([
+      listing({ externalId: 'a', contactPhone: '4155550101' }),
+      listing({ externalId: 'b', contactPhone: '4155550101', address: '900 Market St' }),
+    ]);
+    expect(signals.size).toBe(0);
+  });
+
+  it('flags a listing at half what the rest of the batch asks', () => {
+    const batch = Array.from({ length: 9 }, (_, i) => listing({ externalId: `m${i}`, price: 4200 }));
+    const signals = crossListingSignals([
+      ...batch,
+      listing({ externalId: 'cheap', price: 1500, address: '900 Market St' }),
+    ]);
+    expect(signals.get('test:cheap')?.reasons).toContain(
+      'Half the going rate: other 2-bed listings in this search ask around $4,200',
+    );
+    expect(signals.get('test:m0')).toBeUndefined();
   });
 
   it('accepts the same photo on the same address', () => {

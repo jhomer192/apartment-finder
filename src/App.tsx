@@ -13,6 +13,7 @@ import { SourceStatusBar } from './components/SourceStatusBar';
 import { ShortlistProvider } from './components/ShortlistProvider';
 import { ShortlistPanel } from './components/ShortlistPanel';
 import { PasswordPanel } from './components/PasswordPanel';
+import { CommuteBar } from './components/CommuteBar';
 import { useSearch } from './hooks/useSearch';
 import { useAuth } from './hooks/useAuth';
 import { useStickyState } from './hooks/useStickyState';
@@ -186,6 +187,8 @@ function Finder({
                 </button>
               </div>
             </div>
+
+            <CommuteBar />
 
             <NeighborhoodFilter
               neighborhoods={occupiedNeighborhoods}

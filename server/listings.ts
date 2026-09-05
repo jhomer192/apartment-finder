@@ -5,6 +5,7 @@ import {
   crossListingSignals,
   listingKey,
   mergeAssessments,
+  normalizeAddress,
   type ClaudeBudget,
   type ScamAssessment,
 } from './scam.js';
@@ -101,6 +102,8 @@ export async function getListings(query: SourceQuery): Promise<ListingsResponse>
     }
   });
 
+  fillMissingFacts(raw);
+
   const budget: ClaudeBudget = { remaining: CLAUDE_REVIEWS_PER_SEARCH };
   const duplicates = crossListingSignals(raw);
   const listings = await Promise.all(
@@ -130,6 +133,31 @@ export async function getListings(query: SourceQuery): Promise<ListingsResponse>
   }
   cache.set(key, response);
   return response;
+}
+
+/**
+ * One source often omits the bathroom count or floor area another publishes for
+ * the same building, so a listing borrows those from a same-address, same-size
+ * listing rather than showing "— ba". Price is never borrowed: that is the
+ * number the two sources are allowed to disagree on.
+ */
+export function fillMissingFacts(listings: RawListing[]): void {
+  const byBuilding = new Map<string, RawListing[]>();
+  for (const listing of listings) {
+    const address = normalizeAddress(listing.address);
+    if (!address) continue;
+    const key = `${address}|${listing.bedrooms ?? '?'}`;
+    byBuilding.set(key, [...(byBuilding.get(key) ?? []), listing]);
+  }
+
+  for (const group of byBuilding.values()) {
+    const bathrooms = group.find((listing) => listing.bathrooms !== null)?.bathrooms ?? null;
+    const sqft = group.find((listing) => listing.sqft !== null)?.sqft ?? null;
+    for (const listing of group) {
+      if (listing.bathrooms === null) listing.bathrooms = bathrooms;
+      if (listing.sqft === null) listing.sqft = sqft;
+    }
+  }
 }
 
 /** Widest search the sources allow, so a key from any filter combination resolves. */
