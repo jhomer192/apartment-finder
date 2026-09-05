@@ -1,3 +1,4 @@
+import { leasingEmail } from '../contact-info.js';
 import { fetchWithTimeout, type ListingSource, type RawListing, type SourceQuery } from './types.js';
 
 const SF_REGION_ID = 17151;
@@ -59,17 +60,6 @@ function midpoint(range: Range | undefined): number | null {
   return min ?? max ?? null;
 }
 
-/**
- * Syndicated listings often carry an unsubscribe or opt-out mailbox where a
- * leasing address should be; writing to one reaches nobody.
- */
-const NON_CONTACT_MAILBOX = /^(stop|start|help|unsubscribe|no-?reply|do-?not-?reply|postmaster|abuse|privacy)@/i;
-
-function contactEmail(address: string | undefined): string | null {
-  if (!address || NON_CONTACT_MAILBOX.test(address.trim())) return null;
-  return address.trim();
-}
-
 function toListing(home: RedfinHome): RawListing | null {
   const data = home.homeData;
   const rental = home.rentalExtension;
@@ -99,7 +89,7 @@ function toListing(home: RedfinHome): RawListing | null {
     imageUrl: firstPhotoUrl(rentalId, ranges),
     photoCount: countPhotos(ranges),
     postedAt: Number.isNaN(posted) ? null : posted,
-    contactEmail: contactEmail(rental.mlsAgentEmail),
+    contactEmail: leasingEmail(rental.mlsAgentEmail),
     contactPhone: rental.desktopPhone ?? null,
     detail: 'full',
   };

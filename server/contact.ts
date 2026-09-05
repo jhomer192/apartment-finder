@@ -1,4 +1,5 @@
 import { askClaude } from './claude.js';
+import { leasingEmail } from './contact-info.js';
 import type { ScoredListing } from './listings.js';
 
 export interface ContactDraft {
@@ -62,7 +63,8 @@ export async function draftInquiry(listing: ScoredListing, ask: string): Promise
   return {
     subject,
     body,
-    email: listing.contactEmail,
+    // Shortlist snapshots predate the source-side filter, so re-check here.
+    email: leasingEmail(listing.contactEmail),
     phone: listing.contactPhone,
     url: listing.url,
   };
