@@ -25,6 +25,9 @@ export interface ApiListing {
   imageUrl: string | null;
   photoCount: number;
   postedAt: number | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  detail: 'full' | 'summary';
   neighborhood: string;
   scam: ScamAssessment;
 }

@@ -19,6 +19,11 @@ export interface RawListing {
   postedAt: number | null;
   contactEmail: string | null;
   contactPhone: string | null;
+  /**
+   * `summary` means the source withheld fields like photos or the address, so
+   * their absence says nothing about the listing itself.
+   */
+  detail: 'full' | 'summary';
 }
 
 export interface SourceQuery {

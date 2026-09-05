@@ -66,6 +66,7 @@ function parseItems(xml: string): RawListing[] {
       postedAt: Number.isNaN(posted) ? null : posted,
       contactEmail: null,
       contactPhone: null,
+      detail: 'full',
     });
   }
 

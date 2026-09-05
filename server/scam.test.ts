@@ -23,6 +23,7 @@ function listing(overrides: Partial<RawListing> = {}): RawListing {
     postedAt: Date.now(),
     contactEmail: null,
     contactPhone: null,
+    detail: 'full',
     ...overrides,
   };
 }
@@ -73,6 +74,12 @@ describe('scoreHeuristics', () => {
       'Unusually short description',
       'No street address given',
     ]);
+  });
+
+  it('does not read a summary source\'s missing fields as concealment', () => {
+    const withheld = { photoCount: 0, address: '', description: '' };
+    expect(scoreHeuristics(listing({ ...withheld, detail: 'summary' })).score).toBe(0);
+    expect(scoreHeuristics(listing({ ...withheld, detail: 'full' })).score).toBeGreaterThan(0);
   });
 
   it('never exceeds 100', () => {

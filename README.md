@@ -5,7 +5,7 @@ scam risk, and lets the group ask Claude questions about what's on screen.
 
 ## Features
 
-- **Live listings** — real SF rentals fetched server-side (Redfin today, Craigslist behind a flag)
+- **Live listings** — real SF rentals fetched server-side (Redfin and ApartmentList, Craigslist behind a flag)
 - **Scam probability score** — 0–100 per listing with the reasons that produced it
 - **Invite-only access** — email sign-in links, restricted to an email allowlist
 - **Ask Claude** — questions answered against the listings currently displayed
@@ -54,7 +54,12 @@ Put the app behind HTTPS (a reverse proxy is fine) — the session cookie assume
 | Source | Status |
 | --- | --- |
 | Redfin | Live |
+| ApartmentList | Live |
 | Craigslist | Adapter ready, off by default |
+
+ApartmentList only renders full details (address, photos, leasing phone) for the properties it puts
+on cards; the rest arrive as summaries, marked `detail: 'summary'` so the scam heuristics do not read
+the missing fields as a landlord hiding something.
 
 Craigslist returns 403 to datacenter IP ranges, which covers most VPS hosts. Check yours before
 enabling it:

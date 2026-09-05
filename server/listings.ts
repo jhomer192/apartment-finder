@@ -1,11 +1,12 @@
 import { getMetroById } from '../src/data/metros.js';
 import { config } from './config.js';
 import { assessListing, listingKey, type ClaudeBudget, type ScamAssessment } from './scam.js';
+import { apartmentListSource } from './sources/apartmentlist.js';
 import { craigslistSource } from './sources/craigslist.js';
 import { redfinSource } from './sources/redfin.js';
 import type { ListingSource, RawListing, SourceQuery } from './sources/types.js';
 
-const SOURCES: ListingSource[] = [redfinSource, craigslistSource];
+const SOURCES: ListingSource[] = [redfinSource, apartmentListSource, craigslistSource];
 
 export interface ScoredListing extends RawListing {
   key: string;

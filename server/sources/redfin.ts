@@ -90,6 +90,7 @@ function toListing(home: RedfinHome): RawListing | null {
     postedAt: Number.isNaN(posted) ? null : posted,
     contactEmail: rental.mlsAgentEmail ?? null,
     contactPhone: rental.desktopPhone ?? null,
+    detail: 'full',
   };
 }
 

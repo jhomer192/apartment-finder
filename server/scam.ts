@@ -71,7 +71,9 @@ export function scoreHeuristics(listing: RawListing): ScamAssessment {
     reasons.push(`Rent is well below the SF median for this size`);
   }
 
-  if (listing.photoCount === 0) {
+  // A summary-only source tells us nothing about photos or the address, and
+  // scoring those absences would flag every listing it returns.
+  if (listing.detail === 'full' && listing.photoCount === 0) {
     score += 12;
     reasons.push('No photos on the listing');
   }
@@ -81,7 +83,7 @@ export function scoreHeuristics(listing: RawListing): ScamAssessment {
     reasons.push('Unusually short description');
   }
 
-  if (!listing.address) {
+  if (listing.detail === 'full' && !listing.address) {
     score += 10;
     reasons.push('No street address given');
   }
