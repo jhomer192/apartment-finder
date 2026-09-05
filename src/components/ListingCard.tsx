@@ -258,19 +258,12 @@ export function ListingCard({ listing }: Props) {
         )}
 
         {listing.lat !== null && listing.lng !== null && (
-          <a
-            href={googleMapsUrl(listing)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block"
-            title="Open this address in Google Maps"
-          >
-            <ListingMiniMap
-              lat={listing.lat}
-              lng={listing.lng}
-              label={listing.address || listing.neighborhood}
-            />
-          </a>
+          <ListingMiniMap
+            lat={listing.lat}
+            lng={listing.lng}
+            label={listing.address || listing.neighborhood}
+            mapsUrl={googleMapsUrl(listing)}
+          />
         )}
 
         <AreaFactsRow area={listing.area} />
