@@ -114,10 +114,13 @@ export function saveAlertPrefs(prefs: AlertPrefs): Promise<{ prefs: AlertPrefs }
   return request('/api/alerts/prefs', { method: 'PUT', body: JSON.stringify(prefs) });
 }
 
-export function claudeSearch(question: string): Promise<ClaudeSearchResult> {
+export function claudeSearch(
+  question: string,
+  history: Array<{ question: string; answer: string }> = [],
+): Promise<ClaudeSearchResult> {
   return request('/api/search/claude', {
     method: 'POST',
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, history }),
   });
 }
 

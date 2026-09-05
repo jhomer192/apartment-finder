@@ -30,6 +30,24 @@ export interface RankedListing {
   valueDelta: number;
 }
 
+export interface Turn {
+  question: string;
+  answer: string;
+}
+
+/** Earlier turns, oldest first, so "the cheaper one" still means what it did. */
+function transcript(history: Turn[]): string[] {
+  if (history.length === 0) return [];
+  return [
+    'Earlier in this conversation, treated as context for the request below:',
+    ...history.map(
+      (turn) =>
+        `They asked: ${turn.question.replace(/\s+/g, ' ').trim()}\nYou answered: ${turn.answer.replace(/\s+/g, ' ').trim()}`,
+    ),
+    '',
+  ];
+}
+
 export interface AgentAnswer {
   answer: string;
   plan: SearchPlan;
@@ -91,7 +109,7 @@ export function applyPlan(listings: ScoredListing[], plan: SearchPlan): ScoredLi
   return matches.sort(order[plan.sort]);
 }
 
-async function planFor(question: string): Promise<SearchPlan> {
+async function planFor(question: string, history: Turn[]): Promise<SearchPlan> {
   // Only the roommate's own question reaches this step, so the model choosing
   // filters never sees listing text.
   const prompt = [
@@ -103,7 +121,9 @@ async function planFor(question: string): Promise<SearchPlan> {
     'concrete features (parking, laundry, pets), never for neighborhoods or price.',
     `Neighborhoods must come from this list: ${NEIGHBORHOODS.join(', ')}.`,
     'If the request mentions avoiding scams, set maxScamScore to at most 25.',
+    'A follow-up keeps the earlier filter unless it changes it.',
     '',
+    ...transcript(history),
     `Request: ${question.replace(/\s+/g, ' ').trim()}`,
   ].join('\n');
 
@@ -126,6 +146,7 @@ const rankSchema = z.object({
 
 async function rank(
   question: string,
+  history: Turn[],
   candidates: ScoredListing[],
   medians: Map<number, number>,
 ): Promise<z.infer<typeof rankSchema>> {
@@ -149,7 +170,12 @@ async function rank(
     'which were already filtered from the full set for them.',
     'Judge deals with real SF knowledge: what a neighborhood normally costs, how',
     'transit and safety vary block to block, and what a price that far under market',
-    'usually means. Say plainly when a listing looks like bait.',
+    'usually means.',
+    'Never invent a number they did not give you: if the answer depends on their',
+    'income, how many people are splitting rent, or a move-in date, name what is',
+    'missing and ask for it, or state the assumption in one short clause.',
+    'The scam score comes from price, photo, address and duplicate checks only, so',
+    'call an unverified listing worth checking rather than calling it fraud.',
     'Return ONLY JSON: {"answer": string, "picks": [{"key": string, "verdict":',
     '"great deal"|"fair"|"overpriced"|"scam risk", "why": string}]}.',
     'Pick at most 6, best first, and use the exact keys given. Keep "answer" under',
@@ -161,6 +187,7 @@ async function rank(
     table || '(nothing matched the filter)',
     '--- END LISTINGS ---',
     '',
+    ...transcript(history),
     `Request: ${question.replace(/\s+/g, ' ').trim()}`,
   ].join('\n');
 
@@ -172,14 +199,14 @@ async function rank(
  * have, and Claude then ranks what came back. The filtering stays deterministic
  * and server-side, so the model never needs tools that touch the machine.
  */
-export async function claudeSearch(question: string): Promise<AgentAnswer> {
-  const plan = await planFor(question);
+export async function claudeSearch(question: string, history: Turn[] = []): Promise<AgentAnswer> {
+  const plan = await planFor(question, history);
   const { listings } = await getListings(EVERYTHING);
   const matches = applyPlan(listings, plan);
   const medians = medianByBedrooms(listings);
   const candidates = matches.slice(0, SHORTLIST);
 
-  const result = await rank(question, candidates, medians);
+  const result = await rank(question, history, candidates, medians);
   const byKey = new Map(candidates.map((listing) => [listing.key, listing]));
 
   const ranked = result.picks.flatMap<RankedListing>((pick) => {

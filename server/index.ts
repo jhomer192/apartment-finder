@@ -219,14 +219,22 @@ app.get('/api/listings', requireAuth, async (req, res) => {
 
 /** Claude plans the filter, the server runs it over every listing, Claude ranks. */
 app.post('/api/search/claude', askLimiter, requireAuth, async (req, res) => {
-  const body = z.object({ question: z.string().min(3).max(500) }).safeParse(req.body);
+  const body = z
+    .object({
+      question: z.string().min(3).max(500),
+      history: z
+        .array(z.object({ question: z.string().max(500), answer: z.string().max(4000) }))
+        .max(4)
+        .default([]),
+    })
+    .safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: 'Describe what you are looking for in 3 to 500 characters.' });
     return;
   }
 
   try {
-    res.json(await claudeSearch(body.data.question));
+    res.json(await claudeSearch(body.data.question, body.data.history));
   } catch (error) {
     const status = error instanceof ClaudeUnavailableError ? 503 : 502;
     res.status(status).json({ error: error instanceof Error ? error.message : 'Claude failed' });

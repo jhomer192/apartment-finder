@@ -85,6 +85,7 @@ function Pick({ pick }: { pick: RankedListing }) {
 export function ClaudeSearch() {
   const [question, setQuestion] = useState('');
   const [result, setResult] = useState<ClaudeSearchResult | null>(null);
+  const [history, setHistory] = useState<Array<{ question: string; answer: string }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -96,7 +97,10 @@ export function ClaudeSearch() {
     setError(null);
     setResult(null);
     try {
-      setResult(await api.claudeSearch(trimmed));
+      const answer = await api.claudeSearch(trimmed, history);
+      setResult(answer);
+      setQuestion('');
+      setHistory((turns) => [...turns, { question: trimmed, answer: answer.answer }].slice(-3));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Claude could not answer that.');
     } finally {
@@ -114,7 +118,9 @@ export function ClaudeSearch() {
           Ask Claude
         </h2>
         <p className="text-xs mt-0.5" style={{ color: 'var(--text-dim)' }}>
-          Describe what you want; Claude searches every listing we have and ranks the deals.
+          {history.length > 0
+            ? 'Ask a follow-up — Claude remembers the last few questions.'
+            : 'Describe what you want; Claude searches every listing we have and ranks the deals.'}
         </p>
       </div>
 
@@ -139,8 +145,21 @@ export function ClaudeSearch() {
           className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
           style={{ backgroundColor: 'var(--accent)' }}
         >
-          {pending ? 'Searching…' : 'Search'}
+          {pending ? 'Searching…' : history.length > 0 ? 'Ask' : 'Search'}
         </button>
+        {history.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              setHistory([]);
+              setResult(null);
+            }}
+            className="px-3 py-2 rounded-lg text-sm font-medium border"
+            style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
+          >
+            Start over
+          </button>
+        )}
       </form>
 
       <div className="flex flex-wrap gap-1.5">
