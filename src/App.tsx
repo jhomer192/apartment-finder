@@ -10,6 +10,7 @@ import { MapView } from './components/MapView';
 import { ThemePicker } from './components/ThemePicker';
 import { ClaudeSearch } from './components/ClaudeSearch';
 import { AlertSettings } from './components/AlertSettings';
+import { HouseRulesBar } from './components/HouseRules';
 import { SignInGate } from './components/SignInGate';
 import { SourceStatusBar } from './components/SourceStatusBar';
 import { InventoryBar } from './components/InventoryBar';
@@ -186,6 +187,8 @@ function Finder({
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         <ClaudeSearch />
+
+        <HouseRulesBar onSaved={rerunSearch} />
 
         <SearchForm onSearch={handleSearch} onClearAll={handleClearAll} loading={loading} />
 

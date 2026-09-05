@@ -230,25 +230,37 @@ const EVERYTHING: SourceQuery = {
   limit: 350,
 };
 
-export function queryInventory(query: SourceQuery): ScoredListing[] {
+/**
+ * `keep` runs on the parsed payload, so a filter on something the table has no
+ * column for (a neighborhood, a house rule) still costs the caller its limit in
+ * results rather than silently returning a short page.
+ */
+export function queryInventory(
+  query: SourceQuery,
+  keep: (listing: ScoredListing) => boolean = () => true,
+): ScoredListing[] {
   const rows = db
     .prepare(
       `SELECT payload FROM inventory
        WHERE price BETWEEN @minRent AND @maxRent
          AND (@minBedrooms IS NULL OR bedrooms IS NULL OR bedrooms >= @minBedrooms)
          AND (@maxBedrooms IS NULL OR bedrooms IS NULL OR bedrooms <= @maxBedrooms)
-       ORDER BY price ASC
-       LIMIT @limit`,
+       ORDER BY price ASC`,
     )
     .all({
       minRent: query.minRent,
       maxRent: query.maxRent,
       minBedrooms: query.minBedrooms,
       maxBedrooms: query.maxBedrooms,
-      limit: query.limit,
     }) as Array<{ payload: string }>;
 
-  return rows.map((row) => JSON.parse(row.payload) as ScoredListing);
+  const listings: ScoredListing[] = [];
+  for (const row of rows) {
+    if (listings.length >= query.limit) break;
+    const listing = JSON.parse(row.payload) as ScoredListing;
+    if (keep(listing)) listings.push(listing);
+  }
+  return listings;
 }
 
 export function inventoryByKeys(keys: string[]): ScoredListing[] {

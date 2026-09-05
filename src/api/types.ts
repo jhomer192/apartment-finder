@@ -102,6 +102,21 @@ export interface AlertSettings {
   channels: { email: boolean; discord: boolean };
 }
 
+/** Standing filters shared by the group; 0 means no ceiling of that kind. */
+export interface HouseRules {
+  excludedNeighborhoods: string[];
+  maxRent: number;
+  maxRentPerBedroom: number;
+  minBedrooms: number;
+  maxScamScore: number;
+}
+
+export interface StoredRules {
+  rules: HouseRules;
+  updatedBy: string | null;
+  updatedAt: number | null;
+}
+
 export interface SearchPlan {
   minRent: number;
   maxRent: number;

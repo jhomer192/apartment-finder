@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { fillMissingFacts } from './listings.js';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { db } from './db.js';
+import { storeListings } from './inventory.js';
+import { fillMissingFacts, findListings, getListings, type ScoredListing } from './listings.js';
+import { houseRulesSchema, setHouseRules } from './rules.js';
 import type { RawListing } from './sources/types.js';
 
 function listing(overrides: Partial<RawListing> = {}): RawListing {
@@ -28,6 +31,45 @@ function listing(overrides: Partial<RawListing> = {}): RawListing {
     ...overrides,
   };
 }
+
+function stored(overrides: Partial<ScoredListing> = {}): ScoredListing {
+  return {
+    ...listing(),
+    key: 'redfin:abc',
+    neighborhood: 'Mission District',
+    scam: { score: 5, band: 'low', reasons: [], checks: [] },
+    area: null,
+    ...overrides,
+  } as ScoredListing;
+}
+
+const ANY = { minRent: 0, maxRent: 100_000, minBedrooms: null, maxBedrooms: null, limit: 100 };
+
+describe('getListings', () => {
+  beforeEach(() => {
+    db.exec('DELETE FROM inventory; DELETE FROM house_rules');
+    storeListings(
+      [
+        stored({ key: 'tenderloin', neighborhood: 'Tenderloin', price: 2000 }),
+        stored({ key: 'mission', neighborhood: 'Mission District', price: 4200 }),
+      ],
+      Date.now(),
+    );
+  });
+
+  it('drops a listing in a neighborhood the group ruled out', async () => {
+    setHouseRules(houseRulesSchema.parse({ excludedNeighborhoods: ['Tenderloin'] }), 'jack@example.com');
+
+    const { listings } = await getListings(ANY);
+    expect(listings.map((l) => l.key)).toEqual(['mission']);
+  });
+
+  it('still resolves a ruled-out listing by key, so a saved one stays readable', async () => {
+    setHouseRules(houseRulesSchema.parse({ excludedNeighborhoods: ['Tenderloin'] }), 'jack@example.com');
+
+    expect((await findListings(['tenderloin'])).map((l) => l.key)).toEqual(['tenderloin']);
+  });
+});
 
 describe('fillMissingFacts', () => {
   it('borrows bathrooms and floor area from the other source for the same unit size', () => {

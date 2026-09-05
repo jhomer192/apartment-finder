@@ -113,6 +113,11 @@ describe('queryInventory', () => {
     expect(queryInventory({ ...ANY, limit: 2 })).toHaveLength(2);
   });
 
+  it('spends the limit on listings that survive the filter, not on ones it drops', () => {
+    const keep = (listing: ScoredListing) => listing.key !== 'a';
+    expect(queryInventory({ ...ANY, limit: 2 }, keep).map((l) => l.key)).toEqual(['b', 'c']);
+  });
+
   it('resolves saved listings by key', () => {
     expect(inventoryByKeys(['c', 'missing']).map((l) => l.key)).toEqual(['c']);
     expect(inventoryByKeys([])).toEqual([]);

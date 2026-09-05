@@ -38,6 +38,7 @@ import { purgeExpired } from './db.js';
 import { inventoryStatus, refreshInventory, startCrawlSchedule } from './inventory.js';
 import { findListings, getListings } from './listings.js';
 import { mailConfigured, sendSignInLink } from './mailer.js';
+import { getHouseRules, houseRulesSchema, setHouseRules } from './rules.js';
 import { claudeSearch } from './search-agent.js';
 import { SAVED_STATUSES, addNote, getSaved, listSaved, save, setStatus, unsave } from './shortlist.js';
 
@@ -265,6 +266,21 @@ app.post('/api/search/claude', askLimiter, requireAuth, async (req, res) => {
     const status = error instanceof ClaudeUnavailableError ? 503 : 502;
     res.status(status).json({ error: error instanceof Error ? error.message : 'Claude failed' });
   }
+});
+
+/** Shared by the whole group: everyone is renting the same apartment. */
+app.get('/api/rules', requireAuth, (_req, res) => {
+  res.json(getHouseRules());
+});
+
+app.put('/api/rules', requireAuth, (req, res) => {
+  const body = houseRulesSchema.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'Those non-negotiables are not valid.' });
+    return;
+  }
+
+  res.json(setHouseRules(body.data, req.user!.email));
 });
 
 app.get('/api/alerts/prefs', requireAuth, (req, res) => {

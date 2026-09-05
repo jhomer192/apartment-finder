@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { getMetroById } from '../src/data/metros.js';
 import { askClaude } from './claude.js';
 import { getListings, type ScoredListing } from './listings.js';
+import { describeRules, getHouseRules } from './rules.js';
 
 const NEIGHBORHOODS = (getMetroById('bay-area')?.neighborhoods ?? []).map((hood) => hood.name);
 
@@ -216,6 +217,12 @@ const rankSchema = z.object({
 /** What the server already enforced, so the answer neither redoes it nor overstates it. */
 function planNotes(plan: SearchPlan): string[] {
   const notes: string[] = [];
+  const rules = describeRules(getHouseRules().rules);
+  if (rules.length > 0) {
+    notes.push(
+      `The group set standing rules (${rules.join('; ')}) and nothing that breaks them reached this list. If they asked for one of those, say it is ruled out rather than pretending none exist.`,
+    );
+  }
   if (plan.maxRentPerBedroom > 0) {
     notes.push(
       `They gave a per-person budget, so every listing here already costs at most $${plan.maxRentPerBedroom.toLocaleString()} per bedroom: do not re-read it as a whole-unit budget or assume they live alone.`,

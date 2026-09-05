@@ -3,12 +3,14 @@ import type {
   AlertSettings,
   ClaudeSearchResult,
   ContactDraft,
+  HouseRules,
   InventoryStatus,
   ListingNote,
   ListingsResponse,
   SavedListing,
   SavedStatus,
   SessionUser,
+  StoredRules,
 } from './types';
 
 export class ApiError extends Error {
@@ -122,6 +124,14 @@ export function fetchAlertPrefs(): Promise<AlertSettings> {
 
 export function saveAlertPrefs(prefs: AlertPrefs): Promise<{ prefs: AlertPrefs }> {
   return request('/api/alerts/prefs', { method: 'PUT', body: JSON.stringify(prefs) });
+}
+
+export function fetchRules(): Promise<StoredRules> {
+  return request('/api/rules');
+}
+
+export function saveRules(rules: HouseRules): Promise<StoredRules> {
+  return request('/api/rules', { method: 'PUT', body: JSON.stringify(rules) });
 }
 
 export function claudeSearch(

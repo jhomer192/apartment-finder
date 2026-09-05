@@ -1,5 +1,6 @@
 import { config } from './config.js';
 import { inventorySize, inventoryByKeys, queryInventory } from './inventory.js';
+import { allowedByRules, getHouseRules } from './rules.js';
 import { SOURCES, scoreAll, type ScoredListing, type SourceStatus } from './scoring.js';
 import type { RawListing, SourceQuery } from './sources/types.js';
 
@@ -27,10 +28,17 @@ function cacheKey(query: SourceQuery): string {
  * fallback for a server whose first crawl has not landed yet.
  */
 export async function getListings(query: SourceQuery): Promise<ListingsResponse> {
+  // The group's standing rules are enforced here rather than per caller, so
+  // browsing, Claude and alerts cannot each forget them separately. Saved
+  // listings are looked up by key and stay readable whatever the rules say.
+  const { rules } = getHouseRules();
+  const keep = (listing: ScoredListing) => allowedByRules(listing, rules);
+
   if (inventorySize() > 0) {
-    return { listings: queryInventory(query), sources: [], fetchedAt: Date.now() };
+    return { listings: queryInventory(query, keep), sources: [], fetchedAt: Date.now() };
   }
-  return fetchLive(query);
+  const live = await fetchLive(query);
+  return { ...live, listings: live.listings.filter(keep) };
 }
 
 async function fetchLive(query: SourceQuery): Promise<ListingsResponse> {
