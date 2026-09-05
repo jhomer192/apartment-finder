@@ -43,7 +43,8 @@ export function SafetyRating({ safety }: Props) {
       title={
         `${safety.violentCount} violent-crime reports (assault, robbery, weapons, sexual offences, homicide) ` +
         `were filed within ${safety.radiusMeters}m of this address in the last 12 months — fewer than ` +
-        `${safety.quieterThanPercent}% of blocks across San Francisco. Source: DataSF police incident reports. ` +
+        `${safety.quieterThanPercent}% of the San Francisco blocks that saw any such report. ` +
+        'Source: DataSF police incident reports. ' +
         'Reports are not convictions, and a grade describes the area, not this building.'
       }
     >

@@ -171,7 +171,7 @@ async function rank(
           ? ` | ${incidents.count} police reports within ${incidents.radiusMeters}m last year, citywide median ${incidents.cityMedian}`
           : '') +
         (safety
-          ? ` | violent-crime reports here are lower than ${safety.quieterThanPercent}% of SF blocks (grade ${safety.grade})`
+          ? ` | ${safety.violentCount} violent-crime reports within ${safety.radiusMeters}m last year, fewer than ${safety.quieterThanPercent}% of reported-on SF blocks (grade ${safety.grade})`
           : '')
       );
     })
