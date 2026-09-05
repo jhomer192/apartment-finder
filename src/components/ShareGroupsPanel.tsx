@@ -22,8 +22,18 @@ export function ShareGroupsPanel() {
     event.preventDefault();
     const people = members
       .map((member) => ({ name: member.name.trim(), email: member.email.trim(), phone: member.phone.trim() }))
-      .filter((member) => member.name && (member.email || member.phone));
+      .filter((member) => member.name || member.email || member.phone);
+    const unreachable = people.find((member) => !member.email && !member.phone);
+    const unnamed = people.find((member) => !member.name);
 
+    if (unreachable) {
+      setError(`${unreachable.name} needs an email address or a phone number.`);
+      return;
+    }
+    if (unnamed) {
+      setError('Give each person a name.');
+      return;
+    }
     if (!name.trim() || people.length === 0) {
       setError('Give the group a name and at least one person with an email or a phone number.');
       return;
