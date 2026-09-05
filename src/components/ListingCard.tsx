@@ -62,7 +62,10 @@ export function ListingCard({ listing }: Props) {
               className="absolute inset-0 w-full h-full object-cover cursor-zoom-in"
               onError={() => setBroken((current) => new Set(current).add(photo))}
             />
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.1))' }} />
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.1))' }}
+            />
             {gallery.length > 1 && (
               <>
                 <button
@@ -159,7 +162,7 @@ export function ListingCard({ listing }: Props) {
         </button>
 
         {/* Price and stats overlay */}
-        <div className="relative z-10">
+        <div className="relative z-10 pointer-events-none">
           <div className="text-2xl font-bold text-white">
             ${listing.price.toLocaleString()}<span className="text-sm font-normal opacity-80">/mo</span>
           </div>
@@ -173,7 +176,7 @@ export function ListingCard({ listing }: Props) {
         </div>
 
         {/* Neighborhood label */}
-        <div className="absolute bottom-3 right-3 px-2 py-0.5 rounded text-xs font-medium text-white/90"
+        <div className="absolute bottom-3 right-3 px-2 py-0.5 rounded text-xs font-medium text-white/90 pointer-events-none"
           style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
         >
           {listing.neighborhood}
