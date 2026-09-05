@@ -48,12 +48,20 @@ export function shareSubject(listings: Shareable[]): string {
  * `sms:` needs `&body=` after a `?` on iOS and `?body=` on Android; the `?&`
  * form is the one both accept.
  */
-export function smsHref(body: string): string {
-  return `sms:?&body=${encodeURIComponent(body)}`;
+export function smsHref(body: string, phones: string[] = []): string {
+  return `sms:${phones.map((phone) => phone.replace(/[^+0-9]/g, '')).filter(Boolean).join(',')}?&body=${encodeURIComponent(body)}`;
 }
 
-export function mailtoHref(subject: string, body: string): string {
-  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+export function mailtoHref(subject: string, body: string, emails: string[] = []): string {
+  return `mailto:${emails.map(encodeURIComponent).join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+/** A group is only textable/emailable through the people who gave that detail. */
+export function reachable(members: { email: string; phone: string }[]) {
+  return {
+    emails: members.map((member) => member.email).filter(Boolean),
+    phones: members.map((member) => member.phone).filter(Boolean),
+  };
 }
 
 export function canShareNatively(): boolean {

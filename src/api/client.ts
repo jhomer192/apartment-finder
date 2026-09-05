@@ -10,7 +10,10 @@ import type {
   SavedFilter,
   SavedListing,
   SavedStatus,
+  ShareGroup,
+  StoredGroup,
   StoredFilter,
+  TourDay,
   SessionUser,
   StoredRules,
 } from './types';
@@ -183,6 +186,35 @@ export function addSavedNote(listingKey: string, body: string): Promise<{ note: 
     method: 'POST',
     body: JSON.stringify({ body }),
   });
+}
+
+export function fetchShareGroups(): Promise<{ groups: StoredGroup[] }> {
+  return request('/api/share-groups');
+}
+
+export function saveShareGroup(group: ShareGroup): Promise<{ group: StoredGroup }> {
+  return request('/api/share-groups', { method: 'POST', body: JSON.stringify(group) });
+}
+
+export function deleteShareGroup(id: number): Promise<{ ok: boolean }> {
+  return request(`/api/share-groups/${id}`, { method: 'DELETE' });
+}
+
+export function fetchTours(): Promise<{ days: TourDay[] }> {
+  return request('/api/tours');
+}
+
+export function bookTour(tour: {
+  listingKey: string;
+  startsAt: number;
+  minutes: number;
+  note: string;
+}): Promise<{ days: TourDay[] }> {
+  return request('/api/tours', { method: 'POST', body: JSON.stringify(tour) });
+}
+
+export function cancelTour(id: number): Promise<{ days: TourDay[] }> {
+  return request(`/api/tours/${id}`, { method: 'DELETE' });
 }
 
 export function draftContactMessage(listingKey: string, ask = ''): Promise<ContactDraft> {

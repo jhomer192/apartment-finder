@@ -36,6 +36,8 @@ import { config } from './config.js';
 import { draftInquiry } from './contact.js';
 import { purgeExpired } from './db.js';
 import { deleteFilter, filterSchema, listFilters, saveFilter } from './filters.js';
+import { deleteGroup, groupSchema, listGroups, saveGroup } from './groups.js';
+import { bookTour, cancelTour, listTours, planDays, tourSchema } from './tours.js';
 import { inventoryStatus, refreshInventory, startCrawlSchedule } from './inventory.js';
 import { findListings, getListings } from './listings.js';
 import { mailConfigured, sendSignInLink } from './mailer.js';
@@ -315,6 +317,64 @@ app.delete('/api/filters/:id', requireAuth, (req, res) => {
   }
 
   res.json({ ok: true });
+});
+
+/** Who a listing gets forwarded to; shared so nobody retypes four numbers. */
+app.get('/api/share-groups', requireAuth, (_req, res) => {
+  res.json({ groups: listGroups() });
+});
+
+app.post('/api/share-groups', requireAuth, (req, res) => {
+  const body = groupSchema.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({
+      error: 'That group is not valid. It needs a name and people with an email or a phone number.',
+    });
+    return;
+  }
+
+  res.json({ group: saveGroup(body.data, req.user!.email) });
+});
+
+app.delete('/api/share-groups/:id', requireAuth, (req, res) => {
+  const id = z.coerce.number().int().positive().safeParse(req.params.id);
+  if (!id.success || !deleteGroup(id.data)) {
+    res.status(404).json({ error: 'No such group.' });
+    return;
+  }
+
+  res.json({ ok: true });
+});
+
+/** Tour times, plus the day-by-day plan the group drives. */
+app.get('/api/tours', requireAuth, (_req, res) => {
+  res.json({ days: planDays(listTours()) });
+});
+
+app.post('/api/tours', requireAuth, (req, res) => {
+  const body = tourSchema.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'That tour time is not valid.' });
+    return;
+  }
+
+  const tour = bookTour(body.data, req.user!.email);
+  if (!tour) {
+    res.status(404).json({ error: 'Save the listing first, then book a tour on it.' });
+    return;
+  }
+
+  res.json({ days: planDays(listTours()) });
+});
+
+app.delete('/api/tours/:id', requireAuth, (req, res) => {
+  const id = z.coerce.number().int().positive().safeParse(req.params.id);
+  if (!id.success || !cancelTour(id.data)) {
+    res.status(404).json({ error: 'No such tour.' });
+    return;
+  }
+
+  res.json({ days: planDays(listTours()) });
 });
 
 app.get('/api/alerts/prefs', requireAuth, (req, res) => {

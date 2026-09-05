@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { listShareText, listingShareText, mailtoHref, shareSubject, smsHref, type Shareable } from './share';
+import {
+  listShareText,
+  listingShareText,
+  mailtoHref,
+  reachable,
+  shareSubject,
+  smsHref,
+  type Shareable,
+} from './share';
 
 function listing(overrides: Partial<Shareable> = {}): Shareable {
   return {
@@ -53,5 +61,23 @@ describe('sharing a listing', () => {
   it('builds text and email links the phone will accept', () => {
     expect(smsHref('a b')).toBe('sms:?&body=a%20b');
     expect(mailtoHref('Sub ject', 'a b')).toBe('mailto:?subject=Sub%20ject&body=a%20b');
+  });
+
+  it('addresses a group, stripping the punctuation people write numbers with', () => {
+    expect(smsHref('hi', ['+1 (415) 555-0199', '415.555.0123'])).toBe(
+      'sms:+14155550199,4155550123?&body=hi',
+    );
+    expect(mailtoHref('Places', 'hi', ['a@example.com', 'b@example.com'])).toBe(
+      'mailto:a%40example.com,b%40example.com?subject=Places&body=hi',
+    );
+  });
+
+  it('only reaches the people who gave that kind of contact detail', () => {
+    expect(
+      reachable([
+        { email: 'garrett@example.com', phone: '' },
+        { email: '', phone: '4155550199' },
+      ]),
+    ).toEqual({ emails: ['garrett@example.com'], phones: ['4155550199'] });
   });
 });

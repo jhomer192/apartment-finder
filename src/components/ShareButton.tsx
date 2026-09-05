@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { useShareGroups } from '../hooks/useShareGroups';
 import {
   canShareNatively,
   copyText,
   listShareText,
   mailtoHref,
+  reachable,
   shareNatively,
   shareSubject,
   smsHref,
@@ -22,6 +24,7 @@ interface Props {
  * not exist on a desktop browser, so text / email / copy are always offered too.
  */
 export function ShareButton({ listings, label = 'Share', compact = false }: Props) {
+  const { groups } = useShareGroups();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -85,7 +88,7 @@ export function ShareButton({ listings, label = 'Share', compact = false }: Prop
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-30 mt-1 w-44 rounded-lg border overflow-hidden shadow-lg"
+          className="absolute right-0 z-30 mt-1 w-56 rounded-lg border overflow-hidden shadow-lg"
           style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
         >
           {canShareNatively() && (
@@ -102,6 +105,46 @@ export function ShareButton({ listings, label = 'Share', compact = false }: Prop
           <button type="button" role="menuitem" className={item} onClick={() => void copy()}>
             Copy to clipboard
           </button>
+
+          {groups.length > 0 && (
+            <div className="border-t" style={{ borderColor: 'var(--border)' }}>
+              <p className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-dim)' }}>
+                Send to a group
+              </p>
+              {groups.map((group) => {
+                const { emails, phones } = reachable(group.members);
+                return (
+                  <div key={group.id} className="px-3 pb-2">
+                    <p className="text-xs font-medium">{group.name}</p>
+                    <div className="flex gap-3 pt-0.5">
+                      {emails.length > 0 && (
+                        <a
+                          role="menuitem"
+                          className="text-xs underline"
+                          style={{ color: 'var(--accent)' }}
+                          href={mailtoHref(subject, text, emails)}
+                          onClick={() => setOpen(false)}
+                        >
+                          Email {emails.length}
+                        </a>
+                      )}
+                      {phones.length > 0 && (
+                        <a
+                          role="menuitem"
+                          className="text-xs underline"
+                          style={{ color: 'var(--accent)' }}
+                          href={smsHref(text, phones)}
+                          onClick={() => setOpen(false)}
+                        >
+                          Text {phones.length}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

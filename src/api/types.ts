@@ -119,6 +119,47 @@ export interface StoredRules {
   updatedAt: number | null;
 }
 
+/** Somebody a listing gets forwarded to; one of email/phone is always set. */
+export interface ShareMember {
+  name: string;
+  email: string;
+  phone: string;
+}
+
+export interface ShareGroup {
+  name: string;
+  members: ShareMember[];
+}
+
+export interface StoredGroup extends ShareGroup {
+  id: number;
+  createdBy: string;
+  createdAt: number;
+}
+
+export interface PlannedTour {
+  id: number;
+  listingKey: string;
+  startsAt: number;
+  minutes: number;
+  note: string;
+  createdBy: string;
+  listing: ApiListing;
+  /** Straight-line km from the previous tour that day; null for the first. */
+  travelKm: number | null;
+  travelMinutes: number | null;
+  warning: 'overlap' | 'tight' | null;
+}
+
+export interface TourDay {
+  date: string;
+  tours: PlannedTour[];
+  suggestedOrder: string[];
+  bookedKm: number;
+  suggestedKm: number;
+  routeUrl: string | null;
+}
+
 export const SORT_OPTIONS = [
   'price-asc',
   'price-desc',
