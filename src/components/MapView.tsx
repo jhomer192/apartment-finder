@@ -3,6 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Listing, ScamBand } from '../types';
 import { googleMapsUrl } from '../utils/maps';
+import { riskLabel } from '../utils/scam';
 
 interface Props {
   listings: Listing[];
@@ -16,11 +17,6 @@ const BAND_COLOR: Record<ScamBand, string> = {
   high: '#ef4444',
 };
 
-const BAND_LABEL: Record<ScamBand, string> = {
-  low: 'Nothing suspicious found',
-  medium: 'Worth a closer look',
-  high: 'Several scam warning signs',
-};
 
 function createPriceIcon(listing: Listing): L.DivIcon {
   const color = BAND_COLOR[listing.scam.band];
@@ -63,7 +59,7 @@ function createPopup(listing: Listing): HTMLElement {
   const risk = document.createElement('div');
   risk.style.color = BAND_COLOR[listing.scam.band];
   risk.style.fontWeight = '600';
-  risk.textContent = BAND_LABEL[listing.scam.band];
+  risk.textContent = riskLabel(listing.scam);
   root.appendChild(risk);
 
   const links = document.createElement('div');
