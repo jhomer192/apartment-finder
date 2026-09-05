@@ -234,6 +234,18 @@ export function ListingCard({ listing }: Props) {
           <span>{bedsLabel} / {bathsLabel}</span>
           <span>{sqftLabel}</span>
           {ppsqft !== null && <span>${ppsqft.toFixed(2)}/sqft</span>}
+          {listing.factsFrom && (
+            <span
+              title={`${listing.sourceName} did not publish these, so they come from ${listing.factsFrom}'s listing for the same building and unit size.`}
+              className="px-1.5 py-0.5 rounded"
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--text-dim) 12%, transparent)',
+                color: 'var(--text-dim)',
+              }}
+            >
+              baths/sqft from {listing.factsFrom}
+            </span>
+          )}
         </div>
 
         {/* Amenity pills */}

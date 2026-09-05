@@ -31,6 +31,8 @@ export interface ApiListing {
   contactPhone: string | null;
   contactEmail: string | null;
   detail: 'full' | 'summary';
+  /** Set when the baths/sqft shown came from another site's listing for the same building. */
+  factsFrom?: string;
   neighborhood: string;
   scam: ScamAssessment;
 }

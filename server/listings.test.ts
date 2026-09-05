@@ -46,6 +46,22 @@ describe('fillMissingFacts', () => {
     expect(thin.sqft).toBe(950);
   });
 
+  it('records which source the borrowed numbers came from', () => {
+    const thin = listing({ externalId: 'thin' });
+    const rich = listing({
+      sourceId: 'apartmentlist',
+      sourceName: 'ApartmentList',
+      externalId: 'rich',
+      bathrooms: 2,
+      sqft: 950,
+    });
+
+    fillMissingFacts([thin, rich]);
+
+    expect(thin.factsFrom).toBe('ApartmentList');
+    expect(rich.factsFrom).toBeUndefined();
+  });
+
   it('never borrows across a different unit size', () => {
     const twoBed = listing({ externalId: 'two' });
     const studio = listing({ externalId: 'studio', bedrooms: 0, bathrooms: 1, sqft: 400 });

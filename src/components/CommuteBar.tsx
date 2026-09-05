@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useCommute } from '../hooks/useCommute';
 import type { CommuteMode } from '../utils/maps';
 
@@ -10,8 +10,6 @@ import type { CommuteMode } from '../utils/maps';
 export function CommuteBar() {
   const { commute, save } = useCommute();
   const [destination, setDestination] = useState(commute.destination);
-
-  useEffect(() => setDestination(commute.destination), [commute.destination]);
 
   return (
     <form

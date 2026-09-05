@@ -26,6 +26,11 @@ export interface RawListing {
    * their absence says nothing about the listing itself.
    */
   detail: 'full' | 'summary';
+  /**
+   * Name of the source a bathroom count or floor area was borrowed from when
+   * this listing's own source withheld it, so the UI can say where it came from.
+   */
+  factsFrom?: string;
 }
 
 export interface SourceQuery {

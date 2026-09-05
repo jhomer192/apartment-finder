@@ -43,6 +43,7 @@ function toListing(listing: ApiListing, metroId: string, index: number): Listing
     bedrooms: listing.bedrooms ?? 0,
     bathrooms: listing.bathrooms,
     sqft: listing.sqft,
+    factsFrom: listing.factsFrom ?? null,
     address: listing.address,
     neighborhood: listing.neighborhood,
     lat: listing.lat,

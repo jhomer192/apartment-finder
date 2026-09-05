@@ -41,6 +41,8 @@ export interface Listing {
   bedrooms: number;
   bathrooms: number | null;
   sqft: number | null;
+  /** Source that supplied baths/sqft when this listing's own site did not. */
+  factsFrom: string | null;
   address: string;
   neighborhood: string;
   lat: number | null;

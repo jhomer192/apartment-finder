@@ -151,11 +151,17 @@ export function fillMissingFacts(listings: RawListing[]): void {
   }
 
   for (const group of byBuilding.values()) {
-    const bathrooms = group.find((listing) => listing.bathrooms !== null)?.bathrooms ?? null;
-    const sqft = group.find((listing) => listing.sqft !== null)?.sqft ?? null;
+    const withBathrooms = group.find((listing) => listing.bathrooms !== null);
+    const withSqft = group.find((listing) => listing.sqft !== null);
     for (const listing of group) {
-      if (listing.bathrooms === null) listing.bathrooms = bathrooms;
-      if (listing.sqft === null) listing.sqft = sqft;
+      if (listing.bathrooms === null && withBathrooms) {
+        listing.bathrooms = withBathrooms.bathrooms;
+        listing.factsFrom = withBathrooms.sourceName;
+      }
+      if (listing.sqft === null && withSqft) {
+        listing.sqft = withSqft.sqft;
+        listing.factsFrom = withSqft.sourceName;
+      }
     }
   }
 }
