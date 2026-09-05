@@ -14,9 +14,22 @@ export interface AreaFacts {
   transit: { name: string; kind: RailKind; meters: number; walkMinutes: number | null } | null;
   /** Reported incidents within `radiusMeters` over the trailing year. */
   incidents: { count: number; radiusMeters: number; cityMedian: number } | null;
+  /**
+   * Violent-crime reports near the listing ranked against every other part of
+   * the city. It is a rating of what gets reported here, not of whether a
+   * renter will come to harm, and `quieterThanPercent` is what the grade means.
+   */
+  safety: {
+    grade: SafetyGrade;
+    violentCount: number;
+    radiusMeters: number;
+    quieterThanPercent: number;
+  } | null;
   /** Metered on-street spaces, a proxy for how contested kerb space is. */
   parking: { meteredSpaces: number; radiusMeters: number } | null;
 }
+
+export type SafetyGrade = 'A' | 'B' | 'C' | 'D' | 'E';
 
 /** "Muni rail" is a surface streetcar or light-rail stop rather than a Metro station. */
 export type RailKind = 'BART' | 'Caltrain' | 'Muni Metro' | 'Muni rail';
@@ -43,6 +56,25 @@ const PARKING_RADIUS_M = 250;
  */
 const WALK_METRES_PER_MINUTE = 60;
 const WALKABLE_M = 2000;
+
+/**
+ * Crimes against a person, which is what someone asking whether a block is safe
+ * means. Theft and vehicle break-ins dominate the raw feed and would otherwise
+ * bury the signal under how busy a street is.
+ */
+const VIOLENT_CATEGORIES = [
+  'Assault',
+  'Robbery',
+  'Homicide',
+  'Rape',
+  'Sex Offense',
+  'Weapons Offense',
+  'Weapons Offence',
+  'Weapons Carrying Etc',
+  'Human Trafficking (A), Commercial Sex Acts',
+  'Human Trafficking (B), Involuntary Servitude',
+  'Human Trafficking, Commercial Sex Acts',
+];
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 const INCIDENTS_URL = 'https://data.sfgov.org/resource/wg3w-h783.json';
@@ -197,6 +229,27 @@ export function countWithin(index: Map<string, GridCell[]>, lat: number, lng: nu
   return total;
 }
 
+/** Share of the city's blocks with strictly more reports than `count`. */
+export function quieterThanPercent(sortedCounts: number[], count: number): number {
+  if (sortedCounts.length === 0) return 0;
+  let low = 0;
+  let high = sortedCounts.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (sortedCounts[mid] <= count) low = mid + 1;
+    else high = mid;
+  }
+  return Math.round(((sortedCounts.length - low) / sortedCounts.length) * 100);
+}
+
+export function safetyGrade(percent: number): SafetyGrade {
+  if (percent >= 80) return 'A';
+  if (percent >= 60) return 'B';
+  if (percent >= 40) return 'C';
+  if (percent >= 20) return 'D';
+  return 'E';
+}
+
 function median(values: number[]): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -206,6 +259,8 @@ function median(values: number[]): number {
 interface Datasets {
   rail: RailStop[] | null;
   incidents: { index: Map<string, GridCell[]>; cityMedian: number } | null;
+  /** `cityCounts` is every block's violent total, sorted, so a listing can be ranked. */
+  violent: { index: Map<string, GridCell[]>; cityCounts: number[] } | null;
   parking: Map<string, GridCell[]> | null;
 }
 
@@ -213,10 +268,18 @@ let inFlight: Promise<Datasets> | null = null;
 
 async function datasets(): Promise<Datasets> {
   inFlight ??= (async () => {
-    const [rail, incidentCells, meterCells] = await Promise.all([
+    const violentList = VIOLENT_CATEGORIES.map((category) => `'${category}'`).join(',');
+    const [rail, incidentCells, violentCells, meterCells] = await Promise.all([
       cached<RailStop[]>('rail-stops', RAIL_TTL_MS, loadRailStops),
       cached<GridCell[]>('incidents', INCIDENT_TTL_MS, () =>
         loadGrid(INCIDENTS_URL, `incident_datetime > '${trailingYearStart()}' AND latitude IS NOT NULL`),
+      ),
+      cached<GridCell[]>('violent-incidents', INCIDENT_TTL_MS, () =>
+        loadGrid(
+          INCIDENTS_URL,
+          `incident_datetime > '${trailingYearStart()}' AND latitude IS NOT NULL` +
+            ` AND incident_category in (${violentList})`,
+        ),
       ),
       cached<GridCell[]>('parking-meters', PARKING_TTL_MS, () =>
         loadGrid(METERS_URL, "latitude IS NOT NULL AND active_meter_flag='M'"),
@@ -234,7 +297,16 @@ async function datasets(): Promise<Datasets> {
       incidents = { index, cityMedian };
     }
 
-    return { rail, incidents, parking: meterCells ? indexCells(meterCells) : null };
+    let violent: Datasets['violent'] = null;
+    if (violentCells) {
+      const index = indexCells(violentCells);
+      const cityCounts = violentCells
+        .map((cell) => countWithin(index, cell.lat, cell.lng, INCIDENT_RADIUS_M))
+        .sort((a, b) => a - b);
+      violent = { index, cityCounts };
+    }
+
+    return { rail, incidents, violent, parking: meterCells ? indexCells(meterCells) : null };
   })();
 
   // A failed refresh must not poison later searches.
@@ -277,8 +349,21 @@ export async function areaFactsFor(lat: number | null, lng: number | null): Prom
     };
   }
 
+  let safety: AreaFacts['safety'] = null;
+  if (data.violent) {
+    const violentCount = countWithin(data.violent.index, lat, lng, INCIDENT_RADIUS_M);
+    const percent = quieterThanPercent(data.violent.cityCounts, violentCount);
+    safety = {
+      grade: safetyGrade(percent),
+      violentCount,
+      radiusMeters: INCIDENT_RADIUS_M,
+      quieterThanPercent: percent,
+    };
+  }
+
   return {
     transit,
+    safety,
     incidents: data.incidents
       ? {
           count: countWithin(data.incidents.index, lat, lng, INCIDENT_RADIUS_M),

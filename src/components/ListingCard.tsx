@@ -5,6 +5,8 @@ import { ScamBadge } from './ScamBadge';
 import { useCommute } from '../hooks/useCommute';
 import { clockLabel, commuteUrl, googleMapsUrl } from '../utils/maps';
 import { AreaFactsRow } from './AreaFactsRow';
+import { ListingMiniMap } from './ListingMiniMap';
+import { SafetyRating } from './SafetyRating';
 
 interface Props {
   listing: Listing;
@@ -248,6 +250,28 @@ export function ListingCard({ listing }: Props) {
             </span>
           )}
         </div>
+
+        {listing.area?.safety && (
+          <div className="flex">
+            <SafetyRating safety={listing.area.safety} />
+          </div>
+        )}
+
+        {listing.lat !== null && listing.lng !== null && (
+          <a
+            href={googleMapsUrl(listing)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block"
+            title="Open this address in Google Maps"
+          >
+            <ListingMiniMap
+              lat={listing.lat}
+              lng={listing.lng}
+              label={listing.address || listing.neighborhood}
+            />
+          </a>
+        )}
 
         <AreaFactsRow area={listing.area} />
 

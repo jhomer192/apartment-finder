@@ -75,7 +75,8 @@ export type SortOption =
   | 'ppsqft'
   | 'scam'
   | 'transit'
-  | 'incidents';
+  | 'incidents'
+  | 'safety';
 
 export interface SearchResult {
   metroId: string;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countWithin, indexCells, railKind } from './area.js';
+import { countWithin, indexCells, quieterThanPercent, railKind, safetyGrade } from './area.js';
 
 const CIVIC_CENTER = { lat: 37.7793, lng: -122.4193 };
 
@@ -30,6 +30,36 @@ describe('countWithin', () => {
     const index = indexCells([{ lat: 37.7749, lng: -122.4194, count: 5 }]);
 
     expect(countWithin(index, 37.81, -122.47, 500)).toBe(0);
+  });
+});
+
+describe('quieterThanPercent', () => {
+  const city = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+  it('ranks a block against the rest of the city', () => {
+    expect(quieterThanPercent(city, 0)).toBe(90);
+    expect(quieterThanPercent(city, 5)).toBe(40);
+    expect(quieterThanPercent(city, 9)).toBe(0);
+  });
+
+  it('counts ties as neither quieter nor busier', () => {
+    expect(quieterThanPercent([4, 4, 4, 4], 4)).toBe(0);
+    expect(quieterThanPercent([4, 4, 4, 4], 3)).toBe(100);
+  });
+
+  it('stays at zero when the city data never loaded', () => {
+    expect(quieterThanPercent([], 3)).toBe(0);
+  });
+});
+
+describe('safetyGrade', () => {
+  it('grades on where the block falls in the city', () => {
+    expect(safetyGrade(95)).toBe('A');
+    expect(safetyGrade(80)).toBe('A');
+    expect(safetyGrade(61)).toBe('B');
+    expect(safetyGrade(40)).toBe('C');
+    expect(safetyGrade(21)).toBe('D');
+    expect(safetyGrade(0)).toBe('E');
   });
 });
 

@@ -43,6 +43,13 @@ export interface AreaFacts {
   /** `walkMinutes` is null when the stop is too far for a straight line to mean anything. */
   transit: { name: string; kind: string; meters: number; walkMinutes: number | null } | null;
   incidents: { count: number; radiusMeters: number; cityMedian: number } | null;
+  /** A ranking of violent-crime reports against the rest of the city, not a promise of safety. */
+  safety?: {
+    grade: 'A' | 'B' | 'C' | 'D' | 'E';
+    violentCount: number;
+    radiusMeters: number;
+    quieterThanPercent: number;
+  } | null;
   parking: { meteredSpaces: number; radiusMeters: number } | null;
 }
 
