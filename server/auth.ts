@@ -73,7 +73,7 @@ export function redeemInvite(token: string): { email: string; sessionToken: stri
   return { email: invite.email, sessionToken: createSession(invite.email) };
 }
 
-export const MIN_PASSWORD_LENGTH = 12;
+export const MIN_PASSWORD_LENGTH = 6;
 
 const SCRYPT_KEY_LENGTH = 64;
 

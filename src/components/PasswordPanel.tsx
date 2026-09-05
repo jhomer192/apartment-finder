@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ApiError, setPassword } from '../api/client';
 
-const MIN_LENGTH = 12;
+const MIN_LENGTH = 6;
 
 interface Props {
   hasPassword: boolean;
