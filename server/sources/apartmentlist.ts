@@ -3,7 +3,7 @@ import { fetchWithTimeout, type ListingSource, type RawListing, type SourceQuery
 const SEARCH_URL = 'https://www.apartmentlist.com/ca/san-francisco';
 const ORIGIN = 'https://www.apartmentlist.com';
 const PHOTO_BASE = 'https://cdn.apartmentlist.com/image/upload/f_auto,q_auto,t_web-base';
-const MAX_PHOTOS = 12;
+const MAX_PHOTOS = 40;
 /** Property pages fetched per search to fill in photos the search page omits. */
 const MAX_HYDRATED = 100;
 const HYDRATE_CONCURRENCY = 8;

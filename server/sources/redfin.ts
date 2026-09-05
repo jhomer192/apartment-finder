@@ -5,7 +5,7 @@ const SF_REGION_ID = 17151;
 const SEARCH_URL = 'https://www.redfin.com/stingray/api/v1/search/rentals';
 const PHOTO_BASE = 'https://ssl.cdn-redfin.com/photo/rent';
 /** Enough for a gallery without making a card pull down dozens of images. */
-const MAX_PHOTOS = 12;
+const MAX_PHOTOS = 40;
 
 interface Range {
   min?: number;

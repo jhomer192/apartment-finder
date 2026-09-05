@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Listing } from '../types';
 import { useShortlist } from '../hooks/useShortlist';
 import { ScamBadge } from './ScamBadge';
@@ -12,6 +12,7 @@ export function ListingCard({ listing }: Props) {
   const { keys, toggle } = useShortlist();
   const [broken, setBroken] = useState<Set<string>>(new Set());
   const [index, setIndex] = useState(0);
+  const [expanded, setExpanded] = useState(false);
   const saved = keys.has(listing.id);
 
   const gallery = (listing.imageUrls.length > 0
@@ -22,6 +23,17 @@ export function ListingCard({ listing }: Props) {
   ).filter((url) => !broken.has(url));
   const photo = gallery[Math.min(index, gallery.length - 1)] ?? null;
   const step = (delta: number) => setIndex((current) => (current + delta + gallery.length) % gallery.length);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpanded(false);
+      if (event.key === 'ArrowRight') step(1);
+      if (event.key === 'ArrowLeft') step(-1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const ppsqft = listing.sqft ? Math.round((listing.price / listing.sqft) * 100) / 100 : null;
   const bedsLabel = listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} bd`;
@@ -46,7 +58,8 @@ export function ListingCard({ listing }: Props) {
               src={photo}
               alt=""
               loading="lazy"
-              className="absolute inset-0 w-full h-full object-cover"
+              onClick={() => setExpanded(true)}
+              className="absolute inset-0 w-full h-full object-cover cursor-zoom-in"
               onError={() => setBroken((current) => new Set(current).add(photo))}
             />
             <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.1))' }} />
@@ -75,6 +88,51 @@ export function ListingCard({ listing }: Props) {
                   Photo {Math.min(index, gallery.length - 1) + 1} of {gallery.length}
                 </span>
               </>
+            )}
+            {expanded && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center p-6"
+                style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}
+                onClick={() => setExpanded(false)}
+                role="dialog"
+                aria-label={`Photos of ${listing.title}`}
+              >
+                <img
+                  src={photo}
+                  alt=""
+                  className="max-h-full max-w-full object-contain"
+                  onClick={(event) => event.stopPropagation()}
+                />
+                {gallery.length > 1 && (
+                  <>
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        step(-1);
+                      }}
+                      aria-label="Previous photo"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full text-white text-2xl"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+                    >
+                      ‹
+                    </button>
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        step(1);
+                      }}
+                      aria-label="Next photo"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full text-white text-2xl"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+                    >
+                      ›
+                    </button>
+                  </>
+                )}
+                <span className="absolute bottom-6 text-xs text-white/80">
+                  Photo {Math.min(index, gallery.length - 1) + 1} of {gallery.length} · click anywhere to close
+                </span>
+              </div>
             )}
           </>
         ) : (
