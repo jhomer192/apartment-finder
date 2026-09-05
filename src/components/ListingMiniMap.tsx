@@ -95,7 +95,12 @@ export function ListingMiniMap({ lat, lng, label, mapsUrl }: Props) {
       if (event.key === 'Escape') setExpanded(false);
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [expanded]);
 
   const recenter = useCallback(() => {
@@ -113,15 +118,21 @@ export function ListingMiniMap({ lat, lng, label, mapsUrl }: Props) {
           <span className="text-xs">Drag to pan, scroll to zoom, Esc to close</span>
         </div>
       )}
+      {/* Leaflet adds its own classes to the element it mounts on, so React must
+          never rewrite that element's className: the size toggle lives on a wrapper. */}
       <div
-        ref={holder}
-        onMouseEnter={() => setWheelZoom(expanded)}
-        onClick={() => setWheelZoom(true)}
-        onMouseLeave={() => setWheelZoom(false)}
-        className={`w-full rounded-lg overflow-hidden ${expanded ? 'flex-1' : 'h-44'}`}
+        className={`w-full rounded-lg overflow-hidden ${expanded ? 'flex-1 min-h-0' : 'h-44'}`}
         style={{ border: '1px solid var(--border)', backgroundColor: 'var(--surface)' }}
-        aria-label={`Map of ${label}`}
-      />
+      >
+        <div
+          ref={holder}
+          onMouseEnter={() => setWheelZoom(expanded)}
+          onClick={() => setWheelZoom(true)}
+          onMouseLeave={() => setWheelZoom(false)}
+          className="w-full h-full"
+          aria-label={`Map of ${label}`}
+        />
+      </div>
       <div
         className={`flex items-center gap-1.5 ${expanded ? '' : 'absolute top-1.5 right-1.5 z-[500]'}`}
       >
