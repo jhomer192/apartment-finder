@@ -112,11 +112,18 @@ export function setSessionCookie(res: Response, token: string): void {
     secure: config.isProduction,
     maxAge: config.sessionDays * 24 * 60 * 60 * 1000,
     path: '/',
+    // Signed with SESSION_SECRET, so rotating that secret signs everyone out.
+    signed: true,
   });
 }
 
+export function sessionTokenFrom(req: Request): string | undefined {
+  const token = req.signedCookies?.[SESSION_COOKIE];
+  return typeof token === 'string' ? token : undefined;
+}
+
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  const user = resolveSession(req.cookies?.[SESSION_COOKIE]);
+  const user = resolveSession(sessionTokenFrom(req));
   if (!user) {
     res.status(401).json({ error: 'Not signed in' });
     return;

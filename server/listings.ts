@@ -1,6 +1,6 @@
 import { getMetroById } from '../src/data/metros.js';
 import { config } from './config.js';
-import { assessListing, listingKey, type ScamAssessment } from './scam.js';
+import { assessListing, listingKey, type ClaudeBudget, type ScamAssessment } from './scam.js';
 import { craigslistSource } from './sources/craigslist.js';
 import { redfinSource } from './sources/redfin.js';
 import type { ListingSource, RawListing, SourceQuery } from './sources/types.js';
@@ -44,6 +44,10 @@ function nearestNeighborhood(lat: number | null, lng: number | null): string {
 }
 
 const cache = new Map<string, ListingsResponse>();
+/** Filter combinations are unbounded, so the cache must not be. */
+const MAX_CACHE_ENTRIES = 64;
+/** Escalations to Claude per search; the rest fall back to the heuristics. */
+const CLAUDE_REVIEWS_PER_SEARCH = 12;
 
 function cacheKey(query: SourceQuery): string {
   return `${query.minRent}:${query.maxRent}:${query.bedrooms}:${query.limit}`;
@@ -89,12 +93,13 @@ export async function getListings(query: SourceQuery): Promise<ListingsResponse>
     }
   });
 
+  const budget: ClaudeBudget = { remaining: CLAUDE_REVIEWS_PER_SEARCH };
   const listings = await Promise.all(
     raw.map(async (listing) => ({
       ...listing,
       key: listingKey(listing),
       neighborhood: nearestNeighborhood(listing.lat, listing.lng),
-      scam: await assessListing(listing),
+      scam: await assessListing(listing, budget),
     })),
   );
 
@@ -105,6 +110,10 @@ export async function getListings(query: SourceQuery): Promise<ListingsResponse>
     sources: statuses,
     fetchedAt: Date.now(),
   };
+  if (cache.size >= MAX_CACHE_ENTRIES) {
+    const oldest = cache.keys().next();
+    if (!oldest.done) cache.delete(oldest.value);
+  }
   cache.set(key, response);
   return response;
 }
