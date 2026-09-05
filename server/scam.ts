@@ -40,13 +40,23 @@ const SF_BOUNDS = { minLat: 37.6, maxLat: 37.86, minLng: -122.55, maxLng: -122.3
 /** Even a rent-controlled SF unit clears this; below it the price is fiction. */
 const IMPLAUSIBLE_RENT_PER_SQFT = 1;
 
+/**
+ * Rough SF asking rents by unit size. The five- and six-bedroom figures are an
+ * extrapolation of the smaller sizes, since houses that big barely trade often
+ * enough to have a published median, so they only ever back a "far below
+ * market" warning rather than any claim about what a place is worth.
+ */
 const MEDIAN_SF_RENT_BY_BEDROOM: Record<number, number> = {
   0: 2300,
   1: 3100,
   2: 4200,
   3: 5400,
   4: 6800,
+  5: 8200,
+  6: 9600,
 };
+
+const LARGEST_PRICED_SIZE = 6;
 
 export function listingKey(listing: RawListing): string {
   return `${listing.sourceId}:${listing.externalId}`;
@@ -110,7 +120,10 @@ export function scoreHeuristics(listing: RawListing): ScamAssessment {
     }
   }
 
-  const typical = MEDIAN_SF_RENT_BY_BEDROOM[listing.bedrooms ?? 1] ?? MEDIAN_SF_RENT_BY_BEDROOM[1];
+  // A seven-bedroom house has no published median, so it is measured against the
+  // largest size we do have rather than against a one-bedroom.
+  const size = Math.min(listing.bedrooms ?? 1, LARGEST_PRICED_SIZE);
+  const typical = MEDIAN_SF_RENT_BY_BEDROOM[size] ?? MEDIAN_SF_RENT_BY_BEDROOM[1];
   const ratio = listing.price / typical;
   if (ratio < 0.4) {
     score += 35;

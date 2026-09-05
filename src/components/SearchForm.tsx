@@ -11,6 +11,7 @@ export function SearchForm({ onSearch, loading }: Props) {
   const [minRent, setMinRent] = useState(DEFAULT_SEARCH.minRent);
   const [maxRent, setMaxRent] = useState(DEFAULT_SEARCH.maxRent);
   const [bedrooms, setBedrooms] = useState<string>('any');
+  const [minBathrooms, setMinBathrooms] = useState<string>('any');
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -18,6 +19,7 @@ export function SearchForm({ onSearch, loading }: Props) {
       minRent,
       maxRent,
       bedrooms: bedrooms === 'any' ? null : parseInt(bedrooms, 10),
+      minBathrooms: minBathrooms === 'any' ? null : parseInt(minBathrooms, 10),
     });
   }
 
@@ -26,7 +28,7 @@ export function SearchForm({ onSearch, loading }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 items-end">
         <div>
           <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-dim)' }} htmlFor="min-rent">
             Rent from
@@ -76,6 +78,29 @@ export function SearchForm({ onSearch, loading }: Props) {
             <option value="2">2 BR</option>
             <option value="3">3 BR</option>
             <option value="4">4 BR</option>
+            <option value="5">5 BR</option>
+            <option value="6">6 BR</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-dim)' }} htmlFor="bathrooms">
+            Bathrooms
+          </label>
+          <select
+            id="bathrooms"
+            value={minBathrooms}
+            onChange={e => setMinBathrooms(e.target.value)}
+            className={inputClass}
+            style={inputStyle}
+          >
+            <option value="any">Any</option>
+            <option value="1">1+ ba</option>
+            <option value="2">2+ ba</option>
+            <option value="3">3+ ba</option>
+            <option value="4">4+ ba</option>
+            <option value="5">5+ ba</option>
+            <option value="6">6+ ba</option>
           </select>
         </div>
 

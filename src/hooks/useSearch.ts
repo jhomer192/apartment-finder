@@ -122,7 +122,13 @@ export function useSearch() {
           centerLng,
           sources: SEARCH_SOURCES.map((source) => ({ source, url: source.buildUrl(urlParams) })),
           neighborhoods,
-          listings: response.listings.map((listing, index) => toListing(listing, metro.id, index)),
+          listings: response.listings
+            .map((listing, index) => toListing(listing, metro.id, index))
+            .filter(
+              (listing) =>
+                params.minBathrooms === null ||
+                (listing.bathrooms !== null && listing.bathrooms >= params.minBathrooms),
+            ),
           sourceStatuses: response.sources,
         },
       ]);

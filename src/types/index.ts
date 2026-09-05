@@ -6,6 +6,8 @@ export interface SearchParams {
   minRent: number;
   maxRent: number;
   bedrooms: number | null;
+  /** Applied here rather than at the sources, which do not filter on baths. */
+  minBathrooms: number | null;
 }
 
 export interface SearchSource {

@@ -84,6 +84,12 @@ describe('scoreHeuristics', () => {
     expect(result.reasons).toEqual([]);
   });
 
+  it('measures a big house against big-house rents, not a one-bedroom', () => {
+    const sixBed = listing({ bedrooms: 6, price: 9000, sqft: 3000 });
+    expect(scoreHeuristics(sixBed).reasons).toEqual([]);
+    expect(scoreHeuristics(listing({ bedrooms: 7, price: 9000, sqft: 3000 })).reasons).toEqual([]);
+  });
+
   it('reports the checks a clean listing passed', () => {
     const result = scoreHeuristics(listing());
     expect(result.checks).toEqual([
