@@ -30,6 +30,8 @@ export interface ScoredListing extends RawListing {
   scam: ScamAssessment;
   /** Null when the listing has no coordinates or the civic feeds are unreachable. */
   area: AreaFacts | null;
+  /** Other sites advertising this same unit, folded into this card by dedupe. */
+  alsoOn?: { sourceId: string; sourceName: string; url: string }[];
 }
 
 export interface SourceStatus {

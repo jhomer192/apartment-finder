@@ -58,6 +58,7 @@ function toListing(listing: ApiListing, metroId: string, index: number): Listing
     imageUrls: listing.imageUrls ?? [],
     scam: listing.scam,
     area: listing.area ?? null,
+    alsoOn: listing.alsoOn ?? [],
     metroId,
     gradientFrom,
     gradientTo,
@@ -96,6 +97,7 @@ export function useSearch() {
           maxRent: params.maxRent,
           minBedrooms: params.minBedrooms,
           maxBedrooms: params.maxBedrooms,
+          dedupe: params.dedupe,
         },
         controller.signal,
       );

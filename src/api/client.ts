@@ -97,6 +97,7 @@ export interface ListingQuery {
   minBedrooms?: number | null;
   maxBedrooms?: number | null;
   limit?: number;
+  dedupe?: boolean;
 }
 
 export function fetchListings(query: ListingQuery, signal?: AbortSignal): Promise<ListingsResponse> {

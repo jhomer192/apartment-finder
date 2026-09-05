@@ -11,6 +11,8 @@ export interface SearchParams {
   /** Applied here rather than at the sources, which do not filter on baths. */
   minBathrooms: number | null;
   maxBathrooms: number | null;
+  /** Off shows every site's copy of the same unit as its own card. */
+  dedupe: boolean;
 }
 
 export interface SearchSource {
@@ -62,6 +64,8 @@ export interface Listing {
   scam: ScamAssessment;
   /** Public civic data about the block: rail, reported incidents, metered parking. */
   area: AreaFacts | null;
+  /** Other sites advertising this same unit, collapsed into this card. */
+  alsoOn: { sourceId: string; sourceName: string; url: string }[];
   metroId: string;
   gradientFrom: string;
   gradientTo: string;

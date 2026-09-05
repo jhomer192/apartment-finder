@@ -209,6 +209,11 @@ const listingsQuery = z.object({
   minBedrooms: z.coerce.number().int().min(0).max(10).nullable().catch(null),
   maxBedrooms: z.coerce.number().int().min(0).max(10).nullable().catch(null),
   limit: z.coerce.number().int().min(1).max(1000).default(300),
+  /** On unless the reader explicitly asks to see every site's copy of a unit. */
+  dedupe: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true'),
 });
 
 app.get('/api/listings', requireAuth, async (req, res) => {

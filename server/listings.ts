@@ -1,10 +1,16 @@
 import { config } from './config.js';
+import { absorb, duplicateKey } from './dedupe.js';
 import { inventorySize, inventoryByKeys, queryInventory } from './inventory.js';
 import { allowedByRules, getHouseRules } from './rules.js';
 import { SOURCES, scoreAll, type ScoredListing, type SourceStatus } from './scoring.js';
 import type { RawListing, SourceQuery } from './sources/types.js';
 
 export { fillMissingFacts, type ScoredListing, type SourceStatus } from './scoring.js';
+
+export interface ListingsQuery extends SourceQuery {
+  /** Collapse the same unit advertised on several sites into one card. */
+  dedupe: boolean;
+}
 
 export interface ListingsResponse {
   listings: ScoredListing[];
@@ -23,22 +29,47 @@ function cacheKey(query: SourceQuery): string {
 }
 
 /**
+ * Rules and de-duplication as one predicate so the page fills to `limit` with
+ * listings the reader will actually see, rather than the limit being spent on
+ * rows that are then dropped.
+ */
+function gate(query: ListingsQuery): (listing: ScoredListing) => boolean {
+  const { rules } = getHouseRules();
+  const kept = new Map<string, ScoredListing>();
+
+  return (listing) => {
+    if (!allowedByRules(listing, rules)) return false;
+    if (!query.dedupe) return true;
+
+    const key = duplicateKey(listing);
+    const twin = kept.get(key);
+    if (twin) {
+      absorb(twin, listing);
+      return false;
+    }
+    kept.set(key, listing);
+    return true;
+  };
+}
+
+/**
  * Searches read the nightly crawl, so they see the whole city instead of the
  * one truncated page a source returns per request. Fetching live is the
  * fallback for a server whose first crawl has not landed yet.
  */
-export async function getListings(query: SourceQuery): Promise<ListingsResponse> {
+export async function getListings(query: ListingsQuery): Promise<ListingsResponse> {
   // The group's standing rules are enforced here rather than per caller, so
   // browsing, Claude and alerts cannot each forget them separately. Saved
   // listings are looked up by key and stay readable whatever the rules say.
-  const { rules } = getHouseRules();
-  const keep = (listing: ScoredListing) => allowedByRules(listing, rules);
+  const keep = gate(query);
 
   if (inventorySize() > 0) {
     return { listings: queryInventory(query, keep), sources: [], fetchedAt: Date.now() };
   }
   const live = await fetchLive(query);
-  return { ...live, listings: live.listings.filter(keep) };
+  // Copies, because absorbing into a cached listing would leave "also on" links
+  // on it for later searches that asked to see every site's copy.
+  return { ...live, listings: live.listings.map((listing) => ({ ...listing })).filter(keep) };
 }
 
 async function fetchLive(query: SourceQuery): Promise<ListingsResponse> {
@@ -96,12 +127,13 @@ async function fetchLive(query: SourceQuery): Promise<ListingsResponse> {
 }
 
 /** Widest search the sources allow, so a key from any filter combination resolves. */
-const EVERYTHING: SourceQuery = {
+const EVERYTHING: ListingsQuery = {
   minRent: 0,
   maxRent: 100_000,
   minBedrooms: null,
   maxBedrooms: null,
   limit: 120,
+  dedupe: false,
 };
 
 export async function findListings(keys: string[]): Promise<ScoredListing[]> {

@@ -88,6 +88,19 @@ export function SearchForm({ onSearch, onClearAll, loading }: Props) {
   const [maxBedrooms, setMaxBedrooms] = useState<string>('any');
   const [minBathrooms, setMinBathrooms] = useState<string>('any');
   const [maxBathrooms, setMaxBathrooms] = useState<string>('any');
+  const [dedupe, setDedupe] = useState(DEFAULT_SEARCH.dedupe);
+
+  function paramsWith(nextDedupe: boolean): SearchParams {
+    return {
+      minRent,
+      maxRent,
+      minBedrooms: parseRoom(minBedrooms),
+      maxBedrooms: parseRoom(maxBedrooms),
+      minBathrooms: parseRoom(minBathrooms),
+      maxBathrooms: parseRoom(maxBathrooms),
+      dedupe: nextDedupe,
+    };
+  }
 
   function handleClear() {
     setMinRent(DEFAULT_SEARCH.minRent);
@@ -96,19 +109,20 @@ export function SearchForm({ onSearch, onClearAll, loading }: Props) {
     setMaxBedrooms('any');
     setMinBathrooms('any');
     setMaxBathrooms('any');
+    setDedupe(DEFAULT_SEARCH.dedupe);
     onClearAll();
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onSearch({
-      minRent,
-      maxRent,
-      minBedrooms: parseRoom(minBedrooms),
-      maxBedrooms: parseRoom(maxBedrooms),
-      minBathrooms: parseRoom(minBathrooms),
-      maxBathrooms: parseRoom(maxBathrooms),
-    });
+    onSearch(paramsWith(dedupe));
+  }
+
+  // Re-searches on the spot: a checkbox that needed a second button press to
+  // take effect reads as broken.
+  function handleDedupe(next: boolean) {
+    setDedupe(next);
+    onSearch(paramsWith(next));
   }
 
   return (
@@ -185,6 +199,17 @@ export function SearchForm({ onSearch, onClearAll, loading }: Props) {
           Clear all
         </button>
       </div>
+
+      <label className="flex items-center gap-2 mt-3 text-xs cursor-pointer" style={{ color: 'var(--text-dim)' }}>
+        <input
+          type="checkbox"
+          checked={!dedupe}
+          onChange={(e) => handleDedupe(!e.target.checked)}
+          disabled={loading}
+          className="accent-[var(--accent)]"
+        />
+        Show every site&rsquo;s copy of a listing (off: one card per apartment, with the other sites on it)
+      </label>
     </form>
   );
 }

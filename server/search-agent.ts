@@ -9,7 +9,15 @@ const NEIGHBORHOODS = (getMetroById('bay-area')?.neighborhoods ?? []).map((hood)
 /** How many listings the ranking step sees; the plan step filters the rest away. */
 const SHORTLIST = 30;
 /** Everything the sources will give us, so a plan is not limited by the UI filters. */
-const EVERYTHING = { minRent: 0, maxRent: 100_000, minBedrooms: null, maxBedrooms: null, limit: 2000 };
+const EVERYTHING = {
+  minRent: 0,
+  maxRent: 100_000,
+  minBedrooms: null,
+  maxBedrooms: null,
+  limit: 2000,
+  // Ranking a unit against its own reposting on another site wastes the shortlist.
+  dedupe: true,
+};
 
 export const planSchema = z.object({
   minRent: z.number().int().min(0).max(100_000).default(0),

@@ -7,4 +7,5 @@ export const DEFAULT_SEARCH: SearchParams = {
   maxBedrooms: null,
   minBathrooms: null,
   maxBathrooms: null,
+  dedupe: true,
 };

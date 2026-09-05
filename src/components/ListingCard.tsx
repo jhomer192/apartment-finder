@@ -310,6 +310,23 @@ export function ListingCard({ listing }: Props) {
             <span className="text-xs font-medium" style={{ color: 'var(--text-dim)' }}>
               {listing.sourceName}
             </span>
+            {listing.alsoOn.length > 0 && (
+              <span className="text-xs flex items-center gap-1" style={{ color: 'var(--text-dim)' }}>
+                · also on
+                {listing.alsoOn.map((other) => (
+                  <a
+                    key={other.sourceId}
+                    href={other.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium underline"
+                    style={{ color: 'var(--accent)' }}
+                  >
+                    {other.sourceName}
+                  </a>
+                ))}
+              </span>
+            )}
           </div>
           <a
             href={listing.url}

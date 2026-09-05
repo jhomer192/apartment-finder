@@ -43,7 +43,14 @@ function stored(overrides: Partial<ScoredListing> = {}): ScoredListing {
   } as ScoredListing;
 }
 
-const ANY = { minRent: 0, maxRent: 100_000, minBedrooms: null, maxBedrooms: null, limit: 100 };
+const ANY = {
+  minRent: 0,
+  maxRent: 100_000,
+  minBedrooms: null,
+  maxBedrooms: null,
+  limit: 100,
+  dedupe: false,
+};
 
 describe('getListings', () => {
   beforeEach(() => {
@@ -68,6 +75,56 @@ describe('getListings', () => {
     setHouseRules(houseRulesSchema.parse({ excludedNeighborhoods: ['Tenderloin'] }), 'jack@example.com');
 
     expect((await findListings(['tenderloin'])).map((l) => l.key)).toEqual(['tenderloin']);
+  });
+});
+
+describe('getListings de-duplication', () => {
+  beforeEach(() => {
+    db.exec('DELETE FROM inventory; DELETE FROM house_rules');
+    storeListings(
+      [
+        stored({ key: 'redfin:1', address: '2055 Sacramento St', price: 4200 }),
+        stored({
+          key: 'zumper:1',
+          sourceId: 'zumper',
+          sourceName: 'Zumper',
+          url: 'https://zumper.example/1',
+          address: '2055 sacramento street, San Francisco, CA',
+          price: 4200,
+        }),
+        stored({ key: 'redfin:2', address: '2055 Sacramento St #310', price: 5000 }),
+      ],
+      Date.now(),
+    );
+  });
+
+  it('shows one card per apartment and hangs the other site off it', async () => {
+    const { listings } = await getListings({ ...ANY, dedupe: true });
+
+    expect(listings.map((l) => l.key)).toEqual(['redfin:1', 'redfin:2']);
+    expect(listings[0].alsoOn).toEqual([
+      { sourceId: 'zumper', sourceName: 'Zumper', url: 'https://zumper.example/1' },
+    ]);
+  });
+
+  it('shows every site’s copy when the reader turns de-duplication off', async () => {
+    const { listings } = await getListings({ ...ANY, dedupe: false });
+
+    expect(listings.map((l) => l.key)).toEqual(['redfin:1', 'zumper:1', 'redfin:2']);
+    expect(listings.every((l) => l.alsoOn === undefined)).toBe(true);
+  });
+
+  it('spends the limit on apartments rather than on the copies it collapses', async () => {
+    const { listings } = await getListings({ ...ANY, dedupe: true, limit: 2 });
+
+    expect(listings.map((l) => l.key)).toEqual(['redfin:1', 'redfin:2']);
+  });
+
+  it('does not collapse a listing the group ruled out into a surviving card', async () => {
+    setHouseRules(houseRulesSchema.parse({ maxRent: 4500 }), 'jack@example.com');
+
+    const { listings } = await getListings({ ...ANY, dedupe: true });
+    expect(listings.map((l) => l.key)).toEqual(['redfin:1']);
   });
 });
 

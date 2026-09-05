@@ -37,6 +37,8 @@ export interface ApiListing {
   scam: ScamAssessment;
   /** Public civic data about the block; absent on listings saved before it existed. */
   area?: AreaFacts | null;
+  /** Other sites advertising this same unit, folded into this one. */
+  alsoOn?: { sourceId: string; sourceName: string; url: string }[];
 }
 
 export interface AreaFacts {
