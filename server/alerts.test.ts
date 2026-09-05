@@ -1,7 +1,17 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { DEFAULT_PREFS, getPrefs, matches, recordSeen, setPrefs, type AlertPrefs } from './alerts.js';
+import {
+  DEFAULT_PREFS,
+  getPrefs,
+  matches,
+  recordSeen,
+  runSweep,
+  setPrefs,
+  type AlertPrefs,
+} from './alerts.js';
 import { db } from './db.js';
+import { storeListings } from './inventory.js';
 import type { ScoredListing } from './listings.js';
+import { houseRulesSchema, setHouseRules } from './rules.js';
 
 function listing(overrides: Partial<ScoredListing>): ScoredListing {
   return {
@@ -41,7 +51,9 @@ const prefs = (overrides: Partial<AlertPrefs> = {}): AlertPrefs => ({
 });
 
 beforeEach(() => {
-  db.exec('DELETE FROM alert_prefs; DELETE FROM alerts_sent; DELETE FROM listings_seen;');
+  db.exec(
+    'DELETE FROM alert_prefs; DELETE FROM alerts_sent; DELETE FROM listings_seen; DELETE FROM inventory; DELETE FROM house_rules;',
+  );
 });
 
 describe('alert preferences', () => {
@@ -84,6 +96,18 @@ describe('matches', () => {
 
   it('treats an empty neighborhood list as anywhere', () => {
     expect(matches(listing({ neighborhood: 'Bayview' }), prefs())).toBe(true);
+  });
+});
+
+describe('runSweep', () => {
+  it('never treats a listing in a ruled-out neighborhood as new', async () => {
+    setHouseRules(houseRulesSchema.parse({ excludedNeighborhoods: ['Tenderloin'] }), 'jack@example.com');
+    storeListings([listing({ key: 'old' })], Date.now());
+    await runSweep();
+
+    storeListings([listing({ key: 'tl', neighborhood: 'Tenderloin' })], Date.now());
+
+    expect((await runSweep()).newListings).toBe(0);
   });
 });
 
