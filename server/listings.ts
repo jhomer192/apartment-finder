@@ -1,4 +1,5 @@
 import { getMetroById } from '../src/data/metros.js';
+import { areaFactsFor, type AreaFacts } from './area.js';
 import { config } from './config.js';
 import {
   assessListing,
@@ -20,6 +21,8 @@ export interface ScoredListing extends RawListing {
   key: string;
   neighborhood: string;
   scam: ScamAssessment;
+  /** Null when the listing has no coordinates or the civic feeds are unreachable. */
+  area: AreaFacts | null;
 }
 
 export interface SourceStatus {
@@ -114,6 +117,7 @@ export async function getListings(query: SourceQuery): Promise<ListingsResponse>
         key: id,
         neighborhood: nearestNeighborhood(listing.lat, listing.lng),
         scam: mergeAssessments(await assessListing(listing, budget), duplicates.get(id)),
+        area: await areaFactsFor(listing.lat, listing.lng),
       };
     }),
   );

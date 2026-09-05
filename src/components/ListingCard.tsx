@@ -4,6 +4,7 @@ import { useShortlist } from '../hooks/useShortlist';
 import { ScamBadge } from './ScamBadge';
 import { useCommute } from '../hooks/useCommute';
 import { clockLabel, commuteUrl, googleMapsUrl } from '../utils/maps';
+import { AreaFactsRow } from './AreaFactsRow';
 
 interface Props {
   listing: Listing;
@@ -247,6 +248,8 @@ export function ListingCard({ listing }: Props) {
             </span>
           )}
         </div>
+
+        <AreaFactsRow area={listing.area} />
 
         {/* Amenity pills */}
         <div className="flex flex-wrap gap-1.5">

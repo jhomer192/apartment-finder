@@ -155,11 +155,17 @@ async function rank(
       const delta = valueDelta(listing, medians);
       const comparison =
         delta === 0 ? 'at the median' : `${Math.abs(delta)}% ${delta > 0 ? 'below' : 'above'} median`;
+      const transit = listing.area?.transit;
+      const incidents = listing.area?.incidents;
       return (
         `${listing.key} | ${listing.title.replace(/\s+/g, ' ').slice(0, 80)} | $${listing.price}/mo | ` +
         `${listing.bedrooms ?? '?'}bd ${listing.bathrooms ?? '?'}ba | ${listing.neighborhood} | ` +
         `${comparison} for its bedroom count | scam ${listing.scam.score}/100` +
-        (listing.scam.reasons.length ? ` (${listing.scam.reasons.join('; ')})` : '')
+        (listing.scam.reasons.length ? ` (${listing.scam.reasons.join('; ')})` : '') +
+        (transit ? ` | ${transit.walkMinutes} min walk to ${transit.name} (${transit.kind})` : '') +
+        (incidents
+          ? ` | ${incidents.count} police reports within ${incidents.radiusMeters}m last year, citywide median ${incidents.cityMedian}`
+          : '')
       );
     })
     .join('\n');

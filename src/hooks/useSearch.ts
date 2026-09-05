@@ -57,6 +57,7 @@ function toListing(listing: ApiListing, metroId: string, index: number): Listing
     imageUrl: listing.imageUrl,
     imageUrls: listing.imageUrls ?? [],
     scam: listing.scam,
+    area: listing.area ?? null,
     metroId,
     gradientFrom,
     gradientTo,

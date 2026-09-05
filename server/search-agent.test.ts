@@ -17,6 +17,7 @@ function listing(overrides: Partial<ScoredListing>): ScoredListing {
     address: '1 Main St',
     city: 'San Francisco',
     neighborhood: 'Mission',
+    area: null,
     lat: 37.76,
     lng: -122.42,
     url: 'https://example.com/1',

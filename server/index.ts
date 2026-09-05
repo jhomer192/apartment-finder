@@ -30,6 +30,7 @@ import {
   setPrefs,
   startAlertLoop,
 } from './alerts.js';
+import { primeAreaData } from './area.js';
 import { ClaudeUnavailableError } from './claude.js';
 import { config } from './config.js';
 import { draftInquiry } from './contact.js';
@@ -367,6 +368,8 @@ if (existsSync(distDir)) {
 purgeExpired();
 setInterval(purgeExpired, 60 * 60 * 1000).unref();
 startAlertLoop();
+// Civic datasets take a minute to pull, so the first roommate of the day does not wait on them.
+void primeAreaData();
 
 app.listen(config.port, () => {
   console.log(`apartment-finder listening on http://localhost:${config.port}`);

@@ -12,6 +12,15 @@ function pricePerSqft(listing: Listing): number {
   return listing.sqft ? listing.price / listing.sqft : Infinity;
 }
 
+/** Listings we hold no civic data for sort last rather than looking like the best block. */
+function transitDistance(listing: Listing): number {
+  return listing.area?.transit?.meters ?? Infinity;
+}
+
+function incidentCount(listing: Listing): number {
+  return listing.area?.incidents?.count ?? Infinity;
+}
+
 function sortListings(listings: Listing[], sort: SortOption): Listing[] {
   const copy = [...listings];
   switch (sort) {
@@ -27,6 +36,10 @@ function sortListings(listings: Listing[], sort: SortOption): Listing[] {
       return copy.sort((a, b) => pricePerSqft(a) - pricePerSqft(b));
     case 'scam':
       return copy.sort((a, b) => a.scam.score - b.scam.score || a.price - b.price);
+    case 'transit':
+      return copy.sort((a, b) => transitDistance(a) - transitDistance(b));
+    case 'incidents':
+      return copy.sort((a, b) => incidentCount(a) - incidentCount(b));
     default:
       return copy;
   }
@@ -62,6 +75,8 @@ export function ResultsGrid({ listings, onClearNeighborhoods }: Props) {
             <option value="scam-desc">Riskiest first</option>
             <option value="sqft-desc">Largest</option>
             <option value="ppsqft">Price/sqft</option>
+            <option value="transit">Closest to a train</option>
+            <option value="incidents">Fewest reported incidents</option>
           </select>
         </div>
       </div>

@@ -35,6 +35,14 @@ export interface ApiListing {
   factsFrom?: string;
   neighborhood: string;
   scam: ScamAssessment;
+  /** Public civic data about the block; absent on listings saved before it existed. */
+  area?: AreaFacts | null;
+}
+
+export interface AreaFacts {
+  transit: { name: string; kind: string; meters: number; walkMinutes: number } | null;
+  incidents: { count: number; radiusMeters: number; cityMedian: number } | null;
+  parking: { meteredSpaces: number; radiusMeters: number } | null;
 }
 
 export interface SourceStatus {

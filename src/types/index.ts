@@ -1,6 +1,6 @@
-import type { ScamAssessment, SourceStatus } from '../api/types';
+import type { AreaFacts, ScamAssessment, SourceStatus } from '../api/types';
 
-export type { ScamAssessment, ScamBand, SourceStatus } from '../api/types';
+export type { AreaFacts, ScamAssessment, ScamBand, SourceStatus } from '../api/types';
 
 /** Inclusive ranges; `null` on either end of a range means unbounded. */
 export interface SearchParams {
@@ -60,12 +60,22 @@ export interface Listing {
   imageUrl: string | null;
   imageUrls: string[];
   scam: ScamAssessment;
+  /** Public civic data about the block: rail, reported incidents, metered parking. */
+  area: AreaFacts | null;
   metroId: string;
   gradientFrom: string;
   gradientTo: string;
 }
 
-export type SortOption = 'price-asc' | 'price-desc' | 'scam-desc' | 'sqft-desc' | 'ppsqft' | 'scam';
+export type SortOption =
+  | 'price-asc'
+  | 'price-desc'
+  | 'scam-desc'
+  | 'sqft-desc'
+  | 'ppsqft'
+  | 'scam'
+  | 'transit'
+  | 'incidents';
 
 export interface SearchResult {
   metroId: string;
