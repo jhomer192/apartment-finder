@@ -1,3 +1,7 @@
+import type { ScamAssessment, SourceStatus } from '../api/types';
+
+export type { ScamAssessment, ScamBand, SourceStatus } from '../api/types';
+
 export interface SearchParams {
   metros: string[];
   minRent: number;
@@ -40,8 +44,8 @@ export interface Listing {
   title: string;
   price: number;
   bedrooms: number;
-  bathrooms: number;
-  sqft: number;
+  bathrooms: number | null;
+  sqft: number | null;
   address: string;
   neighborhood: string;
   amenities: string[];
@@ -49,6 +53,8 @@ export interface Listing {
   sourceName: string;
   sourceColor: string;
   url: string;
+  imageUrl: string | null;
+  scam: ScamAssessment;
   commuteMinutes: number;
   commuteColor: 'green' | 'yellow' | 'orange' | 'red';
   metroId: string;
@@ -56,7 +62,7 @@ export interface Listing {
   gradientTo: string;
 }
 
-export type SortOption = 'price-asc' | 'price-desc' | 'commute' | 'sqft-desc' | 'ppsqft';
+export type SortOption = 'price-asc' | 'price-desc' | 'commute' | 'sqft-desc' | 'ppsqft' | 'scam';
 
 export interface SearchResult {
   metroId: string;
@@ -73,4 +79,5 @@ export interface SearchResult {
   }>;
   neighborhoods: NeighborhoodCommute[];
   listings: Listing[];
+  sourceStatuses: SourceStatus[];
 }

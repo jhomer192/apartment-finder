@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { Listing } from '../types';
+import { ScamBadge } from './ScamBadge';
 
 interface Props {
   listing: Listing;
@@ -26,11 +27,7 @@ function setFavorites(favs: Set<string>) {
 }
 
 export function ListingCard({ listing }: Props) {
-  const [fav, setFav] = useState(false);
-
-  useEffect(() => {
-    setFav(getFavorites().has(listing.id));
-  }, [listing.id]);
+  const [fav, setFav] = useState(() => getFavorites().has(listing.id));
 
   function toggleFav() {
     const favs = getFavorites();
@@ -43,9 +40,10 @@ export function ListingCard({ listing }: Props) {
     setFav(favs.has(listing.id));
   }
 
-  const ppsqft = Math.round(listing.price / listing.sqft * 100) / 100;
+  const ppsqft = listing.sqft ? Math.round((listing.price / listing.sqft) * 100) / 100 : null;
   const bedsLabel = listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} bd`;
-  const bathsLabel = listing.bathrooms % 1 === 0 ? `${listing.bathrooms} ba` : `${listing.bathrooms} ba`;
+  const bathsLabel = listing.bathrooms === null ? '— ba' : `${listing.bathrooms} ba`;
+  const sqftLabel = listing.sqft === null ? 'sqft n/a' : `${listing.sqft.toLocaleString()} sqft`;
   const commuteColor = COMMUTE_COLORS[listing.commuteColor] ?? '#94a3b8';
 
   return (
@@ -60,6 +58,20 @@ export function ListingCard({ listing }: Props) {
           background: `linear-gradient(135deg, ${listing.gradientFrom}, ${listing.gradientTo})`,
         }}
       >
+        {listing.imageUrl && (
+          <>
+            <img
+              src={listing.imageUrl}
+              alt=""
+              loading="lazy"
+              className="absolute inset-0 w-full h-full object-cover"
+              onError={(event) => {
+                event.currentTarget.style.display = 'none';
+              }}
+            />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.1))' }} />
+          </>
+        )}
         {/* Favorite heart */}
         <button
           onClick={toggleFav}
@@ -104,7 +116,7 @@ export function ListingCard({ listing }: Props) {
             <span className="opacity-50">|</span>
             <span>{bathsLabel}</span>
             <span className="opacity-50">|</span>
-            <span>{listing.sqft.toLocaleString()} sqft</span>
+            <span>{sqftLabel}</span>
           </div>
         </div>
 
@@ -118,6 +130,8 @@ export function ListingCard({ listing }: Props) {
 
       {/* Details */}
       <div className="p-4 space-y-3">
+        <ScamBadge scam={listing.scam} />
+
         {/* Title */}
         <h3 className="font-semibold text-base leading-tight" style={{ color: 'var(--text)' }}>
           {listing.title}
@@ -131,8 +145,8 @@ export function ListingCard({ listing }: Props) {
         {/* Stats row */}
         <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-dim)' }}>
           <span>{bedsLabel} / {bathsLabel}</span>
-          <span>{listing.sqft.toLocaleString()} sqft</span>
-          <span>${ppsqft.toFixed(2)}/sqft</span>
+          <span>{sqftLabel}</span>
+          {ppsqft !== null && <span>${ppsqft.toFixed(2)}/sqft</span>}
         </div>
 
         {/* Amenity pills */}

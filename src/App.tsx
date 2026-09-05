@@ -5,11 +5,16 @@ import { NeighborhoodFilter } from './components/NeighborhoodFilter';
 import { SourceLinksBar } from './components/SourceLinksBar';
 import { MapView } from './components/MapView';
 import { ThemePicker } from './components/ThemePicker';
+import { AskClaude } from './components/AskClaude';
+import { SignInGate } from './components/SignInGate';
+import { SourceStatusBar } from './components/SourceStatusBar';
 import { useSearch } from './hooks/useSearch';
+import { useAuth } from './hooks/useAuth';
 
 type ViewMode = 'listings' | 'map';
 
 export default function App() {
+  const { user, loading: authLoading, error: authError, signOut } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('listings');
   const [neighborhoodFilters, setNeighborhoodFilters] = useState<Map<string, Set<string>>>(new Map());
   const {
@@ -34,6 +39,10 @@ export default function App() {
   }, [results, neighborhoodFilters]);
 
   const totalListings = filteredResults.reduce((s, r) => s + r.listings.length, 0);
+  const visibleKeys = useMemo(
+    () => filteredResults.flatMap((result) => result.listings.map((listing) => listing.id)),
+    [filteredResults],
+  );
 
   // Initialize neighborhood filters when results change
   function handleSearch(params: Parameters<typeof search>[0]) {
@@ -50,6 +59,20 @@ export default function App() {
     });
   }
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--bg)' }}>
+        <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
+          Checking your invite…
+        </p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <SignInGate error={authError} />;
+  }
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)' }}>
       {/* Header */}
@@ -60,7 +83,17 @@ export default function App() {
             <polyline points="9,22 9,12 15,12 15,22" />
           </svg>
           <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Apartment Finder</h1>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-dim)' }}>
+              {user.email}
+            </span>
+            <button
+              onClick={() => void signOut()}
+              className="text-xs font-medium px-2.5 py-1.5 rounded-lg border"
+              style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
+            >
+              Sign out
+            </button>
             <ThemePicker />
           </div>
         </div>
@@ -80,6 +113,10 @@ export default function App() {
         {/* Results section */}
         {hasSearched && !loading && results.length > 0 && (
           <>
+            <SourceStatusBar sources={results.flatMap((result) => result.sourceStatuses)} />
+
+            <AskClaude listingKeys={visibleKeys} />
+
             {/* Controls bar */}
             <div className="flex flex-wrap items-center justify-between gap-4">
               <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
@@ -235,7 +272,8 @@ export default function App() {
       {/* Footer */}
       <footer className="border-t mt-12" style={{ borderColor: 'var(--border)' }}>
         <div className="max-w-7xl mx-auto px-4 py-6 text-center text-xs" style={{ color: 'var(--text-dim)' }}>
-          Estimated listings based on market data. Click "View Listing" to see real listings on each source.
+          Live listings pulled from the sources above. Scam scores are heuristics plus a Claude review —
+          treat them as a prompt to look closer, not proof either way.
           <br />
           Commute times are estimates based on straight-line distance.
         </div>

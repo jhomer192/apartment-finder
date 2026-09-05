@@ -1,0 +1,23 @@
+[Unit]
+Description=Apartment Finder
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=apartment-finder
+WorkingDirectory=/opt/apartment-finder
+EnvironmentFile=/opt/apartment-finder/.env
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=5
+
+# The process only ever needs its own directory.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/apartment-finder/data
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,110 @@
+import { getMetroById } from '../src/data/metros.js';
+import { config } from './config.js';
+import { assessListing, listingKey, type ScamAssessment } from './scam.js';
+import { craigslistSource } from './sources/craigslist.js';
+import { redfinSource } from './sources/redfin.js';
+import type { ListingSource, RawListing, SourceQuery } from './sources/types.js';
+
+const SOURCES: ListingSource[] = [redfinSource, craigslistSource];
+
+export interface ScoredListing extends RawListing {
+  key: string;
+  neighborhood: string;
+  scam: ScamAssessment;
+}
+
+export interface SourceStatus {
+  id: string;
+  name: string;
+  enabled: boolean;
+  count: number;
+  error: string | null;
+}
+
+export interface ListingsResponse {
+  listings: ScoredListing[];
+  sources: SourceStatus[];
+  fetchedAt: number;
+}
+
+const BAY_AREA = getMetroById('bay-area');
+
+function nearestNeighborhood(lat: number | null, lng: number | null): string {
+  if (lat === null || lng === null || !BAY_AREA) return 'Unknown';
+  let best = 'Unknown';
+  let bestDistance = Infinity;
+  for (const hood of BAY_AREA.neighborhoods) {
+    const distance = (hood.lat - lat) ** 2 + (hood.lng - lng) ** 2;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = hood.name;
+    }
+  }
+  return best;
+}
+
+const cache = new Map<string, ListingsResponse>();
+
+function cacheKey(query: SourceQuery): string {
+  return `${query.minRent}:${query.maxRent}:${query.bedrooms}:${query.limit}`;
+}
+
+export async function getListings(query: SourceQuery): Promise<ListingsResponse> {
+  const key = cacheKey(query);
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.fetchedAt < config.listingCacheMinutes * 60 * 1000) {
+    return cached;
+  }
+
+  const statuses: SourceStatus[] = [];
+  const raw: RawListing[] = [];
+
+  // One dead source must not take down the whole search.
+  const settled = await Promise.allSettled(
+    SOURCES.map(async (source) => {
+      if (!source.enabled) return { source, listings: [] as RawListing[], skipped: true };
+      return { source, listings: await source.fetchListings(query), skipped: false };
+    }),
+  );
+
+  settled.forEach((result, index) => {
+    const source = SOURCES[index];
+    if (result.status === 'fulfilled') {
+      raw.push(...result.value.listings);
+      statuses.push({
+        id: source.id,
+        name: source.name,
+        enabled: source.enabled,
+        count: result.value.listings.length,
+        error: null,
+      });
+    } else {
+      statuses.push({
+        id: source.id,
+        name: source.name,
+        enabled: source.enabled,
+        count: 0,
+        error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+      });
+    }
+  });
+
+  const listings = await Promise.all(
+    raw.map(async (listing) => ({
+      ...listing,
+      key: listingKey(listing),
+      neighborhood: nearestNeighborhood(listing.lat, listing.lng),
+      scam: await assessListing(listing),
+    })),
+  );
+
+  listings.sort((a, b) => a.scam.score - b.scam.score || a.price - b.price);
+
+  const response: ListingsResponse = {
+    listings: listings.slice(0, query.limit),
+    sources: statuses,
+    fetchedAt: Date.now(),
+  };
+  cache.set(key, response);
+  return response;
+}

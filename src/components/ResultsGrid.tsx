@@ -7,6 +7,11 @@ interface Props {
   metroName: string;
 }
 
+/** Listings without square footage sort last rather than polluting the top. */
+function pricePerSqft(listing: Listing): number {
+  return listing.sqft ? listing.price / listing.sqft : Infinity;
+}
+
 function sortListings(listings: Listing[], sort: SortOption): Listing[] {
   const copy = [...listings];
   switch (sort) {
@@ -17,16 +22,18 @@ function sortListings(listings: Listing[], sort: SortOption): Listing[] {
     case 'commute':
       return copy.sort((a, b) => a.commuteMinutes - b.commuteMinutes);
     case 'sqft-desc':
-      return copy.sort((a, b) => b.sqft - a.sqft);
+      return copy.sort((a, b) => (b.sqft ?? 0) - (a.sqft ?? 0));
     case 'ppsqft':
-      return copy.sort((a, b) => (a.price / a.sqft) - (b.price / b.sqft));
+      return copy.sort((a, b) => pricePerSqft(a) - pricePerSqft(b));
+    case 'scam':
+      return copy.sort((a, b) => a.scam.score - b.scam.score || a.price - b.price);
     default:
       return copy;
   }
 }
 
 export function ResultsGrid({ listings, metroName }: Props) {
-  const [sort, setSort] = useState<SortOption>('price-asc');
+  const [sort, setSort] = useState<SortOption>('scam');
 
   const sorted = sortListings(listings, sort);
 
@@ -50,6 +57,7 @@ export function ResultsGrid({ listings, metroName }: Props) {
               color: 'var(--text)',
             }}
           >
+            <option value="scam">Scam risk: Lowest</option>
             <option value="price-asc">Price: Low to High</option>
             <option value="price-desc">Price: High to Low</option>
             <option value="commute">Commute Time</option>

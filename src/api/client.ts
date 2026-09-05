@@ -1,0 +1,83 @@
+import type { ListingsResponse, SessionUser } from './types';
+
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    credentials: 'same-origin',
+    headers: init?.body ? { 'content-type': 'application/json' } : undefined,
+    ...init,
+  });
+
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      payload && typeof payload === 'object' && 'error' in payload
+        ? String((payload as { error: unknown }).error)
+        : `Request failed (${response.status})`;
+    throw new ApiError(message, response.status);
+  }
+
+  return payload as T;
+}
+
+export async function getSession(): Promise<SessionUser | null> {
+  try {
+    return await request<SessionUser>('/api/auth/me');
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) return null;
+    throw error;
+  }
+}
+
+export function redeemInvite(token: string): Promise<SessionUser> {
+  return request('/api/auth/redeem', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+}
+
+export function logout(): Promise<{ ok: boolean }> {
+  return request('/api/auth/logout', { method: 'POST' });
+}
+
+export function createInviteLink(email: string): Promise<{ email: string; url: string; expiresAt: number }> {
+  return request('/api/admin/invites', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export interface ListingQuery {
+  minRent?: number;
+  maxRent?: number;
+  bedrooms?: number | null;
+  limit?: number;
+}
+
+export function fetchListings(query: ListingQuery, signal?: AbortSignal): Promise<ListingsResponse> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== null && !Number.isNaN(value)) {
+      params.set(key, String(value));
+    }
+  }
+  const suffix = params.toString();
+  return request(`/api/listings${suffix ? `?${suffix}` : ''}`, { signal });
+}
+
+export function askClaude(question: string, listingKeys: string[]): Promise<{ answer: string }> {
+  return request('/api/ask', {
+    method: 'POST',
+    body: JSON.stringify({ question, listingKeys }),
+  });
+}
