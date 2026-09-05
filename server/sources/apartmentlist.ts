@@ -1,4 +1,4 @@
-import { fetchWithTimeout, type ListingSource, type RawListing, type SourceQuery } from './types.js';
+import { bedroomsInRange, fetchWithTimeout, type ListingSource, type RawListing, type SourceQuery } from './types.js';
 
 const SEARCH_URL = 'https://www.apartmentlist.com/ca/san-francisco';
 const ORIGIN = 'https://www.apartmentlist.com';
@@ -197,19 +197,16 @@ async function hydrateFromPropertyPages(listings: RawListing[]): Promise<void> {
 }
 
 /**
- * `prices` is keyed by bed count, so a bedroom filter picks a specific unit type
- * and an unfiltered search takes the cheapest advertised unit.
+ * `prices` is keyed by bed count, so a property advertises one price per unit
+ * type. We quote the cheapest unit whose size the search asked for.
  */
-function priceFor(prices: Record<string, number | null>, bedrooms: number | null): { price: number; bedrooms: number } | null {
-  if (bedrooms !== null) {
-    const price = prices[String(bedrooms)];
-    return typeof price === 'number' && price > 0 ? { price, bedrooms } : null;
-  }
-
+function priceFor(prices: Record<string, number | null>, query: SourceQuery): { price: number; bedrooms: number } | null {
   let best: { price: number; bedrooms: number } | null = null;
   for (const [beds, price] of Object.entries(prices)) {
     if (typeof price !== 'number' || price <= 0) continue;
-    if (!best || price < best.price) best = { price, bedrooms: Number(beds) };
+    const bedrooms = Number(beds);
+    if (!Number.isFinite(bedrooms) || !bedroomsInRange(bedrooms, query)) continue;
+    if (!best || price < best.price) best = { price, bedrooms };
   }
   return best;
 }
@@ -223,7 +220,7 @@ function toListing(result: SearchResult, detail: CardDetail | undefined, query: 
   const name = result.display_name;
   if (!rentalId || !name || !result.slug) return null;
 
-  const priced = priceFor(result.prices ?? {}, query.bedrooms);
+  const priced = priceFor(result.prices ?? {}, query);
   if (!priced) return null;
   if (priced.price < query.minRent || priced.price > query.maxRent) return null;
 

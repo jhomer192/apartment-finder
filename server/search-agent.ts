@@ -8,7 +8,7 @@ const NEIGHBORHOODS = (getMetroById('bay-area')?.neighborhoods ?? []).map((hood)
 /** How many listings the ranking step sees; the plan step filters the rest away. */
 const SHORTLIST = 30;
 /** Everything the sources will give us, so a plan is not limited by the UI filters. */
-const EVERYTHING = { minRent: 0, maxRent: 100_000, bedrooms: null, limit: 200 };
+const EVERYTHING = { minRent: 0, maxRent: 100_000, minBedrooms: null, maxBedrooms: null, limit: 200 };
 
 export const planSchema = z.object({
   minRent: z.number().int().min(0).max(100_000).default(0),

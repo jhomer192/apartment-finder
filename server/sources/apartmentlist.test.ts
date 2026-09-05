@@ -39,7 +39,7 @@ function mockPage(html: string): void {
   );
 }
 
-const anyQuery = { minRent: 0, maxRent: 20_000, bedrooms: null, limit: 50 };
+const anyQuery = { minRent: 0, maxRent: 20_000, minBedrooms: null, maxBedrooms: null, limit: 50 };
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -55,9 +55,15 @@ describe('apartmentListSource', () => {
 
   it('prices the requested bedroom count and drops properties without one', async () => {
     mockPage(page(summary));
-    const [twoBed] = await apartmentListSource.fetchListings({ ...anyQuery, bedrooms: 2 });
+    const [twoBed] = await apartmentListSource.fetchListings({ ...anyQuery, minBedrooms: 2, maxBedrooms: 2 });
     expect(twoBed.price).toBe(4800);
-    expect(await apartmentListSource.fetchListings({ ...anyQuery, bedrooms: 3 })).toEqual([]);
+    expect(await apartmentListSource.fetchListings({ ...anyQuery, minBedrooms: 3, maxBedrooms: 3 })).toEqual([]);
+  });
+
+  it('quotes the cheapest unit inside a bedroom range', async () => {
+    mockPage(page(summary));
+    const [listing] = await apartmentListSource.fetchListings({ ...anyQuery, minBedrooms: 2, maxBedrooms: 4 });
+    expect(listing).toMatchObject({ price: 4800, bedrooms: 2 });
   });
 
   it('merges the card details that carry the address and phone number', async () => {

@@ -193,17 +193,24 @@ app.post('/api/admin/invites', authLimiter, requireAuth, requireAdmin, (req, res
   }
 });
 
+/** Express gives an absent query param as `undefined` and a cleared one as `''`. */
+function blankToNull(value: unknown): unknown {
+  return value === undefined || value === '' ? null : value;
+}
+
 const listingsQuery = z.object({
   minRent: z.coerce.number().int().min(0).max(100_000).default(0),
   maxRent: z.coerce.number().int().min(1).max(100_000).default(8000),
-  bedrooms: z.coerce.number().int().min(0).max(10).nullable().catch(null),
+  minBedrooms: z.coerce.number().int().min(0).max(10).nullable().catch(null),
+  maxBedrooms: z.coerce.number().int().min(0).max(10).nullable().catch(null),
   limit: z.coerce.number().int().min(1).max(120).default(60),
 });
 
 app.get('/api/listings', requireAuth, async (req, res) => {
   const parsed = listingsQuery.safeParse({
     ...req.query,
-    bedrooms: req.query.bedrooms === undefined || req.query.bedrooms === '' ? null : req.query.bedrooms,
+    minBedrooms: blankToNull(req.query.minBedrooms),
+    maxBedrooms: blankToNull(req.query.maxBedrooms),
   });
   if (!parsed.success) {
     res.status(400).json({ error: 'Invalid search parameters' });

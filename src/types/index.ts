@@ -2,12 +2,15 @@ import type { ScamAssessment, SourceStatus } from '../api/types';
 
 export type { ScamAssessment, ScamBand, SourceStatus } from '../api/types';
 
+/** Inclusive ranges; `null` on either end of a range means unbounded. */
 export interface SearchParams {
   minRent: number;
   maxRent: number;
-  bedrooms: number | null;
+  minBedrooms: number | null;
+  maxBedrooms: number | null;
   /** Applied here rather than at the sources, which do not filter on baths. */
   minBathrooms: number | null;
+  maxBathrooms: number | null;
 }
 
 export interface SearchSource {

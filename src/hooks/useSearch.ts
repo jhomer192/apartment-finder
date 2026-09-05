@@ -4,6 +4,7 @@ import type { ApiListing } from '../api/types';
 import { fetchListings } from '../api/client';
 import { SEARCH_SOURCES } from '../data/sources';
 import { getMetroById } from '../data/metros';
+import { bathroomsInRange } from '../utils/rooms';
 
 const SOURCE_COLORS: Record<string, string> = {
   redfin: '#c82021',
@@ -92,7 +93,8 @@ export function useSearch() {
         {
           minRent: params.minRent,
           maxRent: params.maxRent,
-          bedrooms: params.bedrooms,
+          minBedrooms: params.minBedrooms,
+          maxBedrooms: params.maxBedrooms,
         },
         controller.signal,
       );
@@ -104,7 +106,8 @@ export function useSearch() {
         region: metro.region,
         minRent: params.minRent,
         maxRent: params.maxRent,
-        bedrooms: params.bedrooms,
+        // The other sites take one bed count, so their links use the low end.
+        bedrooms: params.minBedrooms,
       };
 
       const centerLat = metro.neighborhoods.reduce((s, n) => s + n.lat, 0) / metro.neighborhoods.length;
@@ -124,11 +127,7 @@ export function useSearch() {
           neighborhoods,
           listings: response.listings
             .map((listing, index) => toListing(listing, metro.id, index))
-            .filter(
-              (listing) =>
-                params.minBathrooms === null ||
-                (listing.bathrooms !== null && listing.bathrooms >= params.minBathrooms),
-            ),
+            .filter((listing) => bathroomsInRange(listing.bathrooms, params)),
           sourceStatuses: response.sources,
         },
       ]);

@@ -85,7 +85,8 @@ export const craigslistSource: ListingSource = {
       min_price: String(query.minRent),
       max_price: String(query.maxRent),
     });
-    if (query.bedrooms !== null) params.set('bedrooms', String(query.bedrooms));
+    if (query.minBedrooms !== null) params.set('min_bedrooms', String(query.minBedrooms));
+    if (query.maxBedrooms !== null) params.set('max_bedrooms', String(query.maxBedrooms));
 
     const response = await fetchWithTimeout(`${FEED_URL}?${params}`);
     if (!response.ok) {

@@ -59,7 +59,7 @@ const MAX_CACHE_ENTRIES = 64;
 const CLAUDE_REVIEWS_PER_SEARCH = 12;
 
 function cacheKey(query: SourceQuery): string {
-  return `${query.minRent}:${query.maxRent}:${query.bedrooms}:${query.limit}`;
+  return `${query.minRent}:${query.maxRent}:${query.minBedrooms}:${query.maxBedrooms}:${query.limit}`;
 }
 
 export async function getListings(query: SourceQuery): Promise<ListingsResponse> {
@@ -167,7 +167,13 @@ export function fillMissingFacts(listings: RawListing[]): void {
 }
 
 /** Widest search the sources allow, so a key from any filter combination resolves. */
-const EVERYTHING: SourceQuery = { minRent: 0, maxRent: 100_000, bedrooms: null, limit: 120 };
+const EVERYTHING: SourceQuery = {
+  minRent: 0,
+  maxRent: 100_000,
+  minBedrooms: null,
+  maxBedrooms: null,
+  limit: 120,
+};
 
 export async function findListings(keys: string[]): Promise<ScoredListing[]> {
   if (keys.length === 0) return [];

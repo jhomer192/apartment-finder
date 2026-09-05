@@ -1,5 +1,5 @@
 import { leasingEmail } from '../contact-info.js';
-import { fetchWithTimeout, type ListingSource, type RawListing, type SourceQuery } from './types.js';
+import { bedroomsInRange, fetchWithTimeout, type ListingSource, type RawListing, type SourceQuery } from './types.js';
 
 const SF_REGION_ID = 17151;
 const SEARCH_URL = 'https://www.redfin.com/stingray/api/v1/search/rentals';
@@ -129,9 +129,7 @@ export const redfinSource: ListingSource = {
       const listing = toListing(home);
       if (!listing) continue;
       if (listing.price < query.minRent || listing.price > query.maxRent) continue;
-      if (query.bedrooms !== null && listing.bedrooms !== null && listing.bedrooms !== query.bedrooms) {
-        continue;
-      }
+      if (!bedroomsInRange(listing.bedrooms, query)) continue;
       listings.push(listing);
       if (listings.length >= query.limit) break;
     }

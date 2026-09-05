@@ -36,8 +36,16 @@ export interface RawListing {
 export interface SourceQuery {
   minRent: number;
   maxRent: number;
-  bedrooms: number | null;
+  /** Inclusive bedroom range; `null` on either end means unbounded. */
+  minBedrooms: number | null;
+  maxBedrooms: number | null;
   limit: number;
+}
+
+export function bedroomsInRange(bedrooms: number | null, query: SourceQuery): boolean {
+  if (bedrooms === null) return true;
+  if (query.minBedrooms !== null && bedrooms < query.minBedrooms) return false;
+  return query.maxBedrooms === null || bedrooms <= query.maxBedrooms;
 }
 
 export interface ListingSource {

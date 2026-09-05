@@ -91,7 +91,8 @@ export function createInviteLink(email: string): Promise<{ email: string; url: s
 export interface ListingQuery {
   minRent?: number;
   maxRent?: number;
-  bedrooms?: number | null;
+  minBedrooms?: number | null;
+  maxBedrooms?: number | null;
   limit?: number;
 }
 
