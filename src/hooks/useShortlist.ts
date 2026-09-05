@@ -6,6 +6,8 @@ export interface Shortlist {
   keys: Set<string>;
   error: string | null;
   toggle(listingKey: string): Promise<void>;
+  /** Empties the shared shortlist; the panel confirms before calling this. */
+  removeAll(): Promise<void>;
   setStatus(listingKey: string, status: SavedStatus): Promise<void>;
   addNote(listingKey: string, body: string): Promise<void>;
 }

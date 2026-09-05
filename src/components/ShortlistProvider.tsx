@@ -62,6 +62,11 @@ export function ShortlistProvider({ children }: { children: ReactNode }) {
             replace((await saveListing(listingKey)).saved);
           }
         }),
+      removeAll: () =>
+        run(async () => {
+          for (const key of keys) await unsaveListing(key);
+          setSaved([]);
+        }),
       setStatus: (listingKey, status: SavedStatus) =>
         run(async () => {
           replace((await setSavedStatus(listingKey, status)).saved);

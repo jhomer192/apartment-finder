@@ -58,19 +58,25 @@ function NoteList({ entry }: { entry: SavedListing }) {
   );
 }
 
-export function ShortlistPanel() {
-  const { saved, error, toggle, setStatus } = useShortlist();
-  const [open, setOpen] = useState(false);
+interface PanelProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
 
-  if (saved.length === 0 && !error) return null;
+export function ShortlistPanel({ open, onOpenChange }: PanelProps) {
+  const { saved, error, toggle, setStatus, removeAll } = useShortlist();
+  const [confirmingRemoveAll, setConfirmingRemoveAll] = useState(false);
+
+  if (saved.length === 0 && !error && !open) return null;
 
   return (
     <section
+      id="shortlist"
       className="rounded-xl border"
       style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
     >
       <button
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => onOpenChange(!open)}
         className="w-full flex items-center gap-2 px-4 py-3 text-left"
       >
         <span className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
@@ -88,8 +94,47 @@ export function ShortlistPanel() {
         <p className="px-4 pb-3 text-xs text-red-400">{error}</p>
       )}
 
-      {open && (
+      {open && saved.length === 0 && (
+        <p className="px-4 pb-4 text-xs" style={{ color: 'var(--text-dim)' }}>
+          Nothing saved yet. Tap the heart on a listing and it shows up here for everyone.
+        </p>
+      )}
+
+      {open && saved.length > 0 && (
         <div className="px-4 pb-4 space-y-4">
+          <div className="flex justify-end">
+            {confirmingRemoveAll ? (
+              <span className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-dim)' }}>
+                Remove all {saved.length}?
+                <button
+                  onClick={() => {
+                    setConfirmingRemoveAll(false);
+                    void removeAll();
+                  }}
+                  className="font-semibold px-2 py-1 rounded-lg"
+                  style={{ backgroundColor: '#ef4444', color: '#fff' }}
+                >
+                  Remove
+                </button>
+                <button
+                  onClick={() => setConfirmingRemoveAll(false)}
+                  className="px-2 py-1 rounded-lg border"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
+                >
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <button
+                onClick={() => setConfirmingRemoveAll(true)}
+                className="text-xs px-2 py-1 rounded-lg border"
+                style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
+              >
+                Remove all
+              </button>
+            )}
+          </div>
+
           {saved.map((entry) => (
             <div
               key={entry.key}
@@ -109,8 +154,9 @@ export function ShortlistPanel() {
                 </span>
                 <button
                   onClick={() => void toggle(entry.key)}
-                  className="text-xs px-2 py-1 rounded-lg border"
-                  style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
+                  aria-label={`Remove ${entry.listing.title} from the shortlist`}
+                  className="text-xs px-2 py-1 rounded-lg border font-medium"
+                  style={{ borderColor: 'color-mix(in srgb, #ef4444 45%, transparent)', color: '#ef4444' }}
                 >
                   Remove
                 </button>

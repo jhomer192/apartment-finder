@@ -18,6 +18,7 @@ import { ShortlistPanel } from './components/ShortlistPanel';
 import { PasswordPanel } from './components/PasswordPanel';
 import { CommuteBar } from './components/CommuteBar';
 import { useSearch } from './hooks/useSearch';
+import { useShortlist } from './hooks/useShortlist';
 import { useAuth } from './hooks/useAuth';
 import { useStickyState } from './hooks/useStickyState';
 
@@ -86,6 +87,8 @@ function Finder({
   onPasswordSet: () => void;
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>('listings');
+  const [shortlistOpen, setShortlistOpen] = useState(false);
+  const { saved } = useShortlist();
   const [sort, setSort] = useStickyState<SortOption>('sort', 'scam', parseSort, serializeSort);
   const [neighborhoods, setNeighborhoods] = useStickyState<Set<string>>(
     'neighborhoods',
@@ -106,6 +109,10 @@ function Finder({
   useEffect(() => {
     search(DEFAULT_SEARCH);
   }, [search]);
+
+  useEffect(() => {
+    if (shortlistOpen) document.getElementById('shortlist')?.scrollIntoView({ behavior: 'smooth' });
+  }, [shortlistOpen]);
 
   const rerunSearch = useCallback(() => {
     search(activeSearch);
@@ -158,6 +165,13 @@ function Finder({
             <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-dim)' }}>
               {email}
             </span>
+            <button
+              onClick={() => setShortlistOpen(true)}
+              className="text-xs font-medium px-2.5 py-1.5 rounded-lg border"
+              style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
+            >
+              Saved {saved.length}
+            </button>
             <button
               onClick={() => void signOut()}
               className="text-xs font-medium px-2.5 py-1.5 rounded-lg border"
@@ -293,7 +307,7 @@ function Finder({
           </div>
         )}
 
-        <ShortlistPanel />
+        <ShortlistPanel open={shortlistOpen} onOpenChange={setShortlistOpen} />
 
         <AlertSettings />
 
