@@ -7,7 +7,11 @@ import { db } from './db.js';
  * UI shows the counts and their radius so a renter draws their own conclusion.
  */
 export interface AreaFacts {
-  transit: { name: string; kind: RailKind; meters: number; walkMinutes: number } | null;
+  /**
+   * `walkMinutes` is null past `WALKABLE_M`: the distance is a straight line, so
+   * over that range it may cross water or a hill and a walking figure would lie.
+   */
+  transit: { name: string; kind: RailKind; meters: number; walkMinutes: number | null } | null;
   /** Reported incidents within `radiusMeters` over the trailing year. */
   incidents: { count: number; radiusMeters: number; cityMedian: number } | null;
   /** Metered on-street spaces, a proxy for how contested kerb space is. */
@@ -38,6 +42,7 @@ const PARKING_RADIUS_M = 250;
  * run straight, since the distance we measure is a straight line.
  */
 const WALK_METRES_PER_MINUTE = 60;
+const WALKABLE_M = 2000;
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 const INCIDENTS_URL = 'https://data.sfgov.org/resource/wg3w-h783.json';
@@ -265,7 +270,10 @@ export async function areaFactsFor(lat: number | null, lng: number | null): Prom
       name: nearest.stop.name,
       kind: nearest.stop.kind,
       meters: Math.round(nearest.metres),
-      walkMinutes: Math.max(1, Math.round(nearest.metres / WALK_METRES_PER_MINUTE)),
+      walkMinutes:
+        nearest.metres <= WALKABLE_M
+          ? Math.max(1, Math.round(nearest.metres / WALK_METRES_PER_MINUTE))
+          : null,
     };
   }
 

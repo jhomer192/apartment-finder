@@ -162,7 +162,10 @@ async function rank(
         `${listing.bedrooms ?? '?'}bd ${listing.bathrooms ?? '?'}ba | ${listing.neighborhood} | ` +
         `${comparison} for its bedroom count | scam ${listing.scam.score}/100` +
         (listing.scam.reasons.length ? ` (${listing.scam.reasons.join('; ')})` : '') +
-        (transit ? ` | ${transit.walkMinutes} min walk to ${transit.name} (${transit.kind})` : '') +
+        (transit
+          ? ` | nearest train ${transit.name} (${transit.kind}) ${transit.meters}m away` +
+            (transit.walkMinutes === null ? '' : `, about ${transit.walkMinutes} min walk`)
+          : '') +
         (incidents
           ? ` | ${incidents.count} police reports within ${incidents.radiusMeters}m last year, citywide median ${incidents.cityMedian}`
           : '')

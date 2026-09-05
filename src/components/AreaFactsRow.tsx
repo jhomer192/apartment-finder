@@ -31,9 +31,11 @@ export function AreaFactsRow({ area }: Props) {
         <span
           className="px-1.5 py-0.5 rounded"
           style={pillStyle}
-          title={`Straight-line distance to ${transit.name} (${transit.kind}); walking time is an estimate, not a routed walk. Stops from OpenStreetMap.`}
+          title={`Straight-line distance to ${transit.name} (${transit.kind}) is ${transit.meters}m; any walking time is an estimate from that line, not a routed walk. Stops from OpenStreetMap.`}
         >
-          {transit.walkMinutes} min walk to {transit.name} ({transit.kind})
+          {transit.walkMinutes === null
+            ? `Nearest train ${(transit.meters / 1000).toFixed(1)} km away: ${transit.name}`
+            : `${transit.walkMinutes} min walk to ${transit.name} (${transit.kind})`}
         </span>
       )}
       {incidents && (

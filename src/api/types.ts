@@ -40,7 +40,8 @@ export interface ApiListing {
 }
 
 export interface AreaFacts {
-  transit: { name: string; kind: string; meters: number; walkMinutes: number } | null;
+  /** `walkMinutes` is null when the stop is too far for a straight line to mean anything. */
+  transit: { name: string; kind: string; meters: number; walkMinutes: number | null } | null;
   incidents: { count: number; radiusMeters: number; cityMedian: number } | null;
   parking: { meteredSpaces: number; radiusMeters: number } | null;
 }
