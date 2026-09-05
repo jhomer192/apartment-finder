@@ -46,6 +46,13 @@ export function redeemInvite(token: string): Promise<SessionUser> {
   });
 }
 
+export function requestSignInLink(email: string): Promise<{ ok: boolean }> {
+  return request('/api/auth/request-link', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
 export function logout(): Promise<{ ok: boolean }> {
   return request('/api/auth/logout', { method: 'POST' });
 }

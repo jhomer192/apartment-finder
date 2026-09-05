@@ -10,6 +10,7 @@ import {
   SESSION_COOKIE,
   createInvite,
   destroySession,
+  isAllowed,
   redeemInvite,
   requireAdmin,
   requireAuth,
@@ -20,6 +21,7 @@ import { ClaudeUnavailableError, askClaude } from './claude.js';
 import { config } from './config.js';
 import { purgeExpired } from './db.js';
 import { getListings } from './listings.js';
+import { mailConfigured, sendSignInLink } from './mailer.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const distDir = resolve(here, '..', 'dist');
@@ -34,6 +36,12 @@ app.use(cookieParser());
 /** Brute-forcing a 256-bit invite token is infeasible; this just caps the noise. */
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20 });
 const askLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10 });
+/** Tighter than authLimiter: this route sends mail, so it is the abusable one. */
+const signInLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5 });
+
+function publicBase(req: express.Request): string {
+  return config.publicUrl || `${req.protocol}://${req.get('host')}`;
+}
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
@@ -54,6 +62,37 @@ app.post('/api/auth/redeem', authLimiter, (req, res) => {
 
   setSessionCookie(res, result.sessionToken);
   res.json({ email: result.email, isAdmin: result.email === config.adminEmail });
+});
+
+/**
+ * Always reports success: telling a stranger whether an address is on the
+ * allowlist would leak the roommate list.
+ */
+app.post('/api/auth/request-link', signInLimiter, async (req, res) => {
+  const body = z.object({ email: z.string().email().max(320) }).safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'Enter a valid email address.' });
+    return;
+  }
+
+  if (!mailConfigured()) {
+    res.status(503).json({ error: 'Email sign-in is not configured on this server.' });
+    return;
+  }
+
+  const email = body.data.email.trim().toLowerCase();
+  if (isAllowed(email)) {
+    try {
+      const invite = createInvite(email);
+      await sendSignInLink(email, `${publicBase(req)}/invite/${invite.token}`, invite.expiresAt);
+    } catch (error) {
+      console.error('sign-in email failed:', error instanceof Error ? error.message : error);
+      res.status(502).json({ error: 'Could not send the email. Try again shortly.' });
+      return;
+    }
+  }
+
+  res.json({ ok: true });
 });
 
 app.get('/api/auth/me', (req, res) => {
@@ -81,10 +120,9 @@ app.post('/api/admin/invites', authLimiter, requireAuth, requireAdmin, (req, res
 
   try {
     const invite = createInvite(body.data.email);
-    const base = `${req.protocol}://${req.get('host')}`;
     res.json({
       email: body.data.email,
-      url: `${base}/invite/${invite.token}`,
+      url: `${publicBase(req)}/invite/${invite.token}`,
       expiresAt: invite.expiresAt,
     });
   } catch (error) {
@@ -175,5 +213,8 @@ app.listen(config.port, () => {
   console.log(`allowlisted: ${config.allowedEmails.length} email(s)`);
   if (!config.enableCraigslist) {
     console.log('craigslist: disabled (set ENABLE_CRAIGSLIST=true if this host is not blocked)');
+  }
+  if (!mailConfigured()) {
+    console.log('email sign-in: disabled (set SMTP_HOST, SMTP_USER, SMTP_PASS)');
   }
 });

@@ -23,6 +23,22 @@ function parseAllowlist(raw: string): string[] {
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+interface SmtpConfig {
+  host: string;
+  port: number;
+  user: string;
+  pass: string;
+}
+
+/** Email sign-in is optional; without SMTP the CLI still mints invite links. */
+function smtp(): SmtpConfig | null {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) return null;
+  return { host, user, pass, port: Number(process.env.SMTP_PORT ?? 587) };
+}
+
 /**
  * In production every secret must be supplied explicitly: a generated fallback
  * would silently invalidate every session on restart.
@@ -50,6 +66,9 @@ export const config = {
    */
   enableCraigslist: process.env.ENABLE_CRAIGSLIST === 'true',
   listingCacheMinutes: Number(process.env.LISTING_CACHE_MINUTES ?? 30),
+  smtp: smtp(),
+  mailFrom: process.env.MAIL_FROM ?? process.env.SMTP_USER ?? 'apartment-finder@localhost',
+  publicUrl: process.env.PUBLIC_URL ?? '',
 };
 
 export type Config = typeof config;

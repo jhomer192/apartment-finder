@@ -7,7 +7,7 @@ scam risk, and lets the group ask Claude questions about what's on screen.
 
 - **Live listings** — real SF rentals fetched server-side (Redfin today, Craigslist behind a flag)
 - **Scam probability score** — 0–100 per listing with the reasons that produced it
-- **Invite-only access** — single-use invite links, restricted to an email allowlist
+- **Invite-only access** — email sign-in links, restricted to an email allowlist
 - **Ask Claude** — questions answered against the listings currently displayed
 - **Neighborhood filter, commute estimates, map view** — as before
 
@@ -22,20 +22,27 @@ npm run dev               # vite on :5173, api on :8787
 `npm run dev` runs the frontend and API together; the Vite dev server proxies `/api` to the
 backend. In production the API serves the built frontend, so only one port is exposed.
 
-Create the first invite from the CLI:
+## Signing in
+
+Enter your email on the sign-in screen; if it is in `ALLOWED_EMAILS`, the server emails you a
+single-use link. Opening it signs you in and drops a session cookie. The form reports success
+whichever way, so it cannot be used to test who is on the list.
+
+This needs `SMTP_HOST`/`SMTP_USER`/`SMTP_PASS`. Without them the form is disabled and links come
+from the CLI instead:
 
 ```bash
 npm run invite -- you@example.com
 ```
 
-That prints a single-use link. Opening it signs you in and drops a session cookie. Anyone in
-`ADMIN_EMAIL` can mint further invites from the API; everyone else needs a link.
+Anyone in `ADMIN_EMAIL` can also mint links from the API.
 
 ## Access control
 
 - Only addresses in `ALLOWED_EMAILS` can hold a session. Removing someone revokes them on their
   next request — no separate revocation step.
-- Invites are single-use and expire (`INVITE_TTL_HOURS`, default 72h).
+- Sign-in links are single-use and expire (`INVITE_TTL_HOURS`, default 72h).
+- Requesting a link is rate limited to 5 per 15 minutes per IP.
 - Invite and session tokens are stored as SHA-256 hashes, never in plaintext.
 - Session cookies are `httpOnly` + `sameSite=lax`, and `secure` when `NODE_ENV=production`.
 - `SESSION_SECRET` is required in production; rotating it signs everyone out.

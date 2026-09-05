@@ -7,17 +7,19 @@ Wants=network-online.target
 Type=simple
 User=apartment-finder
 WorkingDirectory=/opt/apartment-finder
+Environment=PATH=/opt/node22/bin:/usr/local/bin:/usr/bin:/bin
+Environment=HOME=/opt/apartment-finder
 EnvironmentFile=/opt/apartment-finder/.env
-ExecStart=/usr/bin/npm start
+ExecStart=/opt/node22/bin/npm start
 Restart=on-failure
 RestartSec=5
 
-# The process only ever needs its own directory.
+# The process only ever needs its own directory; the Claude CLI keeps state in $HOME.
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/opt/apartment-finder/data
+ProtectHome=false
+ReadWritePaths=/opt/apartment-finder/data /opt/apartment-finder/.claude /opt/apartment-finder/.claude.json /opt/apartment-finder/.config /opt/apartment-finder/.cache
 
 [Install]
 WantedBy=multi-user.target
