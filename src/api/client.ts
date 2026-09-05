@@ -56,6 +56,20 @@ export function redeemInvite(token: string): Promise<SessionUser> {
   });
 }
 
+export function signInWithPassword(email: string, password: string): Promise<SessionUser> {
+  return request('/api/auth/password/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function setPassword(password: string): Promise<{ ok: boolean }> {
+  return request('/api/auth/password', {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  });
+}
+
 export function requestSignInLink(email: string): Promise<{ ok: boolean }> {
   return request('/api/auth/request-link', {
     method: 'POST',

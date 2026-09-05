@@ -15,6 +15,8 @@ export interface RawListing {
   lng: number | null;
   url: string;
   imageUrl: string | null;
+  /** Every photo the source exposes, lead photo first. */
+  imageUrls: string[];
   photoCount: number;
   postedAt: number | null;
   contactEmail: string | null;

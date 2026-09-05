@@ -1,29 +1,43 @@
 import { useState } from 'react';
-import { ApiError, requestSignInLink } from '../api/client';
+import { ApiError, requestSignInLink, signInWithPassword } from '../api/client';
 
 interface Props {
   error: string | null;
+  onSignedIn: () => void;
 }
 
-export function SignInGate({ error }: Props) {
+const inputStyle = {
+  backgroundColor: 'var(--bg)',
+  borderColor: 'var(--border)',
+  color: 'var(--text)',
+};
+
+export function SignInGate({ error, onSignedIn }: Props) {
   const [email, setEmail] = useState('');
-  const [sending, setSending] = useState(false);
+  const [password, setPassword] = useState('');
+  const [usePassword, setUsePassword] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setSending(true);
+    setBusy(true);
     setFormError(null);
     try {
+      if (usePassword) {
+        await signInWithPassword(email, password);
+        onSignedIn();
+        return;
+      }
       await requestSignInLink(email);
       setSent(true);
     } catch (err) {
       setFormError(
-        err instanceof ApiError ? err.message : 'Could not send the link. Try again shortly.',
+        err instanceof ApiError ? err.message : 'Could not sign you in. Try again shortly.',
       );
     } finally {
-      setSending(false);
+      setBusy(false);
     }
   }
 
@@ -45,8 +59,9 @@ export function SignInGate({ error }: Props) {
         ) : (
           <>
             <p className="text-sm leading-relaxed text-center" style={{ color: 'var(--text-dim)' }}>
-              This apartment finder is private to one roommate group. Enter your email and we'll
-              send you a sign-in link.
+              {usePassword
+                ? 'Sign in with the password you set after your first visit.'
+                : "This apartment finder is private to one roommate group. Enter your email and we'll send you a sign-in link."}
             </p>
             <form onSubmit={onSubmit} className="space-y-3">
               <input
@@ -57,21 +72,40 @@ export function SignInGate({ error }: Props) {
                 placeholder="you@example.com"
                 autoComplete="email"
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
-                style={{
-                  backgroundColor: 'var(--bg)',
-                  borderColor: 'var(--border)',
-                  color: 'var(--text)',
-                }}
+                style={inputStyle}
               />
+              {usePassword && (
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Your password"
+                  autoComplete="current-password"
+                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                  style={inputStyle}
+                />
+              )}
               <button
                 type="submit"
-                disabled={sending}
+                disabled={busy}
                 className="w-full rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-60"
                 style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
               >
-                {sending ? 'Sending…' : 'Email me a sign-in link'}
+                {busy ? 'Working…' : usePassword ? 'Sign in' : 'Email me a sign-in link'}
               </button>
             </form>
+            <button
+              type="button"
+              onClick={() => {
+                setUsePassword((value) => !value);
+                setFormError(null);
+              }}
+              className="w-full text-xs underline"
+              style={{ color: 'var(--text-dim)' }}
+            >
+              {usePassword ? 'Email me a sign-in link instead' : 'I have a password'}
+            </button>
           </>
         )}
 

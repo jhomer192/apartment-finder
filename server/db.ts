@@ -29,6 +29,15 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_sessions_email ON sessions(email);
 
+  -- Set only after someone has already redeemed an emailed invite, so a
+  -- password can never be the first way into an allowlisted address.
+  CREATE TABLE IF NOT EXISTS passwords (
+    email       TEXT PRIMARY KEY,
+    hash        TEXT NOT NULL,
+    salt        TEXT NOT NULL,
+    updated_at  INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS scam_assessments (
     listing_key  TEXT PRIMARY KEY,
     score        INTEGER NOT NULL,

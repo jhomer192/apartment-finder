@@ -42,10 +42,14 @@ export function useAuth() {
     };
   }, []);
 
+  const refresh = useCallback(async () => {
+    setUser(await api.getSession());
+  }, []);
+
   const signOut = useCallback(async () => {
     await api.logout();
     setUser(null);
   }, []);
 
-  return { user, loading, error, signOut };
+  return { user, loading, error, signOut, refresh };
 }

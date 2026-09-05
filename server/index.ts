@@ -7,11 +7,16 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { z } from 'zod';
 import {
+  MIN_PASSWORD_LENGTH,
   SESSION_COOKIE,
   createInvite,
+  createSession,
   destroySession,
+  hasPassword,
   isAllowed,
   redeemInvite,
+  setPassword,
+  verifyPassword,
   requireAdmin,
   requireAuth,
   resolveSession,
@@ -111,13 +116,55 @@ app.post('/api/auth/request-link', signInLimiter, async (req, res) => {
   }
 });
 
+/**
+ * A password is a convenience on top of the invite, never a way in on its own:
+ * it can only be set from an already-signed-in session.
+ */
+app.post('/api/auth/password', requireAuth, (req, res) => {
+  const body = z
+    .object({ password: z.string().min(MIN_PASSWORD_LENGTH).max(200) })
+    .safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: `Use at least ${MIN_PASSWORD_LENGTH} characters.` });
+    return;
+  }
+
+  const email = req.user?.email;
+  if (!email) {
+    res.status(401).json({ error: 'Not signed in' });
+    return;
+  }
+
+  setPassword(email, body.data.password);
+  res.json({ ok: true });
+});
+
+app.post('/api/auth/password/login', signInLimiter, (req, res) => {
+  const body = z
+    .object({ email: z.string().email().max(320), password: z.string().min(1).max(200) })
+    .safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'Enter your email and password.' });
+    return;
+  }
+
+  const email = body.data.email.trim().toLowerCase();
+  if (!verifyPassword(email, body.data.password)) {
+    res.status(401).json({ error: 'That email and password do not match. Email yourself a link instead.' });
+    return;
+  }
+
+  setSessionCookie(res, createSession(email));
+  res.json({ email, isAdmin: email === config.adminEmail });
+});
+
 app.get('/api/auth/me', (req, res) => {
   const user = resolveSession(sessionTokenFrom(req));
   if (!user) {
     res.status(401).json({ error: 'Not signed in' });
     return;
   }
-  res.json(user);
+  res.json({ ...user, hasPassword: hasPassword(user.email) });
 });
 
 app.post('/api/auth/logout', (req, res) => {

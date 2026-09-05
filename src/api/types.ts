@@ -24,6 +24,8 @@ export interface ApiListing {
   lng: number | null;
   url: string;
   imageUrl: string | null;
+  /** Absent on shortlist entries saved before galleries existed. */
+  imageUrls?: string[];
   photoCount: number;
   postedAt: number | null;
   contactPhone: string | null;
@@ -118,4 +120,5 @@ export interface ContactDraft {
 export interface SessionUser {
   email: string;
   isAdmin: boolean;
+  hasPassword?: boolean;
 }

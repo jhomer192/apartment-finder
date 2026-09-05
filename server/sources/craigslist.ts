@@ -62,6 +62,7 @@ function parseItems(xml: string): RawListing[] {
       lng: null,
       url: link,
       imageUrl: null,
+      imageUrls: [],
       photoCount: 0,
       postedAt: Number.isNaN(posted) ? null : posted,
       contactEmail: null,

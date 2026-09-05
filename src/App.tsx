@@ -12,6 +12,7 @@ import { SignInGate } from './components/SignInGate';
 import { SourceStatusBar } from './components/SourceStatusBar';
 import { ShortlistProvider } from './components/ShortlistProvider';
 import { ShortlistPanel } from './components/ShortlistPanel';
+import { PasswordPanel } from './components/PasswordPanel';
 import { useSearch } from './hooks/useSearch';
 import { useAuth } from './hooks/useAuth';
 import { useStickyState } from './hooks/useStickyState';
@@ -22,17 +23,17 @@ const parseNeighborhoods = (raw: string): Set<string> => new Set(JSON.parse(raw)
 const serializeNeighborhoods = (value: Set<string>): string => JSON.stringify([...value]);
 
 export default function App() {
-  const { user, loading: authLoading, error: authError, signOut } = useAuth();
+  const { user, loading: authLoading, error: authError, signOut, refresh } = useAuth();
   return authLoading || !user ? (
-    <Gate loading={authLoading} error={authError} />
+    <Gate loading={authLoading} error={authError} onSignedIn={refresh} />
   ) : (
     <ShortlistProvider>
-      <Finder email={user.email} signOut={signOut} />
+      <Finder email={user.email} hasPassword={user.hasPassword ?? false} signOut={signOut} onPasswordSet={refresh} />
     </ShortlistProvider>
   );
 }
 
-function Gate({ loading, error }: { loading: boolean; error: string | null }) {
+function Gate({ loading, error, onSignedIn }: { loading: boolean; error: string | null; onSignedIn: () => void }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--bg)' }}>
@@ -42,10 +43,20 @@ function Gate({ loading, error }: { loading: boolean; error: string | null }) {
       </div>
     );
   }
-  return <SignInGate error={error} />;
+  return <SignInGate error={error} onSignedIn={onSignedIn} />;
 }
 
-function Finder({ email, signOut }: { email: string; signOut: () => Promise<void> }) {
+function Finder({
+  email,
+  hasPassword,
+  signOut,
+  onPasswordSet,
+}: {
+  email: string;
+  hasPassword: boolean;
+  signOut: () => Promise<void>;
+  onPasswordSet: () => void;
+}) {
   const [viewMode, setViewMode] = useState<ViewMode>('listings');
   const [neighborhoods, setNeighborhoods] = useStickyState<Set<string>>(
     'neighborhoods',
@@ -208,6 +219,8 @@ function Finder({ email, signOut }: { email: string; signOut: () => Promise<void
         <ShortlistPanel />
 
         <AlertSettings />
+
+        <PasswordPanel hasPassword={hasPassword} onPasswordSet={onPasswordSet} />
       </main>
 
       {/* Footer */}

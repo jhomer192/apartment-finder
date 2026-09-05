@@ -19,6 +19,7 @@ function listing(overrides: Partial<RawListing> = {}): RawListing {
     lng: -122.42,
     url: 'https://example.com/abc',
     imageUrl: null,
+    imageUrls: [],
     photoCount: 12,
     postedAt: Date.now(),
     contactEmail: null,

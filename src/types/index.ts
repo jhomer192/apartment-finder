@@ -51,6 +51,7 @@ export interface Listing {
   sourceColor: string;
   url: string;
   imageUrl: string | null;
+  imageUrls: string[];
   scam: ScamAssessment;
   metroId: string;
   gradientFrom: string;

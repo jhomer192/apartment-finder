@@ -21,6 +21,7 @@ function listing(overrides: Partial<ScoredListing>): ScoredListing {
     lng: -122.42,
     url: 'https://example.com/1',
     imageUrl: null,
+    imageUrls: [],
     photoCount: 3,
     postedAt: null,
     contactEmail: null,

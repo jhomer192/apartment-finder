@@ -3,6 +3,12 @@ import { fetchWithTimeout, type ListingSource, type RawListing, type SourceQuery
 const SEARCH_URL = 'https://www.apartmentlist.com/ca/san-francisco';
 const ORIGIN = 'https://www.apartmentlist.com';
 const PHOTO_BASE = 'https://cdn.apartmentlist.com/image/upload/f_auto,q_auto,t_web-base';
+const MAX_PHOTOS = 12;
+/** Property pages fetched per search to fill in photos the search page omits. */
+const MAX_HYDRATED = 100;
+const HYDRATE_CONCURRENCY = 8;
+/** Stop hydrating rather than let photo backfill dominate search latency. */
+const HYDRATE_BUDGET_MS = 12_000;
 
 /** Every property in the search area: name, coordinates, and price per bed count. */
 interface SearchResult {
@@ -86,9 +92,61 @@ function objectsWith<T>(payload: string, keys: string[]): T[] {
   return found;
 }
 
-function photoUrl(detail: CardDetail | undefined): string | null {
-  const id = detail?.first_photo?.[0]?.id;
-  return id ? `${PHOTO_BASE}/${id}.jpg` : null;
+function photoUrls(detail: CardDetail | undefined): string[] {
+  const ids: string[] = [];
+  for (const photo of detail?.all_photos ?? []) {
+    const id = (photo as { id?: unknown }).id;
+    if (typeof id === 'string' && !ids.includes(id)) ids.push(id);
+  }
+  const lead = detail?.first_photo?.[0]?.id;
+  if (lead && !ids.includes(lead)) ids.unshift(lead);
+  return ids.slice(0, MAX_PHOTOS).map((id) => `${PHOTO_BASE}/${id}.jpg`);
+}
+
+/**
+ * A property page embeds its gallery as an `all_photos` array, either inline or
+ * escaped inside a flight chunk string depending on how the page was rendered.
+ */
+function galleryFromPropertyPage(html: string): string[] {
+  const match = /\\?"all_photos\\?":\s*\[/.exec(html);
+  if (!match) return [];
+  const open = html.indexOf('[', match.index);
+  const end = html.indexOf(']', open);
+  if (end === -1) return [];
+  try {
+    const array = JSON.parse(html.slice(open, end + 1).replace(/\\"/g, '"')) as unknown[];
+    return photoUrls({ all_photos: array });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The search page only embeds photos for the properties it renders as cards.
+ * The rest carry their gallery on their own page, so fetch a bounded number of
+ * those rather than showing "no photo" for a property that has plenty.
+ */
+async function hydratePhotos(listings: RawListing[]): Promise<void> {
+  const missing = listings.filter((listing) => listing.imageUrls.length === 0).slice(0, MAX_HYDRATED);
+  const deadline = Date.now() + HYDRATE_BUDGET_MS;
+
+  for (let i = 0; i < missing.length && Date.now() < deadline; i += HYDRATE_CONCURRENCY) {
+    await Promise.all(
+      missing.slice(i, i + HYDRATE_CONCURRENCY).map(async (listing) => {
+        try {
+          const response = await fetchWithTimeout(listing.url, 10_000);
+          if (!response.ok) return;
+          const urls = galleryFromPropertyPage(await response.text());
+          if (urls.length === 0) return;
+          listing.imageUrl = urls[0];
+          listing.imageUrls = urls;
+          listing.photoCount = Math.max(listing.photoCount, urls.length);
+        } catch {
+          // A property without a reachable page just keeps its "no photo" state.
+        }
+      }),
+    );
+  }
 }
 
 /**
@@ -123,6 +181,7 @@ function toListing(result: SearchResult, detail: CardDetail | undefined, query: 
   if (priced.price < query.minRent || priced.price > query.maxRent) return null;
 
   const updated = detail?.updated_at ? Date.parse(detail.updated_at) : NaN;
+  const photos = photoUrls(detail);
 
   return {
     sourceId: 'apartmentlist',
@@ -139,8 +198,9 @@ function toListing(result: SearchResult, detail: CardDetail | undefined, query: 
     lat: result.lat ?? null,
     lng: result.lon ?? null,
     url: `${ORIGIN}${result.slug}`,
-    imageUrl: photoUrl(detail),
-    photoCount: detail?.all_photos?.length ?? 0,
+    imageUrl: photos[0] ?? null,
+    imageUrls: photos,
+    photoCount: Math.max(detail?.all_photos?.length ?? 0, photos.length),
     postedAt: Number.isNaN(updated) ? null : updated,
     contactEmail: null,
     contactPhone: detail?.phone ?? null,
@@ -177,6 +237,8 @@ export const apartmentListSource: ListingSource = {
       listings.push(listing);
       if (listings.length >= query.limit) break;
     }
+
+    await hydratePhotos(listings);
 
     if (listings.length === 0 && results.length === 0) {
       throw new Error('ApartmentList returned no parseable listings — the page markup likely changed.');

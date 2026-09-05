@@ -53,6 +53,7 @@ function toListing(listing: ApiListing, metroId: string, index: number): Listing
     sourceColor: SOURCE_COLORS[listing.sourceId] ?? '#64748b',
     url: listing.url,
     imageUrl: listing.imageUrl,
+    imageUrls: listing.imageUrls ?? [],
     scam: listing.scam,
     metroId,
     gradientFrom,

@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { config } from './config.js';
 import { db } from './db.js';
@@ -71,6 +71,45 @@ export function redeemInvite(token: string): { email: string; sessionToken: stri
   );
 
   return { email: invite.email, sessionToken: createSession(invite.email) };
+}
+
+export const MIN_PASSWORD_LENGTH = 12;
+
+const SCRYPT_KEY_LENGTH = 64;
+
+function derive(password: string, salt: string): Buffer {
+  return scryptSync(password.normalize('NFKC'), salt, SCRYPT_KEY_LENGTH);
+}
+
+export function setPassword(email: string, password: string): void {
+  const normalized = email.trim().toLowerCase();
+  const salt = randomBytes(16).toString('hex');
+  db.prepare(
+    `INSERT INTO passwords (email, hash, salt, updated_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT(email) DO UPDATE SET hash = excluded.hash, salt = excluded.salt, updated_at = excluded.updated_at`,
+  ).run(normalized, derive(password, salt).toString('hex'), salt, Date.now());
+}
+
+export function hasPassword(email: string): boolean {
+  return db.prepare('SELECT 1 FROM passwords WHERE email = ?').get(email.trim().toLowerCase()) !== undefined;
+}
+
+/**
+ * Always does the same scrypt work, so an unknown address cannot be told apart
+ * from a wrong password by how long the reply takes.
+ */
+export function verifyPassword(email: string, password: string): boolean {
+  const normalized = email.trim().toLowerCase();
+  const row = db.prepare('SELECT hash, salt FROM passwords WHERE email = ?').get(normalized) as
+    | { hash: string; salt: string }
+    | undefined;
+
+  const salt = row?.salt ?? 'absent';
+  const expected = Buffer.from(row?.hash ?? derive('absent', 'absent').toString('hex'), 'hex');
+  const actual = derive(password, salt);
+
+  const matches = expected.length === actual.length && timingSafeEqual(expected, actual);
+  return matches && row !== undefined && isAllowed(normalized);
 }
 
 export function createSession(email: string): string {

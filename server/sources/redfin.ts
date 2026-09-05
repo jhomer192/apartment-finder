@@ -4,6 +4,8 @@ import { fetchWithTimeout, type ListingSource, type RawListing, type SourceQuery
 const SF_REGION_ID = 17151;
 const SEARCH_URL = 'https://www.redfin.com/stingray/api/v1/search/rentals';
 const PHOTO_BASE = 'https://ssl.cdn-redfin.com/photo/rent';
+/** Enough for a gallery without making a card pull down dozens of images. */
+const MAX_PHOTOS = 12;
 
 interface Range {
   min?: number;
@@ -42,10 +44,14 @@ interface RedfinHome {
  * Photos are addressed by position plus the version of the range they fall in,
  * e.g. the first photo of a range tagged version "3" is `0_3.jpg`.
  */
-function firstPhotoUrl(rentalId: string, ranges: Array<{ startPos: number; version: string }>): string | null {
-  const first = ranges.find((range) => range.startPos === 0) ?? ranges[0];
-  if (!first) return null;
-  return `${PHOTO_BASE}/${rentalId}/bigphoto/${first.startPos}_${first.version}.jpg`;
+function photoUrls(rentalId: string, ranges: Array<{ startPos: number; endPos: number; version: string }>): string[] {
+  const urls: string[] = [];
+  for (const range of [...ranges].sort((a, b) => a.startPos - b.startPos)) {
+    for (let pos = range.startPos; pos <= range.endPos && urls.length < MAX_PHOTOS; pos += 1) {
+      urls.push(`${PHOTO_BASE}/${rentalId}/bigphoto/${pos}_${range.version}.jpg`);
+    }
+  }
+  return urls;
 }
 
 function countPhotos(ranges: Array<{ endPos: number }>): number {
@@ -69,6 +75,7 @@ function toListing(home: RedfinHome): RawListing | null {
 
   const address = data.addressInfo;
   const ranges = data.photosInfo?.photoRanges ?? [];
+  const photos = photoUrls(rentalId, ranges);
   const posted = rental.lastUpdated ? Date.parse(rental.lastUpdated) : NaN;
 
   return {
@@ -86,7 +93,8 @@ function toListing(home: RedfinHome): RawListing | null {
     lat: address?.centroid?.centroid?.latitude ?? null,
     lng: address?.centroid?.centroid?.longitude ?? null,
     url: data.url ? `https://www.redfin.com${data.url}` : `https://www.redfin.com/rent/${rentalId}`,
-    imageUrl: firstPhotoUrl(rentalId, ranges),
+    imageUrl: photos[0] ?? null,
+    imageUrls: photos,
     photoCount: countPhotos(ranges),
     postedAt: Number.isNaN(posted) ? null : posted,
     contactEmail: leasingEmail(rental.mlsAgentEmail),

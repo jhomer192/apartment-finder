@@ -10,8 +10,18 @@ interface Props {
 
 export function ListingCard({ listing }: Props) {
   const { keys, toggle } = useShortlist();
-  const [imageBroken, setImageBroken] = useState(false);
+  const [broken, setBroken] = useState<Set<string>>(new Set());
+  const [index, setIndex] = useState(0);
   const saved = keys.has(listing.id);
+
+  const gallery = (listing.imageUrls.length > 0
+    ? listing.imageUrls
+    : listing.imageUrl
+      ? [listing.imageUrl]
+      : []
+  ).filter((url) => !broken.has(url));
+  const photo = gallery[Math.min(index, gallery.length - 1)] ?? null;
+  const step = (delta: number) => setIndex((current) => (current + delta + gallery.length) % gallery.length);
 
   const ppsqft = listing.sqft ? Math.round((listing.price / listing.sqft) * 100) / 100 : null;
   const bedsLabel = listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} bd`;
@@ -30,20 +40,46 @@ export function ListingCard({ listing }: Props) {
           background: `linear-gradient(135deg, ${listing.gradientFrom}, ${listing.gradientTo})`,
         }}
       >
-        {listing.imageUrl && !imageBroken ? (
+        {photo ? (
           <>
             <img
-              src={listing.imageUrl}
+              src={photo}
               alt=""
               loading="lazy"
               className="absolute inset-0 w-full h-full object-cover"
-              onError={() => setImageBroken(true)}
+              onError={() => setBroken((current) => new Set(current).add(photo))}
             />
             <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.1))' }} />
+            {gallery.length > 1 && (
+              <>
+                <button
+                  onClick={() => step(-1)}
+                  aria-label="Previous photo"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full text-white text-sm"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+                >
+                  ‹
+                </button>
+                <button
+                  onClick={() => step(1)}
+                  aria-label="Next photo"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full text-white text-sm"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+                >
+                  ›
+                </button>
+                <span
+                  className="absolute top-3 left-3 z-10 px-2 py-0.5 rounded text-[10px] font-medium text-white/90"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+                >
+                  Photo {Math.min(index, gallery.length - 1) + 1} of {gallery.length}
+                </span>
+              </>
+            )}
           </>
         ) : (
           <span className="absolute top-3 left-3 px-2 py-0.5 rounded text-[10px] font-medium text-white/90" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
-            {imageBroken ? 'Photo failed to load' : `No photo from ${listing.sourceName}`}
+            {broken.size > 0 ? 'Photos failed to load' : `No photo from ${listing.sourceName}`}
           </span>
         )}
         {/* Shortlist heart, shared with the rest of the group */}
