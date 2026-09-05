@@ -42,11 +42,21 @@ export interface ApiListing {
 export interface AreaFacts {
   /** `walkMinutes` is null when the stop is too far for a straight line to mean anything. */
   transit: { name: string; kind: string; meters: number; walkMinutes: number | null } | null;
-  incidents: { count: number; radiusMeters: number; cityMedian: number } | null;
-  /** A ranking of violent-crime reports against the rest of the city, not a promise of safety. */
+  /** Rates are per 100k residents in the radius, so density is not read as danger. */
+  incidents: {
+    count: number;
+    residents: number;
+    ratePer100k: number;
+    cityRatePer100k: number;
+    radiusMeters: number;
+  } | null;
+  /** A ranking of violent-crime rates against the rest of the city, not a promise of safety. */
   safety?: {
     grade: 'A' | 'B' | 'C' | 'D' | 'E';
     violentCount: number;
+    residents: number;
+    ratePer100k: number;
+    cityRatePer100k: number;
     radiusMeters: number;
     quieterThanPercent: number;
   } | null;

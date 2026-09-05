@@ -12,16 +12,30 @@ export interface AreaFacts {
    * over that range it may cross water or a hill and a walking figure would lie.
    */
   transit: { name: string; kind: RailKind; meters: number; walkMinutes: number | null } | null;
-  /** Reported incidents within `radiusMeters` over the trailing year. */
-  incidents: { count: number; radiusMeters: number; cityMedian: number } | null;
   /**
-   * Violent-crime reports near the listing ranked against every other part of
-   * the city. It is a rating of what gets reported here, not of whether a
-   * renter will come to harm, and `quieterThanPercent` is what the grade means.
+   * Reported incidents within `radiusMeters` over the trailing year, as a rate
+   * against the residents living in that radius so a dense block is not marked
+   * down for holding more people.
+   */
+  incidents: {
+    count: number;
+    residents: number;
+    ratePer100k: number;
+    cityRatePer100k: number;
+    radiusMeters: number;
+  } | null;
+  /**
+   * Violent-crime reports per 100k residents near the listing, ranked against
+   * every other part of the city. It is a rating of what gets reported here,
+   * not of whether a renter will come to harm, and `quieterThanPercent` is
+   * what the grade means.
    */
   safety: {
     grade: SafetyGrade;
     violentCount: number;
+    residents: number;
+    ratePer100k: number;
+    cityRatePer100k: number;
     radiusMeters: number;
     quieterThanPercent: number;
   } | null;
@@ -83,12 +97,23 @@ const OVERPASS_URLS = [
 ];
 const INCIDENTS_URL = 'https://data.sfgov.org/resource/wg3w-h783.json';
 const METERS_URL = 'https://data.sfgov.org/resource/8vzz-qzz9.json';
+/** Census 2020 blocks: population with an interior point, so it grids like the rest. */
+const POPULATION_URL = 'https://data.sfgov.org/resource/p2fw-hsrv.json';
+
+/**
+ * Below this many residents in the radius a rate is arithmetic noise — one
+ * report in a 30-person industrial block reads as 3,333 per 100k — so those
+ * listings get no rating rather than a false alarm.
+ */
+const MIN_RESIDENTS_FOR_RATE = 200;
 
 /** Bumped when the parsing changes, so cached stops are refetched rather than trusted. */
 const RAIL_KEY = 'rail-stops-v2';
 const RAIL_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const INCIDENT_TTL_MS = 24 * 60 * 60 * 1000;
 const PARKING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+/** Decennial census: it does not change between deployments. */
+const POPULATION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS area_cache (
@@ -231,6 +256,32 @@ async function loadGrid(url: string, where: string): Promise<GridCell[]> {
   return cells;
 }
 
+/**
+ * The census feed publishes one row per block with its own interior point, so
+ * it needs no rounding: the block centroid *is* the cell.
+ */
+async function loadPopulation(): Promise<GridCell[]> {
+  const params = new URLSearchParams({
+    $select: 'intptlat20, intptlon20, pop20',
+    $where: 'pop20 > 0',
+    $limit: '20000',
+  });
+  const response = await fetchJson(`${POPULATION_URL}?${params}`, 45_000);
+  if (!response.ok) throw new Error(`DataSF responded ${response.status}`);
+
+  const rows = (await response.json()) as { intptlat20?: string; intptlon20?: string; pop20?: string }[];
+  const cells: GridCell[] = [];
+  for (const row of rows) {
+    const lat = Number(row.intptlat20);
+    const lng = Number(row.intptlon20);
+    const count = Number(row.pop20);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(count)) continue;
+    cells.push({ lat, lng, count });
+  }
+  if (cells.length === 0) throw new Error('DataSF returned no census blocks');
+  return cells;
+}
+
 function trailingYearStart(): string {
   return new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19);
 }
@@ -259,38 +310,61 @@ export function countWithin(index: Map<string, GridCell[]>, lat: number, lng: nu
   return total;
 }
 
-/** Share of the city's blocks with strictly more reports than `count`. */
-export function quieterThanPercent(sortedCounts: number[], count: number): number {
-  if (sortedCounts.length === 0) return 0;
-  let low = 0;
-  let high = sortedCounts.length;
-  while (low < high) {
-    const mid = (low + high) >> 1;
-    if (sortedCounts[mid] <= count) low = mid + 1;
-    else high = mid;
-  }
-  return Math.round(((sortedCounts.length - low) / sortedCounts.length) * 100);
+/**
+ * Reports per 100k residents, or null where too few people live in the radius
+ * for the division to mean anything.
+ */
+export function ratePer100k(count: number, residents: number): number | null {
+  if (residents < MIN_RESIDENTS_FOR_RATE) return null;
+  return Math.round((count / residents) * 100_000);
 }
 
-export function safetyGrade(percent: number): SafetyGrade {
-  if (percent >= 80) return 'A';
-  if (percent >= 60) return 'B';
-  if (percent >= 40) return 'C';
-  if (percent >= 20) return 'D';
+/** Share of the city's blocks with a strictly higher rate than `rate`. */
+export function quieterThanPercent(sortedRates: number[], rate: number): number {
+  if (sortedRates.length === 0) return 0;
+  let low = 0;
+  let high = sortedRates.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (sortedRates[mid] <= rate) low = mid + 1;
+    else high = mid;
+  }
+  return Math.round(((sortedRates.length - low) / sortedRates.length) * 100);
+}
+
+/**
+ * Grades on the rate against the citywide rate rather than on the percentile:
+ * ranking against 500m circles drawn on residential blocks makes the typical
+ * block look good, so a place at the city average scored a D and read as a
+ * warning next to text saying it matched the city.
+ */
+export function safetyGrade(rate: number, cityRate: number): SafetyGrade {
+  if (cityRate <= 0) return 'C';
+  const ratio = rate / cityRate;
+  if (ratio <= 0.5) return 'A';
+  if (ratio <= 0.9) return 'B';
+  if (ratio <= 1.5) return 'C';
+  if (ratio <= 3) return 'D';
   return 'E';
 }
 
-function median(values: number[]): number {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.floor((sorted.length - 1) / 2)];
+/** Reports per 100k across the whole city, which is what a block is compared to. */
+function cityRate(cells: GridCell[], population: GridCell[]): number {
+  const residents = population.reduce((total, cell) => total + cell.count, 0);
+  const reports = cells.reduce((total, cell) => total + cell.count, 0);
+  return residents > 0 ? Math.round((reports / residents) * 100_000) : 0;
 }
 
 interface Datasets {
   rail: RailStop[] | null;
-  incidents: { index: Map<string, GridCell[]>; cityMedian: number } | null;
-  /** `cityCounts` is every block's violent total, sorted, so a listing can be ranked. */
-  violent: { index: Map<string, GridCell[]>; cityCounts: number[] } | null;
+  population: Map<string, GridCell[]> | null;
+  incidents: { index: Map<string, GridCell[]>; cityRatePer100k: number } | null;
+  /** `cityRates` is every populated block's violent rate, sorted, so a listing can be ranked. */
+  violent: {
+    index: Map<string, GridCell[]>;
+    cityRates: number[];
+    cityRatePer100k: number;
+  } | null;
   parking: Map<string, GridCell[]> | null;
 }
 
@@ -299,12 +373,13 @@ let inFlight: Promise<Datasets> | null = null;
 async function datasets(): Promise<Datasets> {
   inFlight ??= (async () => {
     const violentList = VIOLENT_CATEGORIES.map((category) => `'${category}'`).join(',');
-    const [rail, incidentCells, violentCells, meterCells] = await Promise.all([
+    const [rail, populationCells, incidentCells, violentCells, meterCells] = await Promise.all([
       cached<RailStop[]>(RAIL_KEY, RAIL_TTL_MS, loadRailStops).then(
         // Overpass answers 504 often enough that a new key must not leave a
         // deployment with no stops at all while the older copy is still on disk.
         (stops) => stops ?? lastCached<RailStop[]>('rail-stops'),
       ),
+      cached<GridCell[]>('census-population', POPULATION_TTL_MS, loadPopulation),
       cached<GridCell[]>('incidents', INCIDENT_TTL_MS, () =>
         loadGrid(INCIDENTS_URL, `incident_datetime > '${trailingYearStart()}' AND latitude IS NOT NULL`),
       ),
@@ -320,27 +395,42 @@ async function datasets(): Promise<Datasets> {
       ),
     ]);
 
+    // Rates need a denominator, so without the census the crime layers stay dark
+    // rather than falling back to raw counts the UI would present as a rating.
+    const population = populationCells ? indexCells(populationCells) : null;
+
     let incidents: Datasets['incidents'] = null;
-    if (incidentCells) {
-      const index = indexCells(incidentCells);
-      // The typical block, so a listing's count reads as "quieter" or "busier"
-      // than the rest of the city rather than as a bare number.
-      const cityMedian = median(
-        incidentCells.map((cell) => countWithin(index, cell.lat, cell.lng, INCIDENT_RADIUS_M)),
-      );
-      incidents = { index, cityMedian };
+    if (incidentCells && populationCells) {
+      incidents = {
+        index: indexCells(incidentCells),
+        cityRatePer100k: cityRate(incidentCells, populationCells),
+      };
     }
 
     let violent: Datasets['violent'] = null;
-    if (violentCells) {
+    if (violentCells && populationCells && population) {
       const index = indexCells(violentCells);
-      const cityCounts = violentCells
-        .map((cell) => countWithin(index, cell.lat, cell.lng, INCIDENT_RADIUS_M))
+      // Every populated block's own rate, so a listing is ranked against places
+      // people actually live rather than against downtown's daytime crowd.
+      const cityRates = populationCells
+        .map((cell) =>
+          ratePer100k(
+            countWithin(index, cell.lat, cell.lng, INCIDENT_RADIUS_M),
+            countWithin(population, cell.lat, cell.lng, INCIDENT_RADIUS_M),
+          ),
+        )
+        .filter((rate): rate is number => rate !== null)
         .sort((a, b) => a - b);
-      violent = { index, cityCounts };
+      violent = { index, cityRates, cityRatePer100k: cityRate(violentCells, populationCells) };
     }
 
-    return { rail, incidents, violent, parking: meterCells ? indexCells(meterCells) : null };
+    return {
+      rail,
+      population,
+      incidents,
+      violent,
+      parking: meterCells ? indexCells(meterCells) : null,
+    };
   })();
 
   // A failed refresh must not poison later searches.
@@ -383,28 +473,47 @@ export async function areaFactsFor(lat: number | null, lng: number | null): Prom
     };
   }
 
+  const residents = data.population
+    ? countWithin(data.population, lat, lng, INCIDENT_RADIUS_M)
+    : 0;
+
   let safety: AreaFacts['safety'] = null;
   if (data.violent) {
     const violentCount = countWithin(data.violent.index, lat, lng, INCIDENT_RADIUS_M);
-    const percent = quieterThanPercent(data.violent.cityCounts, violentCount);
-    safety = {
-      grade: safetyGrade(percent),
-      violentCount,
-      radiusMeters: INCIDENT_RADIUS_M,
-      quieterThanPercent: percent,
-    };
+    const rate = ratePer100k(violentCount, residents);
+    if (rate !== null) {
+      const percent = quieterThanPercent(data.violent.cityRates, rate);
+      safety = {
+        grade: safetyGrade(rate, data.violent.cityRatePer100k),
+        violentCount,
+        residents,
+        ratePer100k: rate,
+        cityRatePer100k: data.violent.cityRatePer100k,
+        radiusMeters: INCIDENT_RADIUS_M,
+        quieterThanPercent: percent,
+      };
+    }
+  }
+
+  let incidents: AreaFacts['incidents'] = null;
+  if (data.incidents) {
+    const count = countWithin(data.incidents.index, lat, lng, INCIDENT_RADIUS_M);
+    const rate = ratePer100k(count, residents);
+    if (rate !== null) {
+      incidents = {
+        count,
+        residents,
+        ratePer100k: rate,
+        cityRatePer100k: data.incidents.cityRatePer100k,
+        radiusMeters: INCIDENT_RADIUS_M,
+      };
+    }
   }
 
   return {
     transit,
     safety,
-    incidents: data.incidents
-      ? {
-          count: countWithin(data.incidents.index, lat, lng, INCIDENT_RADIUS_M),
-          radiusMeters: INCIDENT_RADIUS_M,
-          cityMedian: data.incidents.cityMedian,
-        }
-      : null,
+    incidents,
     parking: data.parking
       ? {
           meteredSpaces: countWithin(data.parking, lat, lng, PARKING_RADIUS_M),

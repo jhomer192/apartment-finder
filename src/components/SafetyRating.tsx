@@ -15,16 +15,17 @@ const GRADE_COLOR: Record<Safety['grade'], string> = {
 };
 
 function summary(safety: Safety): string {
-  if (safety.quieterThanPercent >= 80) return 'Among the quietest blocks in SF';
-  if (safety.quieterThanPercent >= 60) return 'Quieter than most of SF';
-  if (safety.quieterThanPercent >= 40) return 'About average for SF';
-  if (safety.quieterThanPercent >= 20) return 'Busier than most of SF';
-  return 'Among the busiest blocks in SF';
+  const times = safety.cityRatePer100k > 0 ? safety.ratePer100k / safety.cityRatePer100k : 1;
+  if (times <= 0.5) return 'Half the citywide crime rate or less';
+  if (times <= 0.9) return 'Below the citywide crime rate';
+  if (times <= 1.5) return 'Around the citywide crime rate';
+  return `${times.toFixed(1)}× the citywide crime rate`;
 }
 
 /**
- * A rating of reported violent crime around the address relative to the rest of
- * the city. The wording stays comparative on purpose: police reports measure
+ * A rating of reported violent crime around the address, per resident rather
+ * than per block, so a dense neighbourhood is not graded down for holding more
+ * people. The wording stays comparative on purpose: police reports measure
  * what gets reported, not how a block will treat the person living on it.
  */
 export function SafetyRating({ safety }: Props) {
@@ -42,9 +43,12 @@ export function SafetyRating({ safety }: Props) {
       }}
       title={
         `${safety.violentCount} violent-crime reports (assault, robbery, weapons, sexual offences, homicide) ` +
-        `were filed within ${safety.radiusMeters}m of this address in the last 12 months — fewer than ` +
-        `${safety.quieterThanPercent}% of the San Francisco blocks that saw any such report. ` +
-        'Source: DataSF police incident reports. ' +
+        `were filed within ${safety.radiusMeters}m of this address in the last 12 months, among ` +
+        `${safety.residents.toLocaleString()} residents in that radius: ` +
+        `${safety.ratePer100k.toLocaleString()} per 100,000 residents per year, against ` +
+        `${safety.cityRatePer100k.toLocaleString()} citywide. That rate is lower than ` +
+        `${safety.quieterThanPercent}% of populated San Francisco blocks. ` +
+        'Sources: DataSF police incident reports, 2020 census block population. ' +
         'Reports are not convictions, and a grade describes the area, not this building.'
       }
     >
@@ -54,7 +58,7 @@ export function SafetyRating({ safety }: Props) {
       >
         {safety.grade}
       </span>
-      Area safety: {summary(safety)}
+      {summary(safety)}
     </span>
   );
 }

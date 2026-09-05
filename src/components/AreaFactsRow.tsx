@@ -18,11 +18,11 @@ export function AreaFactsRow({ area }: Props) {
   if (!area || (!area.transit && !area.incidents && !area.parking)) return null;
 
   const { transit, incidents, parking } = area;
-  const busier =
-    incidents && incidents.cityMedian > 0
-      ? incidents.count > incidents.cityMedian
-        ? 'busier than the typical SF block'
-        : 'quieter than the typical SF block'
+  // Per resident, not per block: a downtown block with 400 flats reports more
+  // of everything than a quiet street simply by holding more people.
+  const versusCity =
+    incidents && incidents.cityRatePer100k > 0
+      ? `${(incidents.ratePer100k / incidents.cityRatePer100k).toFixed(1)}× the citywide rate of ${incidents.cityRatePer100k.toLocaleString()}`
       : null;
 
   return (
@@ -42,9 +42,9 @@ export function AreaFactsRow({ area }: Props) {
         <span
           className="px-1.5 py-0.5 rounded"
           style={pillStyle}
-          title={`Police incident reports filed within ${incidents.radiusMeters}m in the last 12 months — ${busier ?? 'no citywide comparison available'}. Reports are not convictions. Source: DataSF. Citywide median for the same radius: ${incidents.cityMedian}.`}
+          title={`${incidents.count.toLocaleString()} police incident reports filed within ${incidents.radiusMeters}m in the last 12 months, among ${incidents.residents.toLocaleString()} residents in that radius${versusCity ? ` — ${versusCity}` : ''}. All report types, so a commercial strip counts shoplifting from people who live elsewhere. Reports are not convictions. Sources: DataSF, 2020 census.`}
         >
-          {incidents.count.toLocaleString()} reported incidents within {incidents.radiusMeters}m/yr
+          {incidents.ratePer100k.toLocaleString()} reports/100k residents per yr
         </span>
       )}
       {parking && (

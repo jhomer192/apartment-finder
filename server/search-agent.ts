@@ -168,10 +168,10 @@ async function rank(
             (transit.walkMinutes === null ? '' : `, about ${transit.walkMinutes} min walk`)
           : '') +
         (incidents
-          ? ` | ${incidents.count} police reports within ${incidents.radiusMeters}m last year, citywide median ${incidents.cityMedian}`
+          ? ` | ${incidents.ratePer100k} police reports per 100k residents/yr within ${incidents.radiusMeters}m, citywide ${incidents.cityRatePer100k}`
           : '') +
         (safety
-          ? ` | ${safety.violentCount} violent-crime reports within ${safety.radiusMeters}m last year, fewer than ${safety.quieterThanPercent}% of reported-on SF blocks (grade ${safety.grade})`
+          ? ` | ${safety.ratePer100k} violent-crime reports per 100k residents/yr within ${safety.radiusMeters}m (citywide ${safety.cityRatePer100k}), lower than ${safety.quieterThanPercent}% of populated SF blocks (grade ${safety.grade})`
           : '')
       );
     })

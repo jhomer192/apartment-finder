@@ -17,8 +17,8 @@ function transitDistance(listing: Listing): number {
   return listing.area?.transit?.meters ?? Infinity;
 }
 
-function incidentCount(listing: Listing): number {
-  return listing.area?.incidents?.count ?? Infinity;
+function incidentRate(listing: Listing): number {
+  return listing.area?.incidents?.ratePer100k ?? Infinity;
 }
 
 function safetyRank(listing: Listing): number {
@@ -43,7 +43,7 @@ function sortListings(listings: Listing[], sort: SortOption): Listing[] {
     case 'transit':
       return copy.sort((a, b) => transitDistance(a) - transitDistance(b));
     case 'incidents':
-      return copy.sort((a, b) => incidentCount(a) - incidentCount(b));
+      return copy.sort((a, b) => incidentRate(a) - incidentRate(b));
     case 'safety':
       return copy.sort((a, b) => safetyRank(a) - safetyRank(b));
     default:
@@ -83,7 +83,7 @@ export function ResultsGrid({ listings, onClearNeighborhoods }: Props) {
             <option value="ppsqft">Price/sqft</option>
             <option value="transit">Closest to a train</option>
             <option value="safety">Best area safety rating</option>
-            <option value="incidents">Fewest reported incidents</option>
+            <option value="incidents">Lowest incident rate per resident</option>
           </select>
         </div>
       </div>

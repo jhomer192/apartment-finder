@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { countWithin, indexCells, quieterThanPercent, railKind, safetyGrade } from './area.js';
+import {
+  countWithin,
+  indexCells,
+  quieterThanPercent,
+  railKind,
+  ratePer100k,
+  safetyGrade,
+} from './area.js';
 
 const CIVIC_CENTER = { lat: 37.7793, lng: -122.4193 };
 
@@ -52,14 +59,41 @@ describe('quieterThanPercent', () => {
   });
 });
 
+describe('ratePer100k', () => {
+  it('divides reports by the people who live in the radius', () => {
+    expect(ratePer100k(40, 8000)).toBe(500);
+    expect(ratePer100k(0, 8000)).toBe(0);
+  });
+
+  it('does not let a dense block look worse than a sparse one for the same rate', () => {
+    // Twice the reports among twice the residents is the same place to live.
+    expect(ratePer100k(80, 16_000)).toBe(ratePer100k(40, 8000));
+  });
+
+  it('reports nothing where too few people live for the division to mean anything', () => {
+    expect(ratePer100k(1, 30)).toBeNull();
+    expect(ratePer100k(1, 199)).toBeNull();
+    expect(ratePer100k(1, 200)).toBe(500);
+  });
+});
+
 describe('safetyGrade', () => {
-  it('grades on where the block falls in the city', () => {
-    expect(safetyGrade(95)).toBe('A');
-    expect(safetyGrade(80)).toBe('A');
-    expect(safetyGrade(61)).toBe('B');
-    expect(safetyGrade(40)).toBe('C');
-    expect(safetyGrade(21)).toBe('D');
-    expect(safetyGrade(0)).toBe('E');
+  const city = 1200;
+
+  it('grades on the rate against the citywide rate', () => {
+    expect(safetyGrade(200, city)).toBe('A');
+    expect(safetyGrade(1000, city)).toBe('B');
+    expect(safetyGrade(1200, city)).toBe('C');
+    expect(safetyGrade(3000, city)).toBe('D');
+    expect(safetyGrade(6000, city)).toBe('E');
+  });
+
+  it('does not warn about a block that matches the city average', () => {
+    expect(safetyGrade(city, city)).toBe('C');
+  });
+
+  it('stays neutral when the city rate is unknown', () => {
+    expect(safetyGrade(500, 0)).toBe('C');
   });
 });
 
