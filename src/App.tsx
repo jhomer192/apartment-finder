@@ -48,7 +48,6 @@ function Finder({ email, signOut }: { email: string; signOut: () => Promise<void
     loading,
     error,
     hasSearched,
-    officeCoords,
     search,
   } = useSearch();
 
@@ -206,39 +205,7 @@ function Finder({ email, signOut }: { email: string; signOut: () => Promise<void
                 ))}
               </div>
             ) : (
-              <div className="space-y-4">
-                <MapView results={results} officeCoords={officeCoords} />
-                {/* Commute legend */}
-                <div className="flex flex-wrap items-center gap-4 text-xs" style={{ color: 'var(--text-dim)' }}>
-                  <span className="font-medium" style={{ color: 'var(--text)' }}>Commute estimate:</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> &lt; 15 min</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500 inline-block" /> 15-30 min</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block" /> 30-45 min</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" /> 45+ min</span>
-                </div>
-                {/* Neighborhood commute table */}
-                {results.map(result => (
-                  <div key={result.metroId} className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-                    <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-                      <h3 className="font-semibold text-sm" style={{ color: 'var(--text)' }}>{result.metroName} — Commute Times</h3>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-px" style={{ backgroundColor: 'var(--border)' }}>
-                      {result.neighborhoods.map(hood => {
-                        const colorMap = { green: '#22c55e', yellow: '#eab308', orange: '#f97316', red: '#ef4444' };
-                        return (
-                          <div key={hood.name} className="px-3 py-2.5" style={{ backgroundColor: 'var(--surface)' }}>
-                            <div className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{hood.name}</div>
-                            <div className="text-xs font-semibold mt-0.5" style={{ color: colorMap[hood.commuteColor] }}>
-                              ~{hood.estimatedMinutes} min
-                            </div>
-                            <div className="text-xs" style={{ color: 'var(--text-dim)' }}>{hood.distanceMiles} mi</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <MapView results={results} />
             )}
           </>
         )}
@@ -263,8 +230,8 @@ function Finder({ email, signOut }: { email: string; signOut: () => Promise<void
             </svg>
             <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text)' }}>Find your next apartment</h2>
             <p className="max-w-md mx-auto" style={{ color: 'var(--text-dim)' }}>
-              Enter your metro area, budget, and office address above. We'll show estimated listings with
-              prices, amenities, and commute times across every neighborhood.
+              Ask Claude above, or set a budget and search. Every listing comes back with a scam risk
+              score and the reasons behind it.
             </p>
           </div>
         )}
@@ -286,8 +253,6 @@ function Finder({ email, signOut }: { email: string; signOut: () => Promise<void
         <div className="max-w-7xl mx-auto px-4 py-6 text-center text-xs" style={{ color: 'var(--text-dim)' }}>
           Live listings pulled from the sources above. Scam scores are heuristics plus a Claude review —
           treat them as a prompt to look closer, not proof either way.
-          <br />
-          Commute times are estimates based on straight-line distance.
         </div>
       </footer>
     </div>

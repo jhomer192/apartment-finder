@@ -14,6 +14,7 @@ interface Props {
 export function ScamBadge({ scam }: Props) {
   const [open, setOpen] = useState(false);
   const band = BAND_STYLES[scam.band];
+  const hasDetail = scam.reasons.length > 0 || scam.checks.length > 0;
 
   return (
     <div className="space-y-1.5">
@@ -31,13 +32,20 @@ export function ScamBadge({ scam }: Props) {
         <span>
           {band.label} · {scam.score}/100
         </span>
-        <span aria-hidden>{scam.reasons.length > 0 ? (open ? '▲' : '▼') : ''}</span>
+        <span aria-hidden>{hasDetail ? (open ? '▲' : '▼') : ''}</span>
       </button>
 
-      {open && scam.reasons.length > 0 && (
-        <ul className="text-[11px] space-y-1 pl-4 list-disc" style={{ color: 'var(--text-dim)' }}>
+      {open && hasDetail && (
+        <ul className="text-[11px] space-y-1" style={{ color: 'var(--text-dim)' }}>
           {scam.reasons.map((reason) => (
-            <li key={reason}>{reason}</li>
+            <li key={reason}>
+              <span style={{ color: BAND_STYLES.high.color }}>⚠</span> {reason}
+            </li>
+          ))}
+          {scam.checks.map((check) => (
+            <li key={check}>
+              <span style={{ color: BAND_STYLES.low.color }}>✓</span> {check}
+            </li>
           ))}
         </ul>
       )}

@@ -4,6 +4,7 @@ export interface ScamAssessment {
   score: number;
   band: ScamBand;
   reasons: string[];
+  checks: string[];
 }
 
 export interface ApiListing {

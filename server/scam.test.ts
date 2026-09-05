@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scoreHeuristics } from './scam.js';
+import { crossListingSignals, mergeAssessments, scoreHeuristics } from './scam.js';
 import type { RawListing } from './sources/types.js';
 
 function listing(overrides: Partial<RawListing> = {}): RawListing {
@@ -71,9 +71,28 @@ describe('scoreHeuristics', () => {
     );
     expect(result.reasons).toEqual([
       'No photos on the listing',
-      'Unusually short description',
       'No street address given',
+      'Unusually short description',
     ]);
+  });
+
+  it('reports the checks a clean listing passed', () => {
+    const result = scoreHeuristics(listing());
+    expect(result.checks).toEqual([
+      'Rent is in line with the SF median for this size',
+      '12 photos published',
+      'Full street address published',
+    ]);
+  });
+
+  it('flags an address that cannot be pinned to a building', () => {
+    const result = scoreHeuristics(listing({ address: 'Mission District' }));
+    expect(result.reasons).toContain('Address has no street number, so the unit cannot be verified');
+  });
+
+  it('flags a listing that publishes barely any photos', () => {
+    expect(scoreHeuristics(listing({ photoCount: 1 })).reasons).toContain('Only 1 photo');
+    expect(scoreHeuristics(listing({ photoCount: 2 })).reasons).toContain('Only 2 photos');
   });
 
   it('does not read a summary source\'s missing fields as concealment', () => {
@@ -95,5 +114,70 @@ describe('scoreHeuristics', () => {
     );
     expect(result.score).toBe(100);
     expect(result.band).toBe('high');
+  });
+});
+
+describe('crossListingSignals', () => {
+  const photo = 'https://cdn.example.com/a.jpg';
+
+  it('flags the cheap copy of an address listed elsewhere for much more', () => {
+    const signals = crossListingSignals([
+      listing({ externalId: 'real', price: 4200 }),
+      listing({ externalId: 'bait', price: 1800, address: '123 valencia street' }),
+    ]);
+    expect(signals.get('test:real')).toBeUndefined();
+    expect(signals.get('test:bait')?.reasons).toEqual([
+      'Same address is listed at $4,200 elsewhere but asks $1,800 here',
+    ]);
+  });
+
+  it('leaves an ordinary cross-post alone', () => {
+    const signals = crossListingSignals([
+      listing({ externalId: 'a', price: 4200 }),
+      listing({ externalId: 'b', price: 4100 }),
+    ]);
+    expect(signals.size).toBe(0);
+  });
+
+  it('flags a lead photo reused at another address', () => {
+    const signals = crossListingSignals([
+      listing({ externalId: 'a', imageUrl: photo }),
+      listing({ externalId: 'b', imageUrl: photo, address: '900 Market St' }),
+    ]);
+    expect(signals.get('test:a')?.reasons).toContain(
+      'Lead photo is reused on a listing at a different address',
+    );
+    expect(signals.get('test:b')?.score).toBe(30);
+  });
+
+  it('accepts the same photo on the same address', () => {
+    const signals = crossListingSignals([
+      listing({ externalId: 'a', imageUrl: photo }),
+      listing({ externalId: 'b', imageUrl: photo }),
+    ]);
+    expect(signals.size).toBe(0);
+  });
+});
+
+describe('mergeAssessments', () => {
+  it('adds batch signals to the cached verdict without losing its checks', () => {
+    const base = { score: 20, band: 'low' as const, reasons: ['thin'], checks: ['photos'] };
+    const merged = mergeAssessments(base, {
+      score: 30,
+      band: 'medium' as const,
+      reasons: ['reused photo'],
+      checks: [],
+    });
+    expect(merged).toEqual({
+      score: 50,
+      band: 'medium',
+      reasons: ['thin', 'reused photo'],
+      checks: ['photos'],
+    });
+  });
+
+  it('returns the base verdict when a listing has no batch signals', () => {
+    const base = { score: 0, band: 'low' as const, reasons: [], checks: [] };
+    expect(mergeAssessments(base, undefined)).toBe(base);
   });
 });

@@ -27,7 +27,7 @@ function listing(overrides: Partial<ScoredListing>): ScoredListing {
     contactEmail: null,
     contactPhone: null,
     detail: 'full',
-    scam: { score: 5, band: 'low', reasons: [] },
+    scam: { score: 5, band: 'low', reasons: [], checks: [] },
     ...overrides,
   };
 }
@@ -73,7 +73,7 @@ describe('matches', () => {
     expect(matches(listing({ price: 9000 }), prefs())).toBe(false);
     expect(matches(listing({ bedrooms: 1 }), prefs({ minBedrooms: 2 }))).toBe(false);
     expect(
-      matches(listing({ scam: { score: 70, band: 'high', reasons: ['wire'] } }), prefs()),
+      matches(listing({ scam: { score: 70, band: 'high', reasons: ['wire'], checks: [] } }), prefs()),
     ).toBe(false);
     expect(matches(listing({ neighborhood: 'SoMa' }), prefs({ neighborhoods: ['Mission'] }))).toBe(
       false,

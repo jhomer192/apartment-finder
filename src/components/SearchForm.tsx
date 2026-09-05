@@ -12,7 +12,6 @@ export function SearchForm({ onSearch, loading }: Props) {
   const [minRent, setMinRent] = useState(1500);
   const [maxRent, setMaxRent] = useState(6000);
   const [bedrooms, setBedrooms] = useState<string>('any');
-  const [officeAddress, setOfficeAddress] = useState('Salesforce Tower');
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -21,7 +20,6 @@ export function SearchForm({ onSearch, loading }: Props) {
       minRent,
       maxRent,
       bedrooms: bedrooms === 'any' ? null : parseInt(bedrooms, 10),
-      officeAddress,
     });
   }
 
@@ -77,19 +75,6 @@ export function SearchForm({ onSearch, loading }: Props) {
             <option value="3">3 BR</option>
             <option value="4">4 BR</option>
           </select>
-        </div>
-
-        <div className="sm:col-span-2 lg:col-span-1">
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-dim)' }}>Office address (for commute)</label>
-          <input
-            type="text"
-            value={officeAddress}
-            onChange={e => setOfficeAddress(e.target.value)}
-            className={inputClass}
-            style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)', border: '1px solid var(--border)' }}
-            placeholder="123 Market St, SF"
-            required
-          />
         </div>
 
         <div className="flex items-end">

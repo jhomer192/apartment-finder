@@ -26,7 +26,7 @@ function listing(overrides: Partial<ScoredListing>): ScoredListing {
     contactEmail: null,
     contactPhone: null,
     detail: 'full',
-    scam: { score: 5, band: 'low', reasons: [] },
+    scam: { score: 5, band: 'low', reasons: [], checks: [] },
     ...overrides,
   };
 }
@@ -57,8 +57,8 @@ describe('applyPlan', () => {
 
   it('drops listings over the scam ceiling', () => {
     const listings = [
-      listing({ key: 'safe', scam: { score: 10, band: 'low', reasons: [] } }),
-      listing({ key: 'risky', scam: { score: 60, band: 'high', reasons: ['wire transfer'] } }),
+      listing({ key: 'safe', scam: { score: 10, band: 'low', reasons: [], checks: [] } }),
+      listing({ key: 'risky', scam: { score: 60, band: 'high', reasons: ['wire transfer'], checks: [] } }),
     ];
     expect(applyPlan(listings, plan({ maxScamScore: 25 })).map((item) => item.key)).toEqual(['safe']);
   });

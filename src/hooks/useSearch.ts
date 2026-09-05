@@ -1,10 +1,9 @@
 import { useState, useCallback, useRef } from 'react';
-import type { SearchParams, SearchResult, NeighborhoodCommute, Listing, SourceId } from '../types';
+import type { SearchParams, SearchResult, NeighborhoodPin, Listing, SourceId } from '../types';
 import type { ApiListing } from '../api/types';
 import { fetchListings } from '../api/client';
 import { SEARCH_SOURCES } from '../data/sources';
 import { getMetroById } from '../data/metros';
-import { haversineDistance, getCommuteColor, geocodeOfficeAddress } from '../utils/commute';
 
 const SOURCE_COLORS: Record<string, string> = {
   redfin: '#c82021',
@@ -25,14 +24,7 @@ function relativeDays(postedAt: number | null): string | null {
   return `Posted ${days}d ago`;
 }
 
-function toListing(
-  listing: ApiListing,
-  neighborhoods: NeighborhoodCommute[],
-  metroId: string,
-  index: number,
-): Listing {
-  const commute = neighborhoods.find((hood) => hood.name === listing.neighborhood);
-  const minutes = commute?.estimatedMinutes ?? 0;
+function toListing(listing: ApiListing, metroId: string, index: number): Listing {
   const [gradientFrom, gradientTo] = GRADIENTS[index % GRADIENTS.length];
 
   const amenities = [
@@ -57,8 +49,6 @@ function toListing(
     url: listing.url,
     imageUrl: listing.imageUrl,
     scam: listing.scam,
-    commuteMinutes: minutes,
-    commuteColor: getCommuteColor(minutes),
     metroId,
     gradientFrom,
     gradientTo,
@@ -70,7 +60,6 @@ export function useSearch() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
-  const [officeCoords, setOfficeCoords] = useState<{ lat: number; lng: number } | null>(null);
   const inFlight = useRef<AbortController | null>(null);
 
   const search = useCallback(async (params: SearchParams) => {
@@ -86,24 +75,11 @@ export function useSearch() {
       const metro = getMetroById(params.metros[0] ?? 'bay-area');
       if (!metro) throw new Error('Unknown metro');
 
-      const office = geocodeOfficeAddress(params.officeAddress);
-      setOfficeCoords(office);
-      const officeLoc = office ?? { lat: metro.defaultOffice.lat, lng: metro.defaultOffice.lng };
-
-      const neighborhoods: NeighborhoodCommute[] = metro.neighborhoods
-        .map((hood) => {
-          const dist = haversineDistance(hood.lat, hood.lng, officeLoc.lat, officeLoc.lng);
-          const minutes = Math.round((dist / 12) * 60 + 5);
-          return {
-            name: hood.name,
-            lat: hood.lat,
-            lng: hood.lng,
-            distanceMiles: Math.round(dist * 10) / 10,
-            estimatedMinutes: minutes,
-            commuteColor: getCommuteColor(minutes),
-          };
-        })
-        .sort((a, b) => a.estimatedMinutes - b.estimatedMinutes);
+      const neighborhoods: NeighborhoodPin[] = metro.neighborhoods.map((hood) => ({
+        name: hood.name,
+        lat: hood.lat,
+        lng: hood.lng,
+      }));
 
       const response = await fetchListings(
         {
@@ -139,9 +115,7 @@ export function useSearch() {
           centerLng,
           sources: SEARCH_SOURCES.map((source) => ({ source, url: source.buildUrl(urlParams) })),
           neighborhoods,
-          listings: response.listings.map((listing, index) =>
-            toListing(listing, neighborhoods, metro.id, index),
-          ),
+          listings: response.listings.map((listing, index) => toListing(listing, metro.id, index)),
           sourceStatuses: response.sources,
         },
       ]);
@@ -158,7 +132,6 @@ export function useSearch() {
     loading,
     error,
     hasSearched,
-    officeCoords,
     search,
   };
 }

@@ -19,8 +19,8 @@ function sortListings(listings: Listing[], sort: SortOption): Listing[] {
       return copy.sort((a, b) => a.price - b.price);
     case 'price-desc':
       return copy.sort((a, b) => b.price - a.price);
-    case 'commute':
-      return copy.sort((a, b) => a.commuteMinutes - b.commuteMinutes);
+    case 'scam-desc':
+      return copy.sort((a, b) => b.scam.score - a.scam.score);
     case 'sqft-desc':
       return copy.sort((a, b) => (b.sqft ?? 0) - (a.sqft ?? 0));
     case 'ppsqft':
@@ -60,7 +60,7 @@ export function ResultsGrid({ listings, metroName }: Props) {
             <option value="scam">Scam risk: Lowest</option>
             <option value="price-asc">Price: Low to High</option>
             <option value="price-desc">Price: High to Low</option>
-            <option value="commute">Commute Time</option>
+            <option value="scam-desc">Scam risk: Highest</option>
             <option value="sqft-desc">Largest</option>
             <option value="ppsqft">Price/sqft</option>
           </select>

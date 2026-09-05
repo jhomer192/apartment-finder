@@ -1,6 +1,13 @@
 import { getMetroById } from '../src/data/metros.js';
 import { config } from './config.js';
-import { assessListing, listingKey, type ClaudeBudget, type ScamAssessment } from './scam.js';
+import {
+  assessListing,
+  crossListingSignals,
+  listingKey,
+  mergeAssessments,
+  type ClaudeBudget,
+  type ScamAssessment,
+} from './scam.js';
 import { apartmentListSource } from './sources/apartmentlist.js';
 import { craigslistSource } from './sources/craigslist.js';
 import { redfinSource } from './sources/redfin.js';
@@ -95,16 +102,22 @@ export async function getListings(query: SourceQuery): Promise<ListingsResponse>
   });
 
   const budget: ClaudeBudget = { remaining: CLAUDE_REVIEWS_PER_SEARCH };
+  const duplicates = crossListingSignals(raw);
   const listings = await Promise.all(
-    raw.map(async (listing) => ({
-      ...listing,
-      key: listingKey(listing),
-      neighborhood: nearestNeighborhood(listing.lat, listing.lng),
-      scam: await assessListing(listing, budget),
-    })),
+    raw.map(async (listing) => {
+      const id = listingKey(listing);
+      return {
+        ...listing,
+        key: id,
+        neighborhood: nearestNeighborhood(listing.lat, listing.lng),
+        scam: mergeAssessments(await assessListing(listing, budget), duplicates.get(id)),
+      };
+    }),
   );
 
-  listings.sort((a, b) => a.scam.score - b.scam.score || a.price - b.price);
+  // Sorting by risk here would truncate away every listing worth warning about,
+  // so the cut is on price and the client owns the ordering.
+  listings.sort((a, b) => a.price - b.price);
 
   const response: ListingsResponse = {
     listings: listings.slice(0, query.limit),

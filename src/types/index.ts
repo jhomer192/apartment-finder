@@ -7,7 +7,6 @@ export interface SearchParams {
   minRent: number;
   maxRent: number;
   bedrooms: number | null;
-  officeAddress: string;
 }
 
 export interface SearchSource {
@@ -28,13 +27,10 @@ export interface SourceUrlParams {
   bedrooms: number | null;
 }
 
-export interface NeighborhoodCommute {
+export interface NeighborhoodPin {
   name: string;
   lat: number;
   lng: number;
-  distanceMiles: number;
-  estimatedMinutes: number;
-  commuteColor: 'green' | 'yellow' | 'orange' | 'red';
 }
 
 export type SourceId = 'zillow' | 'apartments' | 'craigslist' | 'trulia' | 'redfin' | 'facebook' | 'hotpads' | 'rent' | 'padmapper';
@@ -55,14 +51,12 @@ export interface Listing {
   url: string;
   imageUrl: string | null;
   scam: ScamAssessment;
-  commuteMinutes: number;
-  commuteColor: 'green' | 'yellow' | 'orange' | 'red';
   metroId: string;
   gradientFrom: string;
   gradientTo: string;
 }
 
-export type SortOption = 'price-asc' | 'price-desc' | 'commute' | 'sqft-desc' | 'ppsqft' | 'scam';
+export type SortOption = 'price-asc' | 'price-desc' | 'scam-desc' | 'sqft-desc' | 'ppsqft' | 'scam';
 
 export interface SearchResult {
   metroId: string;
@@ -77,7 +71,7 @@ export interface SearchResult {
     source: SearchSource;
     url: string;
   }>;
-  neighborhoods: NeighborhoodCommute[];
+  neighborhoods: NeighborhoodPin[];
   listings: Listing[];
   sourceStatuses: SourceStatus[];
 }

@@ -13,7 +13,7 @@ scam risk, and lets the group ask Claude questions about what's on screen.
 - **New-listing alerts** — per-person filters, delivered by email and/or Discord
 - **Shared shortlist** — one list for the whole group, with per-listing status, notes, and a
   Claude-drafted inquiry message
-- **Neighborhood filter, commute estimates, map view** — as before
+- **Neighborhood filter and map view** — as before
 
 ## Running it
 
@@ -80,10 +80,19 @@ take down the rest of the results.
 
 Every listing goes through deterministic heuristics: irreversible payment methods, absent
 "owners", deposits demanded before a viewing, mailed keys, urgency language, rent far below the
-SF median for that bedroom count, no photos, no address. Anything scoring 25+ is additionally
-sent to Claude, and the more cautious of the two verdicts wins. Results are cached for 7 days.
+SF median for that bedroom count, missing or street-number-less addresses, and thin or absent
+photo sets. Each search additionally compares listings against each other, which is where the
+address and photo signals earn their keep: one address listed twice with the cheaper copy well
+under the other, or one lead photo appearing under two different addresses, are both scored.
+Those batch signals depend on the rest of the result set, so they are merged in per search and
+never cached.
 
-Scores are a prompt to look closer, not proof either way.
+Photos and addresses are compared by URL and normalized text — nothing reverse-image-searches or
+looks an address up in a public record. Anything scoring 25+ is additionally sent to Claude, and
+the more cautious of the two verdicts wins. Per-listing verdicts are cached for 7 days.
+
+A listing also reports the checks it passed, so a 0/100 badge shows why it is 0 rather than
+looking un-scored. Scores are a prompt to look closer, not proof either way.
 
 ## Claude search
 

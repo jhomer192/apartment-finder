@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Listing } from '../types';
 import { useShortlist } from '../hooks/useShortlist';
 import { ScamBadge } from './ScamBadge';
@@ -6,22 +7,15 @@ interface Props {
   listing: Listing;
 }
 
-const COMMUTE_COLORS: Record<string, string> = {
-  green: '#22c55e',
-  yellow: '#eab308',
-  orange: '#f97316',
-  red: '#ef4444',
-};
-
 export function ListingCard({ listing }: Props) {
   const { keys, toggle } = useShortlist();
+  const [imageBroken, setImageBroken] = useState(false);
   const saved = keys.has(listing.id);
 
   const ppsqft = listing.sqft ? Math.round((listing.price / listing.sqft) * 100) / 100 : null;
   const bedsLabel = listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} bd`;
   const bathsLabel = listing.bathrooms === null ? '— ba' : `${listing.bathrooms} ba`;
   const sqftLabel = listing.sqft === null ? 'sqft n/a' : `${listing.sqft.toLocaleString()} sqft`;
-  const commuteColor = COMMUTE_COLORS[listing.commuteColor] ?? '#94a3b8';
 
   return (
     <div
@@ -35,19 +29,21 @@ export function ListingCard({ listing }: Props) {
           background: `linear-gradient(135deg, ${listing.gradientFrom}, ${listing.gradientTo})`,
         }}
       >
-        {listing.imageUrl && (
+        {listing.imageUrl && !imageBroken ? (
           <>
             <img
               src={listing.imageUrl}
               alt=""
               loading="lazy"
               className="absolute inset-0 w-full h-full object-cover"
-              onError={(event) => {
-                event.currentTarget.style.display = 'none';
-              }}
+              onError={() => setImageBroken(true)}
             />
             <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.1))' }} />
           </>
+        ) : (
+          <span className="absolute top-3 left-3 px-2 py-0.5 rounded text-[10px] font-medium text-white/90" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
+            {imageBroken ? 'Photo failed to load' : `No photo from ${listing.sourceName}`}
+          </span>
         )}
         {/* Shortlist heart, shared with the rest of the group */}
         <button
@@ -66,22 +62,6 @@ export function ListingCard({ listing }: Props) {
             <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
           </svg>
         </button>
-
-        {/* Commute badge */}
-        <div
-          className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5"
-          style={{
-            backgroundColor: 'rgba(0,0,0,0.4)',
-            backdropFilter: 'blur(4px)',
-            color: commuteColor,
-          }}
-        >
-          <span
-            className="w-2 h-2 rounded-full inline-block"
-            style={{ backgroundColor: commuteColor }}
-          />
-          ~{listing.commuteMinutes} min
-        </div>
 
         {/* Price and stats overlay */}
         <div className="relative z-10">
