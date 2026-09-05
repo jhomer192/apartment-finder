@@ -118,3 +118,19 @@ export async function getListings(query: SourceQuery): Promise<ListingsResponse>
   cache.set(key, response);
   return response;
 }
+
+/** Widest search the sources allow, so a key from any filter combination resolves. */
+const EVERYTHING: SourceQuery = { minRent: 0, maxRent: 100_000, bedrooms: null, limit: 120 };
+
+export async function findListings(keys: string[]): Promise<ScoredListing[]> {
+  if (keys.length === 0) return [];
+  const wanted = new Set(keys);
+
+  for (const response of cache.values()) {
+    const hits = response.listings.filter((listing) => wanted.has(listing.key));
+    if (hits.length === wanted.size) return hits;
+  }
+
+  const { listings } = await getListings(EVERYTHING);
+  return listings.filter((listing) => wanted.has(listing.key));
+}

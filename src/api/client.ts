@@ -1,4 +1,11 @@
-import type { ListingsResponse, SessionUser } from './types';
+import type {
+  ContactDraft,
+  ListingNote,
+  ListingsResponse,
+  SavedListing,
+  SavedStatus,
+  SessionUser,
+} from './types';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -86,5 +93,38 @@ export function askClaude(question: string, listingKeys: string[]): Promise<{ an
   return request('/api/ask', {
     method: 'POST',
     body: JSON.stringify({ question, listingKeys }),
+  });
+}
+
+export function fetchSaved(): Promise<{ saved: SavedListing[] }> {
+  return request('/api/saved');
+}
+
+export function saveListing(listingKey: string): Promise<{ saved: SavedListing }> {
+  return request('/api/saved', { method: 'POST', body: JSON.stringify({ listingKey }) });
+}
+
+export function unsaveListing(listingKey: string): Promise<{ ok: boolean }> {
+  return request(`/api/saved/${encodeURIComponent(listingKey)}`, { method: 'DELETE' });
+}
+
+export function setSavedStatus(listingKey: string, status: SavedStatus): Promise<{ saved: SavedListing }> {
+  return request(`/api/saved/${encodeURIComponent(listingKey)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export function addSavedNote(listingKey: string, body: string): Promise<{ note: ListingNote }> {
+  return request(`/api/saved/${encodeURIComponent(listingKey)}/notes`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+  });
+}
+
+export function draftContactMessage(listingKey: string, ask = ''): Promise<ContactDraft> {
+  return request('/api/contact-draft', {
+    method: 'POST',
+    body: JSON.stringify({ listingKey, ask }),
   });
 }

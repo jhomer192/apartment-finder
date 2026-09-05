@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import type { Listing } from '../types';
+import { useShortlist } from '../hooks/useShortlist';
 import { ScamBadge } from './ScamBadge';
 
 interface Props {
@@ -13,32 +13,9 @@ const COMMUTE_COLORS: Record<string, string> = {
   red: '#ef4444',
 };
 
-function getFavorites(): Set<string> {
-  try {
-    const raw = localStorage.getItem('apartment-finder-favorites');
-    return raw ? new Set(JSON.parse(raw)) : new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-function setFavorites(favs: Set<string>) {
-  localStorage.setItem('apartment-finder-favorites', JSON.stringify([...favs]));
-}
-
 export function ListingCard({ listing }: Props) {
-  const [fav, setFav] = useState(() => getFavorites().has(listing.id));
-
-  function toggleFav() {
-    const favs = getFavorites();
-    if (favs.has(listing.id)) {
-      favs.delete(listing.id);
-    } else {
-      favs.add(listing.id);
-    }
-    setFavorites(favs);
-    setFav(favs.has(listing.id));
-  }
+  const { keys, toggle } = useShortlist();
+  const saved = keys.has(listing.id);
 
   const ppsqft = listing.sqft ? Math.round((listing.price / listing.sqft) * 100) / 100 : null;
   const bedsLabel = listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} bd`;
@@ -72,18 +49,18 @@ export function ListingCard({ listing }: Props) {
             <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.1))' }} />
           </>
         )}
-        {/* Favorite heart */}
+        {/* Shortlist heart, shared with the rest of the group */}
         <button
-          onClick={toggleFav}
+          onClick={() => void toggle(listing.id)}
           className="absolute top-3 right-3 p-1.5 rounded-full transition-colors"
           style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
-          aria-label={fav ? 'Remove from favorites' : 'Add to favorites'}
+          aria-label={saved ? 'Remove from the shortlist' : 'Add to the shortlist'}
         >
           <svg
             className="w-5 h-5"
             viewBox="0 0 24 24"
-            fill={fav ? '#ef4444' : 'none'}
-            stroke={fav ? '#ef4444' : 'white'}
+            fill={saved ? '#ef4444' : 'none'}
+            stroke={saved ? '#ef4444' : 'white'}
             strokeWidth={2}
           >
             <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />

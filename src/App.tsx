@@ -8,6 +8,8 @@ import { ThemePicker } from './components/ThemePicker';
 import { AskClaude } from './components/AskClaude';
 import { SignInGate } from './components/SignInGate';
 import { SourceStatusBar } from './components/SourceStatusBar';
+import { ShortlistProvider } from './components/ShortlistProvider';
+import { ShortlistPanel } from './components/ShortlistPanel';
 import { useSearch } from './hooks/useSearch';
 import { useAuth } from './hooks/useAuth';
 
@@ -15,6 +17,29 @@ type ViewMode = 'listings' | 'map';
 
 export default function App() {
   const { user, loading: authLoading, error: authError, signOut } = useAuth();
+  return authLoading || !user ? (
+    <Gate loading={authLoading} error={authError} />
+  ) : (
+    <ShortlistProvider>
+      <Finder email={user.email} signOut={signOut} />
+    </ShortlistProvider>
+  );
+}
+
+function Gate({ loading, error }: { loading: boolean; error: string | null }) {
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--bg)' }}>
+        <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
+          Checking your invite…
+        </p>
+      </div>
+    );
+  }
+  return <SignInGate error={error} />;
+}
+
+function Finder({ email, signOut }: { email: string; signOut: () => Promise<void> }) {
   const [viewMode, setViewMode] = useState<ViewMode>('listings');
   const [neighborhoodFilters, setNeighborhoodFilters] = useState<Map<string, Set<string>>>(new Map());
   const {
@@ -59,20 +84,6 @@ export default function App() {
     });
   }
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--bg)' }}>
-        <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
-          Checking your invite…
-        </p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <SignInGate error={authError} />;
-  }
-
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)' }}>
       {/* Header */}
@@ -85,7 +96,7 @@ export default function App() {
           <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Apartment Finder</h1>
           <div className="ml-auto flex items-center gap-3">
             <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-dim)' }}>
-              {user.email}
+              {email}
             </span>
             <button
               onClick={() => void signOut()}
@@ -102,6 +113,8 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* Search form */}
         <SearchForm onSearch={handleSearch} loading={loading} />
+
+        <ShortlistPanel />
 
         {/* Error */}
         {error && (

@@ -46,6 +46,34 @@ export interface ListingsResponse {
   fetchedAt: number;
 }
 
+export const SAVED_STATUSES = ['saved', 'contacted', 'touring', 'applied', 'passed'] as const;
+export type SavedStatus = (typeof SAVED_STATUSES)[number];
+
+export interface ListingNote {
+  id: number;
+  email: string;
+  body: string;
+  createdAt: number;
+}
+
+export interface SavedListing {
+  key: string;
+  listing: ApiListing;
+  savedBy: string;
+  savedAt: number;
+  status: SavedStatus;
+  statusAt: number;
+  notes: ListingNote[];
+}
+
+export interface ContactDraft {
+  subject: string;
+  body: string;
+  email: string | null;
+  phone: string | null;
+  url: string;
+}
+
 export interface SessionUser {
   email: string;
   isAdmin: boolean;

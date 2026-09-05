@@ -36,6 +36,27 @@ db.exec(`
     reasons      TEXT NOT NULL,
     assessed_at  INTEGER NOT NULL
   );
+
+  -- The snapshot is the point: a shortlisted place stays readable after the
+  -- source delists it, which is exactly when the group is still discussing it.
+  CREATE TABLE IF NOT EXISTS saved_listings (
+    listing_key  TEXT PRIMARY KEY,
+    snapshot     TEXT NOT NULL,
+    saved_by     TEXT NOT NULL,
+    saved_at     INTEGER NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'saved',
+    status_at    INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS listing_notes (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    listing_key  TEXT NOT NULL REFERENCES saved_listings(listing_key) ON DELETE CASCADE,
+    email        TEXT NOT NULL,
+    body         TEXT NOT NULL,
+    created_at   INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_notes_listing ON listing_notes(listing_key);
 `);
 
 export function purgeExpired(now = Date.now()): void {

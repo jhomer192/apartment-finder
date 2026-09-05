@@ -20,9 +20,11 @@ import {
 } from './auth.js';
 import { ClaudeUnavailableError, askClaude } from './claude.js';
 import { config } from './config.js';
+import { draftInquiry } from './contact.js';
 import { purgeExpired } from './db.js';
-import { getListings } from './listings.js';
+import { findListings, getListings } from './listings.js';
 import { mailConfigured, sendSignInLink } from './mailer.js';
+import { SAVED_STATUSES, addNote, getSaved, listSaved, save, setStatus, unsave } from './shortlist.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const distDir = resolve(here, '..', 'dist');
@@ -206,6 +208,94 @@ app.post('/api/ask', askLimiter, requireAuth, async (req, res) => {
     ].join('\n');
 
     res.json({ answer: await askClaude(prompt) });
+  } catch (error) {
+    const status = error instanceof ClaudeUnavailableError ? 503 : 502;
+    res.status(status).json({ error: error instanceof Error ? error.message : 'Claude failed' });
+  }
+});
+
+const listingKeyParam = z.string().min(3).max(200);
+
+app.get('/api/saved', requireAuth, (_req, res) => {
+  res.json({ saved: listSaved() });
+});
+
+app.post('/api/saved', requireAuth, async (req, res) => {
+  const body = z.object({ listingKey: listingKeyParam }).safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'Provide a listing key.' });
+    return;
+  }
+
+  const [listing] = await findListings([body.data.listingKey]);
+  if (!listing) {
+    res.status(404).json({ error: 'That listing is no longer in the current results.' });
+    return;
+  }
+
+  res.json({ saved: save(listing, req.user!.email) });
+});
+
+app.delete('/api/saved/:key', requireAuth, (req, res) => {
+  const key = listingKeyParam.safeParse(req.params.key);
+  if (!key.success || !unsave(key.data)) {
+    res.status(404).json({ error: 'Not on the shortlist.' });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+app.patch('/api/saved/:key', requireAuth, (req, res) => {
+  const key = listingKeyParam.safeParse(req.params.key);
+  const body = z.object({ status: z.enum(SAVED_STATUSES) }).safeParse(req.body);
+  if (!key.success || !body.success) {
+    res.status(400).json({ error: `Status must be one of: ${SAVED_STATUSES.join(', ')}.` });
+    return;
+  }
+
+  const saved = setStatus(key.data, body.data.status);
+  if (!saved) {
+    res.status(404).json({ error: 'Not on the shortlist.' });
+    return;
+  }
+  res.json({ saved });
+});
+
+app.post('/api/saved/:key/notes', requireAuth, (req, res) => {
+  const key = listingKeyParam.safeParse(req.params.key);
+  const body = z.object({ body: z.string().trim().min(1).max(2000) }).safeParse(req.body);
+  if (!key.success || !body.success) {
+    res.status(400).json({ error: 'Write a note between 1 and 2000 characters.' });
+    return;
+  }
+
+  const note = addNote(key.data, req.user!.email, body.data.body);
+  if (!note) {
+    res.status(404).json({ error: 'Save the listing before adding notes.' });
+    return;
+  }
+  res.json({ note });
+});
+
+/** Returns a draft for the group to send themselves; the server never sends it. */
+app.post('/api/contact-draft', askLimiter, requireAuth, async (req, res) => {
+  const body = z
+    .object({ listingKey: listingKeyParam, ask: z.string().max(500).default('') })
+    .safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'Provide a listing key.' });
+    return;
+  }
+
+  const listing =
+    getSaved(body.data.listingKey)?.listing ?? (await findListings([body.data.listingKey]))[0];
+  if (!listing) {
+    res.status(404).json({ error: 'That listing is no longer available.' });
+    return;
+  }
+
+  try {
+    res.json(await draftInquiry(listing, body.data.ask));
   } catch (error) {
     const status = error instanceof ClaudeUnavailableError ? 503 : 502;
     res.status(status).json({ error: error instanceof Error ? error.message : 'Claude failed' });
