@@ -113,9 +113,13 @@ function Finder({
     search(DEFAULT_SEARCH);
   }, [search]);
 
-  useEffect(() => {
-    if (shortlistOpen) document.getElementById('shortlist')?.scrollIntoView({ behavior: 'smooth' });
-  }, [shortlistOpen]);
+  function showShortlist() {
+    setShortlistOpen(true);
+    // Defer so a freshly opened panel has rendered before we scroll to it.
+    requestAnimationFrame(() => {
+      document.getElementById('shortlist')?.scrollIntoView({ behavior: 'smooth' });
+    });
+  }
 
   const rerunSearch = useCallback(() => {
     search(activeSearch);
@@ -186,7 +190,7 @@ function Finder({
               {email}
             </span>
             <button
-              onClick={() => setShortlistOpen(true)}
+              onClick={showShortlist}
               className="text-xs font-medium px-2.5 py-1.5 rounded-lg border"
               style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
             >
