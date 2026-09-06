@@ -98,6 +98,8 @@ export function useSearch() {
           minBedrooms: params.minBedrooms,
           maxBedrooms: params.maxBedrooms,
           dedupe: params.dedupe,
+          // Hidden listings come along so "show hidden" is a local toggle, not a refetch.
+          includeHidden: true,
         },
         controller.signal,
       );

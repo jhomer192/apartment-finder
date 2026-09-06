@@ -1,5 +1,6 @@
 import { config } from './config.js';
 import { absorb, duplicateKey } from './dedupe.js';
+import { hiddenKeys } from './dislikes.js';
 import { inventorySize, inventoryByKeys, queryInventory } from './inventory.js';
 import { allowedByRules, getHouseRules } from './rules.js';
 import { SOURCES, scoreAll, type ScoredListing, type SourceStatus } from './scoring.js';
@@ -10,6 +11,8 @@ export { fillMissingFacts, type ScoredListing, type SourceStatus } from './scori
 export interface ListingsQuery extends SourceQuery {
   /** Collapse the same unit advertised on several sites into one card. */
   dedupe: boolean;
+  /** Keep listings enough roommates disliked; the browser asks for them and hides them itself. */
+  includeHidden: boolean;
 }
 
 export interface ListingsResponse {
@@ -35,10 +38,12 @@ function cacheKey(query: SourceQuery): string {
  */
 function gate(query: ListingsQuery): (listing: ScoredListing) => boolean {
   const { rules } = getHouseRules();
+  const hidden = query.includeHidden ? new Set<string>() : hiddenKeys();
   const kept = new Map<string, ScoredListing>();
 
   return (listing) => {
     if (!allowedByRules(listing, rules)) return false;
+    if (hidden.has(listing.key)) return false;
     if (!query.dedupe) return true;
 
     const key = duplicateKey(listing);
@@ -134,6 +139,7 @@ const EVERYTHING: ListingsQuery = {
   maxBedrooms: null,
   limit: 120,
   dedupe: false,
+  includeHidden: true,
 };
 
 export async function findListings(keys: string[]): Promise<ScoredListing[]> {

@@ -3,6 +3,7 @@ import type {
   AlertSettings,
   ClaudeSearchResult,
   ContactDraft,
+  DislikeSummary,
   HouseRules,
   InventoryStatus,
   ListingNote,
@@ -103,6 +104,7 @@ export interface ListingQuery {
   maxBedrooms?: number | null;
   limit?: number;
   dedupe?: boolean;
+  includeHidden?: boolean;
 }
 
 export function fetchListings(query: ListingQuery, signal?: AbortSignal): Promise<ListingsResponse> {
@@ -160,6 +162,18 @@ export function claudeSearch(
     method: 'POST',
     body: JSON.stringify({ question, history }),
   });
+}
+
+export function fetchDislikes(): Promise<DislikeSummary> {
+  return request('/api/dislikes');
+}
+
+export function dislikeListing(listingKey: string): Promise<DislikeSummary> {
+  return request(`/api/dislikes/${encodeURIComponent(listingKey)}`, { method: 'PUT' });
+}
+
+export function undislikeListing(listingKey: string): Promise<DislikeSummary> {
+  return request(`/api/dislikes/${encodeURIComponent(listingKey)}`, { method: 'DELETE' });
 }
 
 export function fetchSaved(): Promise<{ saved: SavedListing[] }> {

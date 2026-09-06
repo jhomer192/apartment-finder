@@ -17,11 +17,13 @@ import { SignInGate } from './components/SignInGate';
 import { SourceStatusBar } from './components/SourceStatusBar';
 import { InventoryBar } from './components/InventoryBar';
 import { ShortlistProvider } from './components/ShortlistProvider';
+import { DislikesProvider } from './components/DislikesProvider';
 import { ShortlistPanel } from './components/ShortlistPanel';
 import { PasswordPanel } from './components/PasswordPanel';
 import { CommuteBar } from './components/CommuteBar';
 import { useSearch } from './hooks/useSearch';
 import { useShortlist } from './hooks/useShortlist';
+import { useDislikes } from './hooks/useDislikes';
 import { useAuth } from './hooks/useAuth';
 import { useStickyState } from './hooks/useStickyState';
 
@@ -60,7 +62,9 @@ export default function App() {
     <Gate loading={authLoading} error={authError} onSignedIn={refresh} />
   ) : (
     <ShortlistProvider>
-      <Finder email={user.email} hasPassword={user.hasPassword ?? false} signOut={signOut} onPasswordSet={refresh} />
+      <DislikesProvider>
+        <Finder email={user.email} hasPassword={user.hasPassword ?? false} signOut={signOut} onPasswordSet={refresh} />
+      </DislikesProvider>
     </ShortlistProvider>
   );
 }
@@ -91,7 +95,9 @@ function Finder({
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>('listings');
   const [shortlistOpen, setShortlistOpen] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const { saved } = useShortlist();
+  const dislikes = useDislikes();
   const [sort, setSort] = useStickyState<SortOption>('sort', 'scam', parseSort, serializeSort);
   const [neighborhoods, setNeighborhoods] = useStickyState<Set<string>>(
     'neighborhoods',
@@ -127,11 +133,21 @@ function Finder({
 
   const result = results[0] ?? null;
 
-  const visibleListings = useMemo(() => {
+  const inNeighborhoods = useMemo(() => {
     if (!result) return [];
     if (neighborhoods.size === 0) return result.listings;
     return result.listings.filter(l => neighborhoods.has(l.neighborhood));
   }, [result, neighborhoods]);
+
+  // Voted off by the group: kept out of the list unless someone asks to see them.
+  const hiddenCount = useMemo(
+    () => inNeighborhoods.filter((l) => dislikes.isHidden(l.id)).length,
+    [inNeighborhoods, dislikes],
+  );
+  const visibleListings = useMemo(
+    () => (showHidden ? inNeighborhoods : inNeighborhoods.filter((l) => !dislikes.isHidden(l.id))),
+    [inNeighborhoods, dislikes, showHidden],
+  );
 
   const neighborhoodCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -267,6 +283,20 @@ function Finder({
                 </button>
               )}
 
+              {hiddenCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowHidden((current) => !current)}
+                  className="text-xs font-medium underline"
+                  style={{ color: 'var(--text-dim)' }}
+                  title={`Listings ${dislikes.hideAfter} or more of you disliked`}
+                >
+                  {showHidden
+                    ? `Hide the ${hiddenCount} the group disliked`
+                    : `${hiddenCount} hidden by the group · show`}
+                </button>
+              )}
+
               <div className="ml-auto flex items-center gap-3">
                 <SortSelect sort={sort} onChange={setSort} />
 
@@ -318,7 +348,13 @@ function Finder({
 
             {viewMode === 'listings' ? (
               <div className="space-y-4">
-                <ResultsGrid listings={visibleListings} sort={sort} onClearNeighborhoods={() => setNeighborhoods(new Set())} />
+                <ResultsGrid
+                  listings={visibleListings}
+                  searchKey={inNeighborhoods}
+                  sort={sort}
+                  onClearNeighborhoods={() => setNeighborhoods(new Set())}
+                  onShowShortlist={showShortlist}
+                />
                 <SourceLinksBar sources={result.sources} />
               </div>
             ) : (

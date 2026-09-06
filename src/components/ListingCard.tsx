@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Listing } from '../types';
 import { useShortlist } from '../hooks/useShortlist';
+import { useDislikes } from '../hooks/useDislikes';
 import { ScamBadge } from './ScamBadge';
 import { useCommute } from '../hooks/useCommute';
 import { clockLabel, commuteUrl, googleMapsUrl } from '../utils/maps';
@@ -16,7 +17,10 @@ interface Props {
 
 export function ListingCard({ listing }: Props) {
   const { keys, toggle } = useShortlist();
+  const dislikes = useDislikes();
   const { commute } = useCommute();
+  const disliked = dislikes.mine.has(listing.id);
+  const dislikeCount = dislikes.counts[listing.id] ?? 0;
   const [broken, setBroken] = useState<Set<string>>(new Set());
   const [index, setIndex] = useState(0);
   const [expanded, setExpanded] = useState(false);
@@ -151,6 +155,23 @@ export function ListingCard({ listing }: Props) {
             {broken.size > 0 ? 'Photos failed to load' : `No photo from ${listing.sourceName}`}
           </span>
         )}
+        {/* Thumbs-down: a vote, shared with the group, that hides the listing once enough agree */}
+        <button
+          onClick={() => void dislikes.toggle(listing.id)}
+          className="absolute top-3 right-14 flex items-center gap-1 px-2 py-1.5 rounded-full transition-colors text-xs font-semibold"
+          style={{
+            backgroundColor: disliked ? 'rgba(239,68,68,0.85)' : 'rgba(0,0,0,0.3)',
+            color: '#fff',
+          }}
+          aria-pressed={disliked}
+          aria-label={disliked ? 'Take back your dislike' : 'Dislike this listing'}
+          title={`${dislikeCount} of ${dislikes.hideAfter} dislikes needed to hide it from everyone's feed`}
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 14V2M9 18.12L10 14H4.17a2 2 0 01-1.92-2.56l2.33-8A2 2 0 016.5 2H20a2 2 0 012 2v8a2 2 0 01-2 2h-2.76a2 2 0 00-1.79 1.11L12 22a3.13 3.13 0 01-3-3.88z" />
+          </svg>
+          {dislikeCount > 0 && <span>{dislikeCount}</span>}
+        </button>
         {/* Shortlist heart, shared with the rest of the group */}
         <button
           onClick={() => void toggle(listing.id)}

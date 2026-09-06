@@ -44,6 +44,7 @@ import { mailConfigured, sendSignInLink } from './mailer.js';
 import { getHouseRules, houseRulesSchema, setHouseRules } from './rules.js';
 import { claudeSearch } from './search-agent.js';
 import { SAVED_STATUSES, addNote, getSaved, listSaved, save, setStatus, unsave } from './shortlist.js';
+import { addDislike, dislikeSummary, removeDislike } from './dislikes.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const distDir = resolve(here, '..', 'dist');
@@ -216,6 +217,11 @@ const listingsQuery = z.object({
   dedupe: z
     .enum(['true', 'false'])
     .default('true')
+    .transform((value) => value === 'true'),
+  /** The browser takes hidden listings too so a "show hidden" toggle needs no refetch. */
+  includeHidden: z
+    .enum(['true', 'false'])
+    .default('false')
     .transform((value) => value === 'true'),
 });
 
@@ -418,6 +424,30 @@ app.post('/api/saved', requireAuth, async (req, res) => {
   }
 
   res.json({ saved: save(listing, req.user!.email) });
+});
+
+app.get('/api/dislikes', requireAuth, (req, res) => {
+  res.json(dislikeSummary(req.user!.email));
+});
+
+app.put('/api/dislikes/:key', requireAuth, (req, res) => {
+  const key = listingKeyParam.safeParse(req.params.key);
+  if (!key.success) {
+    res.status(400).json({ error: 'Provide a listing key.' });
+    return;
+  }
+  addDislike(key.data, req.user!.email);
+  res.json(dislikeSummary(req.user!.email));
+});
+
+app.delete('/api/dislikes/:key', requireAuth, (req, res) => {
+  const key = listingKeyParam.safeParse(req.params.key);
+  if (!key.success) {
+    res.status(400).json({ error: 'Provide a listing key.' });
+    return;
+  }
+  removeDislike(key.data, req.user!.email);
+  res.json(dislikeSummary(req.user!.email));
 });
 
 app.delete('/api/saved/:key', requireAuth, (req, res) => {

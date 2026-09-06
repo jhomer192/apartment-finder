@@ -177,6 +177,7 @@ export async function runSweep(): Promise<SweepResult> {
     limit: 5000,
     // A unit posted to four sites is one new apartment, not four emails.
     dedupe: true,
+    includeHidden: false,
   });
   const fresh = recordSeen(listings);
   const result: SweepResult = { newListings: fresh.length, delivered: [] };

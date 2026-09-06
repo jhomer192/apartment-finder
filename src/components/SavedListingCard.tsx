@@ -4,7 +4,10 @@ import { useShortlist } from '../hooks/useShortlist';
 import { useTours } from '../hooks/useTours';
 import { googleMapsUrl } from '../utils/maps';
 import { toEpoch, tourDayLabel, tourTime, toursFor } from '../utils/tours';
+import { AreaFactsRow } from './AreaFactsRow';
 import { ContactDraft } from './ContactDraft';
+import { ListingMiniMap } from './ListingMiniMap';
+import { SafetyRating } from './SafetyRating';
 import { ScamBadge } from './ScamBadge';
 import { ShareButton } from './ShareButton';
 
@@ -59,6 +62,95 @@ function NoteList({ entry }: { entry: SavedListing }) {
           Post
         </button>
       </form>
+    </div>
+  );
+}
+
+/**
+ * What the main cards show: the block map up front, and behind a toggle the
+ * civic facts, the source's own description and the lister's contact details,
+ * so the shortlist stays scannable.
+ */
+function DetailPreview({ entry }: { entry: SavedListing }) {
+  const [open, setOpen] = useState(false);
+  const listing = entry.listing;
+  const area = listing.area ?? null;
+  const description = listing.description.trim();
+  const sqft = listing.sqft ? `${listing.sqft.toLocaleString()} sqft` : null;
+  const posted = listing.postedAt ? new Date(listing.postedAt).toLocaleDateString() : null;
+  const alsoOn = listing.alsoOn ?? [];
+
+  return (
+    <div className="space-y-2">
+      {listing.lat !== null && listing.lng !== null ? (
+        <ListingMiniMap
+          lat={listing.lat}
+          lng={listing.lng}
+          label={listing.address || listing.neighborhood}
+          mapsUrl={googleMapsUrl(listing)}
+        />
+      ) : (
+        <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+          {listing.sourceName} did not publish a location for this one.
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        className="text-xs font-medium underline"
+        style={{ color: 'var(--accent)' }}
+      >
+        {open ? 'Hide details' : 'Preview details'}
+      </button>
+
+      {open && (
+        <div className="space-y-2">
+          {area?.safety && (
+            <div className="flex">
+              <SafetyRating safety={area.safety} />
+            </div>
+          )}
+          <AreaFactsRow area={area} />
+
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs" style={{ color: 'var(--text-dim)' }}>
+            {sqft && <span>{sqft}</span>}
+            <span>{listing.photoCount > 0 ? `${listing.photoCount} photos` : 'No photos'}</span>
+            {posted && <span>Posted {posted}</span>}
+            {listing.factsFrom && <span>baths/sqft from {listing.factsFrom}</span>}
+            {listing.contactPhone && <span>Phone: {listing.contactPhone}</span>}
+            {listing.contactEmail && <span>Email: {listing.contactEmail}</span>}
+            {alsoOn.length > 0 && (
+              <span className="flex items-center gap-1">
+                also on
+                {alsoOn.map((other) => (
+                  <a
+                    key={other.sourceId}
+                    href={other.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline"
+                    style={{ color: 'var(--accent)' }}
+                  >
+                    {other.sourceName}
+                  </a>
+                ))}
+              </span>
+            )}
+          </div>
+
+          {description ? (
+            <p className="text-xs whitespace-pre-line max-h-40 overflow-y-auto" style={{ color: 'var(--text-dim)' }}>
+              {description}
+            </p>
+          ) : (
+            <p className="text-xs italic" style={{ color: 'var(--text-dim)' }}>
+              {listing.sourceName} published no description; the listing page has the rest.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -249,6 +341,8 @@ export function SavedListingCard({ entry, selected, onSelect }: Props) {
           </div>
 
           <ScamBadge scam={listing.scam} />
+
+          <DetailPreview entry={entry} />
 
           <div className="flex flex-wrap items-center gap-1.5">
             {SAVED_STATUSES.map((status) => (

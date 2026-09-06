@@ -57,6 +57,14 @@ db.exec(`
     status_at    INTEGER NOT NULL
   );
 
+  -- One vote per roommate per listing; enough of them hide it from the feed.
+  CREATE TABLE IF NOT EXISTS listing_dislikes (
+    listing_key  TEXT NOT NULL,
+    email        TEXT NOT NULL,
+    created_at   INTEGER NOT NULL,
+    PRIMARY KEY (listing_key, email)
+  );
+
   CREATE TABLE IF NOT EXISTS listing_notes (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     listing_key  TEXT NOT NULL REFERENCES saved_listings(listing_key) ON DELETE CASCADE,

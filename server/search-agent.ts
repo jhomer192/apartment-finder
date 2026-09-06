@@ -17,6 +17,7 @@ const EVERYTHING = {
   limit: 2000,
   // Ranking a unit against its own reposting on another site wastes the shortlist.
   dedupe: true,
+  includeHidden: false,
 };
 
 export const planSchema = z.object({

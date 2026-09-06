@@ -50,6 +50,7 @@ const ANY = {
   maxBedrooms: null,
   limit: 100,
   dedupe: false,
+  includeHidden: false,
 };
 
 describe('getListings', () => {

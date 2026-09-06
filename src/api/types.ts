@@ -233,6 +233,15 @@ export interface ListingNote {
   createdAt: number;
 }
 
+export interface DislikeSummary {
+  /** Distinct roommates who disliked each listing key. */
+  counts: Record<string, number>;
+  /** Keys the signed-in roommate disliked. */
+  mine: string[];
+  /** Votes needed before a listing leaves everyone's feed. */
+  hideAfter: number;
+}
+
 export interface SavedListing {
   key: string;
   listing: ApiListing;
