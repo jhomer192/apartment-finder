@@ -1,9 +1,18 @@
+import type { AreaFacts, ScamAssessment, SourceStatus } from '../api/types';
+
+export type { AreaFacts, ScamAssessment, ScamBand, SortOption, SourceStatus } from '../api/types';
+
+/** Inclusive ranges; `null` on either end of a range means unbounded. */
 export interface SearchParams {
-  metros: string[];
   minRent: number;
   maxRent: number;
-  bedrooms: number | null;
-  officeAddress: string;
+  minBedrooms: number | null;
+  maxBedrooms: number | null;
+  /** Applied here rather than at the sources, which do not filter on baths. */
+  minBathrooms: number | null;
+  maxBathrooms: number | null;
+  /** Off shows every site's copy of the same unit as its own card. */
+  dedupe: boolean;
 }
 
 export interface SearchSource {
@@ -24,13 +33,10 @@ export interface SourceUrlParams {
   bedrooms: number | null;
 }
 
-export interface NeighborhoodCommute {
+export interface NeighborhoodPin {
   name: string;
   lat: number;
   lng: number;
-  distanceMiles: number;
-  estimatedMinutes: number;
-  commuteColor: 'green' | 'yellow' | 'orange' | 'red';
 }
 
 export type SourceId = 'zillow' | 'apartments' | 'craigslist' | 'trulia' | 'redfin' | 'facebook' | 'hotpads' | 'rent' | 'padmapper';
@@ -40,23 +46,30 @@ export interface Listing {
   title: string;
   price: number;
   bedrooms: number;
-  bathrooms: number;
-  sqft: number;
+  bathrooms: number | null;
+  sqft: number | null;
+  /** Source that supplied baths/sqft when this listing's own site did not. */
+  factsFrom: string | null;
   address: string;
   neighborhood: string;
+  lat: number | null;
+  lng: number | null;
   amenities: string[];
   sourceId: SourceId;
   sourceName: string;
   sourceColor: string;
   url: string;
-  commuteMinutes: number;
-  commuteColor: 'green' | 'yellow' | 'orange' | 'red';
+  imageUrl: string | null;
+  imageUrls: string[];
+  scam: ScamAssessment;
+  /** Public civic data about the block: rail, reported incidents, metered parking. */
+  area: AreaFacts | null;
+  /** Other sites advertising this same unit, collapsed into this card. */
+  alsoOn: { sourceId: string; sourceName: string; url: string }[];
   metroId: string;
   gradientFrom: string;
   gradientTo: string;
 }
-
-export type SortOption = 'price-asc' | 'price-desc' | 'commute' | 'sqft-desc' | 'ppsqft';
 
 export interface SearchResult {
   metroId: string;
@@ -71,6 +84,7 @@ export interface SearchResult {
     source: SearchSource;
     url: string;
   }>;
-  neighborhoods: NeighborhoodCommute[];
+  neighborhoods: NeighborhoodPin[];
   listings: Listing[];
+  sourceStatuses: SourceStatus[];
 }

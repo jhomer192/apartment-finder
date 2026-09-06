@@ -54,7 +54,7 @@ export const SEARCH_SOURCES: SearchSource[] = [
     id: 'trulia',
     name: 'Trulia',
     color: '#54B946',
-    description: 'Neighborhood insights, commute times, and crime maps',
+    description: 'Neighborhood insights and crime maps',
     buildUrl: ({ city, state, bedrooms }: SourceUrlParams) => {
       const bedsPath = bedrooms !== null
         ? (bedrooms === 0 ? 'studio_beds/' : `${bedrooms}_beds/`)

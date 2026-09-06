@@ -1,118 +1,215 @@
 import { useState } from 'react';
 import type { SearchParams } from '../types';
-import { MetroSelector } from './MetroSelector';
+import { DEFAULT_SEARCH } from '../data/search';
 
 interface Props {
+  /** The search that is actually running, so applying a saved one fills the boxes in. */
+  params: SearchParams;
   onSearch: (params: SearchParams) => void;
+  /** Puts the search back to every SF listing, including any neighborhood pills. */
+  onClearAll: () => void;
   loading: boolean;
 }
 
-export function SearchForm({ onSearch, loading }: Props) {
-  const [metros, setMetros] = useState<string[]>(['bay-area']);
-  const [minRent, setMinRent] = useState(1500);
-  const [maxRent, setMaxRent] = useState(6000);
-  const [bedrooms, setBedrooms] = useState<string>('any');
-  const [officeAddress, setOfficeAddress] = useState('Salesforce Tower');
+const MAX_ROOMS = 6;
+
+function parseRoom(value: string): number | null {
+  return value === 'any' ? null : parseInt(value, 10);
+}
+
+function roomValue(count: number | null): string {
+  return count === null ? 'any' : String(count);
+}
+
+const inputClass =
+  'w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]';
+const inputStyle = {
+  backgroundColor: 'var(--bg)',
+  color: 'var(--text)',
+  border: '1px solid var(--border)',
+};
+
+interface RangeProps {
+  id: string;
+  label: string;
+  /** Rendered for each option; studios are "Studio" rather than "0 bd". */
+  optionLabel: (count: number) => string;
+  min: string;
+  max: string;
+  onMin: (value: string) => void;
+  onMax: (value: string) => void;
+}
+
+/** A "from / to" pair, so 3–5 bedrooms is one selection rather than three searches. */
+function RoomRange({ id, label, optionLabel, min, max, onMin, onMax }: RangeProps) {
+  const counts = Array.from({ length: MAX_ROOMS + 1 }, (_, count) => count);
+  return (
+    <div>
+      <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-dim)' }} htmlFor={`${id}-min`}>
+        {label}
+      </label>
+      <div className="flex items-center gap-1">
+        <select
+          id={`${id}-min`}
+          aria-label={`Minimum ${label.toLowerCase()}`}
+          value={min}
+          onChange={(e) => onMin(e.target.value)}
+          className={inputClass}
+          style={inputStyle}
+        >
+          <option value="any">Any</option>
+          {counts.map((count) => (
+            <option key={count} value={String(count)}>
+              {optionLabel(count)}
+            </option>
+          ))}
+        </select>
+        <span className="text-xs" style={{ color: 'var(--text-dim)' }}>
+          to
+        </span>
+        <select
+          id={`${id}-max`}
+          aria-label={`Maximum ${label.toLowerCase()}`}
+          value={max}
+          onChange={(e) => onMax(e.target.value)}
+          className={inputClass}
+          style={inputStyle}
+        >
+          <option value="any">Any</option>
+          {counts.map((count) => (
+            <option key={count} value={String(count)}>
+              {optionLabel(count)}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+export function SearchForm({ params, onSearch, onClearAll, loading }: Props) {
+  const [draft, setDraft] = useState(params);
+  const [shown, setShown] = useState(params);
+
+  // Applying a saved search changes the running search under the form, and the
+  // boxes have to follow it; anything typed since is on its way out anyway.
+  if (shown !== params) {
+    setShown(params);
+    setDraft(params);
+  }
+
+  const change = (patch: Partial<SearchParams>) => setDraft((current) => ({ ...current, ...patch }));
+
+  const minRent = draft.minRent;
+  const maxRent = draft.maxRent;
+  const minBedrooms = roomValue(draft.minBedrooms);
+  const maxBedrooms = roomValue(draft.maxBedrooms);
+  const minBathrooms = roomValue(draft.minBathrooms);
+  const maxBathrooms = roomValue(draft.maxBathrooms);
+  const dedupe = draft.dedupe;
+
+  function handleClear() {
+    setDraft(DEFAULT_SEARCH);
+    onClearAll();
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onSearch({
-      metros,
-      minRent,
-      maxRent,
-      bedrooms: bedrooms === 'any' ? null : parseInt(bedrooms, 10),
-      officeAddress,
-    });
+    onSearch(draft);
   }
 
-  const inputClass = "w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
+  // Re-searches on the spot: a checkbox that needed a second button press to
+  // take effect reads as broken.
+  function handleDedupe(next: boolean) {
+    setDraft({ ...draft, dedupe: next });
+    onSearch({ ...draft, dedupe: next });
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl p-6 shadow-lg border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-      <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text)' }}>Find apartments</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="sm:col-span-2 lg:col-span-1">
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-dim)' }}>Metro areas</label>
-          <MetroSelector selected={metros} onChange={setMetros} />
-        </div>
-
+    <form onSubmit={handleSubmit} className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 items-end">
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-dim)' }}>Min rent</label>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-dim)' }} htmlFor="min-rent">
+            Rent from
+          </label>
           <input
+            id="min-rent"
             type="number"
             value={minRent}
-            onChange={e => setMinRent(Number(e.target.value))}
+            onChange={e => change({ minRent: Number(e.target.value) })}
             className={inputClass}
-            style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            style={inputStyle}
             min={0}
             step={100}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-dim)' }}>Max rent</label>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-dim)' }} htmlFor="max-rent">
+            Rent up to
+          </label>
           <input
+            id="max-rent"
             type="number"
             value={maxRent}
-            onChange={e => setMaxRent(Number(e.target.value))}
+            onChange={e => change({ maxRent: Number(e.target.value) })}
             className={inputClass}
-            style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            style={inputStyle}
             min={0}
             step={100}
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-dim)' }}>Bedrooms</label>
-          <select
-            value={bedrooms}
-            onChange={e => setBedrooms(e.target.value)}
-            className={inputClass}
-            style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)', border: '1px solid var(--border)' }}
-          >
-            <option value="any">Any</option>
-            <option value="0">Studio</option>
-            <option value="1">1 BR</option>
-            <option value="2">2 BR</option>
-            <option value="3">3 BR</option>
-            <option value="4">4 BR</option>
-          </select>
-        </div>
+        <RoomRange
+          id="bedrooms"
+          label="Bedrooms"
+          optionLabel={(count) => (count === 0 ? 'Studio' : `${count} bd`)}
+          min={minBedrooms}
+          max={maxBedrooms}
+          onMin={(value) => change({ minBedrooms: parseRoom(value) })}
+          onMax={(value) => change({ maxBedrooms: parseRoom(value) })}
+        />
 
-        <div className="sm:col-span-2 lg:col-span-1">
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-dim)' }}>Office address (for commute)</label>
-          <input
-            type="text"
-            value={officeAddress}
-            onChange={e => setOfficeAddress(e.target.value)}
-            className={inputClass}
-            style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)', border: '1px solid var(--border)' }}
-            placeholder="123 Market St, SF"
-            required
-          />
-        </div>
+        <RoomRange
+          id="bathrooms"
+          label="Bathrooms"
+          optionLabel={(count) => `${count} ba`}
+          min={minBathrooms}
+          max={maxBathrooms}
+          onMin={(value) => change({ minBathrooms: parseRoom(value) })}
+          onMax={(value) => change({ maxBathrooms: parseRoom(value) })}
+        />
 
-        <div className="flex items-end">
-          <button
-            type="submit"
-            disabled={loading || metros.length === 0}
-            className="w-full font-medium py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: 'var(--accent)', color: 'var(--bg)' }}
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Searching...
-              </span>
-            ) : (
-              'Search'
-            )}
-          </button>
-        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="font-medium py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ backgroundColor: 'var(--accent)', color: 'var(--bg)' }}
+        >
+          {loading ? 'Loading…' : 'Update listings'}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleClear}
+          disabled={loading}
+          className="font-medium py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50"
+          style={{ border: '1px solid var(--border)', color: 'var(--text-dim)' }}
+        >
+          Clear all
+        </button>
       </div>
+
+      <label className="flex items-center gap-2 mt-3 text-xs cursor-pointer" style={{ color: 'var(--text-dim)' }}>
+        <input
+          type="checkbox"
+          checked={!dedupe}
+          onChange={(e) => handleDedupe(!e.target.checked)}
+          disabled={loading}
+          className="accent-[var(--accent)]"
+        />
+        Show every site&rsquo;s copy of a listing (off: one card per apartment, with the other sites on it)
+      </label>
     </form>
   );
 }

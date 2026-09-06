@@ -1,54 +1,195 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import type { SavedFilter } from './api/types';
+import type { SearchParams, SortOption } from './types';
 import { SearchForm } from './components/SearchForm';
+import { SavedFilters } from './components/SavedFilters';
+import { DEFAULT_SEARCH } from './data/search';
 import { ResultsGrid } from './components/ResultsGrid';
+import { SortSelect } from './components/SortSelect';
 import { NeighborhoodFilter } from './components/NeighborhoodFilter';
 import { SourceLinksBar } from './components/SourceLinksBar';
 import { MapView } from './components/MapView';
 import { ThemePicker } from './components/ThemePicker';
+import { ClaudeSearch } from './components/ClaudeSearch';
+import { AlertSettings } from './components/AlertSettings';
+import { HouseRulesBar } from './components/HouseRules';
+import { SignInGate } from './components/SignInGate';
+import { SourceStatusBar } from './components/SourceStatusBar';
+import { InventoryBar } from './components/InventoryBar';
+import { ShortlistProvider } from './components/ShortlistProvider';
+import { DislikesProvider } from './components/DislikesProvider';
+import { ShortlistPanel } from './components/ShortlistPanel';
+import { PasswordPanel } from './components/PasswordPanel';
+import { CommuteBar } from './components/CommuteBar';
 import { useSearch } from './hooks/useSearch';
+import { useShortlist } from './hooks/useShortlist';
+import { useDislikes } from './hooks/useDislikes';
+import { useAuth } from './hooks/useAuth';
+import { useStickyState } from './hooks/useStickyState';
 
 type ViewMode = 'listings' | 'map';
 
+const parseNeighborhoods = (raw: string): Set<string> => new Set(JSON.parse(raw) as string[]);
+const serializeNeighborhoods = (value: Set<string>): string => JSON.stringify([...value]);
+const parseSort = (raw: string): SortOption => raw as SortOption;
+const serializeSort = (value: SortOption): string => value;
+
+function roomLabel(min: number | null, max: number | null, unit: string): string | null {
+  if (min === null && max === null) return null;
+  if (min !== null && min === max) return `${min} ${unit}`;
+  if (min === null) return `up to ${max} ${unit}`;
+  if (max === null) return `${min}+ ${unit}`;
+  return `${min}\u2013${max} ${unit}`;
+}
+
+/** Plain-language summary of what is narrowing the list, so nobody wonders why it is short. */
+function filterLabels(params: SearchParams, neighborhoods: Set<string>): string[] {
+  const labels: string[] = [];
+  if (params.minRent !== DEFAULT_SEARCH.minRent || params.maxRent !== DEFAULT_SEARCH.maxRent) {
+    labels.push(`$${params.minRent.toLocaleString()}\u2013$${params.maxRent.toLocaleString()}`);
+  }
+  const beds = roomLabel(params.minBedrooms, params.maxBedrooms, 'bd');
+  if (beds) labels.push(beds);
+  const baths = roomLabel(params.minBathrooms, params.maxBathrooms, 'ba');
+  if (baths) labels.push(baths);
+  for (const name of neighborhoods) labels.push(name);
+  return labels;
+}
+
 export default function App() {
+  const { user, loading: authLoading, error: authError, signOut, refresh } = useAuth();
+  return authLoading || !user ? (
+    <Gate loading={authLoading} error={authError} onSignedIn={refresh} />
+  ) : (
+    <ShortlistProvider>
+      <DislikesProvider>
+        <Finder email={user.email} hasPassword={user.hasPassword ?? false} signOut={signOut} onPasswordSet={refresh} />
+      </DislikesProvider>
+    </ShortlistProvider>
+  );
+}
+
+function Gate({ loading, error, onSignedIn }: { loading: boolean; error: string | null; onSignedIn: () => void }) {
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--bg)' }}>
+        <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
+          Checking your invite…
+        </p>
+      </div>
+    );
+  }
+  return <SignInGate error={error} onSignedIn={onSignedIn} />;
+}
+
+function Finder({
+  email,
+  hasPassword,
+  signOut,
+  onPasswordSet,
+}: {
+  email: string;
+  hasPassword: boolean;
+  signOut: () => Promise<void>;
+  onPasswordSet: () => void;
+}) {
   const [viewMode, setViewMode] = useState<ViewMode>('listings');
-  const [neighborhoodFilters, setNeighborhoodFilters] = useState<Map<string, Set<string>>>(new Map());
+  const [shortlistOpen, setShortlistOpen] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
+  const { saved } = useShortlist();
+  const dislikes = useDislikes();
+  const [sort, setSort] = useStickyState<SortOption>('sort', 'scam', parseSort, serializeSort);
+  const [neighborhoods, setNeighborhoods] = useStickyState<Set<string>>(
+    'neighborhoods',
+    new Set(),
+    parseNeighborhoods,
+    serializeNeighborhoods,
+  );
   const {
     results,
     loading,
     error,
     hasSearched,
-    officeCoords,
     search,
   } = useSearch();
 
-  // Filter listings by selected neighborhoods
-  const filteredResults = useMemo(() => {
-    return results.map(result => {
-      const selected = neighborhoodFilters.get(result.metroId);
-      if (!selected || selected.size === 0) return result;
-      return {
-        ...result,
-        listings: result.listings.filter(l => selected.has(l.neighborhood)),
-      };
+  const [activeSearch, setActiveSearch] = useState<SearchParams>(DEFAULT_SEARCH);
+
+  useEffect(() => {
+    search(DEFAULT_SEARCH);
+  }, [search]);
+
+  function showShortlist() {
+    setShortlistOpen(true);
+    // Defer so a freshly opened panel has rendered before we scroll to it.
+    requestAnimationFrame(() => {
+      document.getElementById('shortlist')?.scrollIntoView({ behavior: 'smooth' });
     });
-  }, [results, neighborhoodFilters]);
+  }
 
-  const totalListings = filteredResults.reduce((s, r) => s + r.listings.length, 0);
+  const rerunSearch = useCallback(() => {
+    search(activeSearch);
+  }, [search, activeSearch]);
 
-  // Initialize neighborhood filters when results change
-  function handleSearch(params: Parameters<typeof search>[0]) {
+  const result = results[0] ?? null;
+
+  const inNeighborhoods = useMemo(() => {
+    if (!result) return [];
+    if (neighborhoods.size === 0) return result.listings;
+    return result.listings.filter(l => neighborhoods.has(l.neighborhood));
+  }, [result, neighborhoods]);
+
+  // Voted off by the group: kept out of the list unless someone asks to see them.
+  const hiddenCount = useMemo(
+    () => inNeighborhoods.filter((l) => dislikes.isHidden(l.id)).length,
+    [inNeighborhoods, dislikes],
+  );
+  const visibleListings = useMemo(
+    () => (showHidden ? inNeighborhoods : inNeighborhoods.filter((l) => !dislikes.isHidden(l.id))),
+    [inNeighborhoods, dislikes, showHidden],
+  );
+
+  const neighborhoodCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const listing of result?.listings ?? []) {
+      counts.set(listing.neighborhood, (counts.get(listing.neighborhood) ?? 0) + 1);
+    }
+    return counts;
+  }, [result]);
+
+  const occupiedNeighborhoods = useMemo(
+    () => [...neighborhoodCounts.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name),
+    [neighborhoodCounts],
+  );
+
+  function handleSearch(params: SearchParams) {
+    setActiveSearch(params);
     search(params);
-    // Reset filters -- they'll default to showing all
-    setNeighborhoodFilters(new Map());
+    setNeighborhoods(new Set());
   }
 
-  function updateNeighborhoodFilter(metroId: string, selected: Set<string>) {
-    setNeighborhoodFilters(prev => {
-      const next = new Map(prev);
-      next.set(metroId, selected);
-      return next;
-    });
+  function handleClearAll() {
+    handleSearch(DEFAULT_SEARCH);
   }
+
+  /** A saved search restores the neighborhoods and the sort too, not just the numbers. */
+  function applySavedFilter(filter: SavedFilter) {
+    const params: SearchParams = {
+      minRent: filter.minRent,
+      maxRent: filter.maxRent,
+      minBedrooms: filter.minBedrooms,
+      maxBedrooms: filter.maxBedrooms,
+      minBathrooms: filter.minBathrooms,
+      maxBathrooms: filter.maxBathrooms,
+      dedupe: filter.dedupe,
+    };
+    setActiveSearch(params);
+    search(params);
+    setNeighborhoods(new Set(filter.neighborhoods));
+    setSort(filter.sort);
+  }
+
+  const activeFilters = filterLabels(activeSearch, neighborhoods);
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)' }}>
@@ -60,15 +201,40 @@ export default function App() {
             <polyline points="9,22 9,12 15,12 15,22" />
           </svg>
           <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Apartment Finder</h1>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-dim)' }}>
+              {email}
+            </span>
+            <button
+              onClick={showShortlist}
+              className="text-xs font-medium px-2.5 py-1.5 rounded-lg border"
+              style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
+            >
+              Saved {saved.length}
+            </button>
+            <button
+              onClick={() => void signOut()}
+              className="text-xs font-medium px-2.5 py-1.5 rounded-lg border"
+              style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
+            >
+              Sign out
+            </button>
             <ThemePicker />
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        {/* Search form */}
-        <SearchForm onSearch={handleSearch} loading={loading} />
+        <ClaudeSearch />
+
+        <HouseRulesBar onSaved={rerunSearch} />
+
+        <SearchForm params={activeSearch} onSearch={handleSearch} onClearAll={handleClearAll} loading={loading} />
+
+        <SavedFilters
+          current={{ ...activeSearch, neighborhoods: [...neighborhoods], sort }}
+          onApply={applySavedFilter}
+        />
 
         {/* Error */}
         {error && (
@@ -78,146 +244,123 @@ export default function App() {
         )}
 
         {/* Results section */}
-        {hasSearched && !loading && results.length > 0 && (
+        {hasSearched && !loading && result && (
           <>
-            {/* Controls bar */}
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <SourceStatusBar sources={result.sourceStatuses} />
+            <InventoryBar onRefreshed={rerunSearch} />
+
+            {/* Controls bar: count, sort, active filters and view live together so the
+                results header is the one place to steer the list from. */}
+            <div
+              className="sticky top-[61px] z-20 -mx-4 px-4 py-3 flex flex-wrap items-center gap-3 border-b backdrop-blur-sm"
+              style={{ borderColor: 'var(--border)', backgroundColor: 'color-mix(in srgb, var(--bg) 85%, transparent)' }}
+            >
               <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
-                <span className="font-medium" style={{ color: 'var(--text)' }}>{totalListings}</span> listing{totalListings !== 1 ? 's' : ''} across{' '}
-                <span className="font-medium" style={{ color: 'var(--text)' }}>{results.length}</span> metro{results.length !== 1 ? 's' : ''}
+                <span className="font-medium" style={{ color: 'var(--text)' }}>{visibleListings.length}</span> apartment{visibleListings.length !== 1 ? 's' : ''} in San Francisco
               </p>
 
-              {/* View toggle */}
-              <div className="flex items-center rounded-lg border p-0.5" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-                <button
-                  onClick={() => setViewMode('listings')}
-                  className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                  style={viewMode === 'listings'
-                    ? { backgroundColor: 'var(--border)', color: 'var(--text)' }
-                    : { color: 'var(--text-dim)' }}
+              {activeFilters.map((label) => (
+                <span
+                  key={label}
+                  className="text-xs px-2 py-0.5 rounded-full"
+                  style={{
+                    backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)',
+                    color: 'var(--accent)',
+                  }}
                 >
-                  <span className="flex items-center gap-1.5">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <rect x="3" y="3" width="7" height="7" rx="1" />
-                      <rect x="14" y="3" width="7" height="7" rx="1" />
-                      <rect x="3" y="14" width="7" height="7" rx="1" />
-                      <rect x="14" y="14" width="7" height="7" rx="1" />
-                    </svg>
-                    Listings
-                  </span>
-                </button>
+                  {label}
+                </span>
+              ))}
+
+              {activeFilters.length > 0 && (
                 <button
-                  onClick={() => setViewMode('map')}
-                  className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                  style={viewMode === 'map'
-                    ? { backgroundColor: 'var(--border)', color: 'var(--text)' }
-                    : { color: 'var(--text-dim)' }}
+                  type="button"
+                  onClick={handleClearAll}
+                  className="text-xs font-medium underline"
+                  style={{ color: 'var(--accent)' }}
                 >
-                  <span className="flex items-center gap-1.5">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                    </svg>
-                    Map
-                  </span>
+                  Clear all
                 </button>
+              )}
+
+              {hiddenCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowHidden((current) => !current)}
+                  className="text-xs font-medium underline"
+                  style={{ color: 'var(--text-dim)' }}
+                  title={`Listings ${dislikes.hideAfter} or more of you disliked`}
+                >
+                  {showHidden
+                    ? `Hide the ${hiddenCount} the group disliked`
+                    : `${hiddenCount} hidden by the group · show`}
+                </button>
+              )}
+
+              <div className="ml-auto flex items-center gap-3">
+                <SortSelect sort={sort} onChange={setSort} />
+
+                {/* View toggle */}
+                <div className="flex items-center rounded-lg border p-0.5" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  <button
+                    onClick={() => setViewMode('listings')}
+                    className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                    style={viewMode === 'listings'
+                      ? { backgroundColor: 'var(--border)', color: 'var(--text)' }
+                      : { color: 'var(--text-dim)' }}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <rect x="3" y="3" width="7" height="7" rx="1" />
+                        <rect x="14" y="3" width="7" height="7" rx="1" />
+                        <rect x="3" y="14" width="7" height="7" rx="1" />
+                        <rect x="14" y="14" width="7" height="7" rx="1" />
+                      </svg>
+                      Listings
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('map')}
+                    className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                    style={viewMode === 'map'
+                      ? { backgroundColor: 'var(--border)', color: 'var(--text)' }
+                      : { color: 'var(--text-dim)' }}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                      </svg>
+                      Map
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Main content */}
+            <CommuteBar />
+
+            <NeighborhoodFilter
+              neighborhoods={occupiedNeighborhoods}
+              selected={neighborhoods}
+              onChange={setNeighborhoods}
+              counts={neighborhoodCounts}
+            />
+
             {viewMode === 'listings' ? (
-              <div className="space-y-8">
-                {filteredResults.map(result => (
-                  <div key={result.metroId} className="space-y-4">
-                    {results.length > 1 && (
-                      <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text)' }}>
-                        <svg className="w-5 h-5" style={{ color: 'var(--accent)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        {result.metroName}
-                      </h3>
-                    )}
-
-                    {/* Neighborhood filter pills */}
-                    <NeighborhoodFilter
-                      neighborhoods={result.neighborhoods.map(n => n.name)}
-                      selected={neighborhoodFilters.get(result.metroId) ?? new Set(result.neighborhoods.map(n => n.name))}
-                      onChange={(sel) => updateNeighborhoodFilter(result.metroId, sel)}
-                    />
-
-                    {/* Listing cards grid */}
-                    <ResultsGrid
-                      listings={result.listings}
-                      metroName={result.metroName}
-                    />
-
-                    {/* Source links bar */}
-                    <SourceLinksBar sources={result.sources} />
-                  </div>
-                ))}
+              <div className="space-y-4">
+                <ResultsGrid
+                  listings={visibleListings}
+                  searchKey={inNeighborhoods}
+                  sort={sort}
+                  onClearNeighborhoods={() => setNeighborhoods(new Set())}
+                  onShowShortlist={showShortlist}
+                />
+                <SourceLinksBar sources={result.sources} />
               </div>
             ) : (
-              <div className="space-y-4">
-                <MapView results={results} officeCoords={officeCoords} />
-                {/* Commute legend */}
-                <div className="flex flex-wrap items-center gap-4 text-xs" style={{ color: 'var(--text-dim)' }}>
-                  <span className="font-medium" style={{ color: 'var(--text)' }}>Commute estimate:</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> &lt; 15 min</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500 inline-block" /> 15-30 min</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block" /> 30-45 min</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" /> 45+ min</span>
-                </div>
-                {/* Neighborhood commute table */}
-                {results.map(result => (
-                  <div key={result.metroId} className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-                    <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-                      <h3 className="font-semibold text-sm" style={{ color: 'var(--text)' }}>{result.metroName} — Commute Times</h3>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-px" style={{ backgroundColor: 'var(--border)' }}>
-                      {result.neighborhoods.map(hood => {
-                        const colorMap = { green: '#22c55e', yellow: '#eab308', orange: '#f97316', red: '#ef4444' };
-                        return (
-                          <div key={hood.name} className="px-3 py-2.5" style={{ backgroundColor: 'var(--surface)' }}>
-                            <div className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{hood.name}</div>
-                            <div className="text-xs font-semibold mt-0.5" style={{ color: colorMap[hood.commuteColor] }}>
-                              ~{hood.estimatedMinutes} min
-                            </div>
-                            <div className="text-xs" style={{ color: 'var(--text-dim)' }}>{hood.distanceMiles} mi</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <MapView listings={visibleListings} centerLat={result.centerLat} centerLng={result.centerLng} />
             )}
           </>
-        )}
-
-        {/* Empty state */}
-        {hasSearched && !loading && results.length === 0 && !error && (
-          <div className="text-center py-20">
-            <svg className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-dim)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-lg" style={{ color: 'var(--text-dim)' }}>No metro areas selected</p>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>Select at least one metro area to search</p>
-          </div>
-        )}
-
-        {/* Initial state */}
-        {!hasSearched && (
-          <div className="text-center py-20">
-            <svg className="w-20 h-20 mx-auto mb-6" style={{ color: 'var(--border)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <polyline points="9,22 9,12 15,12 15,22" />
-            </svg>
-            <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text)' }}>Find your next apartment</h2>
-            <p className="max-w-md mx-auto" style={{ color: 'var(--text-dim)' }}>
-              Enter your metro area, budget, and office address above. We'll show estimated listings with
-              prices, amenities, and commute times across every neighborhood.
-            </p>
-          </div>
         )}
 
         {/* Loading state */}
@@ -227,17 +370,22 @@ export default function App() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            <p style={{ color: 'var(--text-dim)' }}>Finding apartments...</p>
+            <p style={{ color: 'var(--text-dim)' }}>Loading San Francisco apartments…</p>
           </div>
         )}
+
+        <ShortlistPanel open={shortlistOpen} onOpenChange={setShortlistOpen} />
+
+        <AlertSettings />
+
+        <PasswordPanel hasPassword={hasPassword} onPasswordSet={onPasswordSet} />
       </main>
 
       {/* Footer */}
       <footer className="border-t mt-12" style={{ borderColor: 'var(--border)' }}>
         <div className="max-w-7xl mx-auto px-4 py-6 text-center text-xs" style={{ color: 'var(--text-dim)' }}>
-          Estimated listings based on market data. Click "View Listing" to see real listings on each source.
-          <br />
-          Commute times are estimates based on straight-line distance.
+          Live listings pulled from the sources above. Scam scores are heuristics plus a Claude review —
+          treat them as a prompt to look closer, not proof either way.
         </div>
       </footer>
     </div>
