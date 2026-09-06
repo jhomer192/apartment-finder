@@ -142,11 +142,25 @@ const EVERYTHING: ListingsQuery = {
   includeHidden: true,
 };
 
+/**
+ * A card in the browser carries the other sites advertising the same unit, but
+ * the store holds each site's copy separately; a saved snapshot folds them in
+ * again so the shortlist shows the same "also on" links as the grid did.
+ */
+function withOtherSites(listing: ScoredListing): ScoredListing {
+  const twinKey = duplicateKey(listing);
+  const twins = queryInventory({ ...EVERYTHING, minRent: listing.price, maxRent: listing.price, limit: 10_000 });
+  for (const twin of twins) {
+    if (twin.key !== listing.key && duplicateKey(twin) === twinKey) absorb(listing, twin);
+  }
+  return listing;
+}
+
 export async function findListings(keys: string[]): Promise<ScoredListing[]> {
   if (keys.length === 0) return [];
   const wanted = new Set(keys);
 
-  const stored = inventoryByKeys(keys);
+  const stored = inventoryByKeys(keys).map(withOtherSites);
   if (stored.length === wanted.size) return stored;
 
   for (const response of cache.values()) {

@@ -108,6 +108,15 @@ describe('getListings de-duplication', () => {
     ]);
   });
 
+  it('folds the other sites into a listing looked up by key, as the grid did', async () => {
+    const [saved] = await findListings(['redfin:1']);
+
+    expect(saved.alsoOn).toEqual([
+      { sourceId: 'zumper', sourceName: 'Zumper', url: 'https://zumper.example/1' },
+    ]);
+    expect((await findListings(['redfin:2']))[0].alsoOn).toBeUndefined();
+  });
+
   it('shows every site’s copy when the reader turns de-duplication off', async () => {
     const { listings } = await getListings({ ...ANY, dedupe: false });
 
