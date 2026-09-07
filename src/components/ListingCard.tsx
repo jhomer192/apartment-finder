@@ -29,6 +29,7 @@ export function ListingCard({ listing }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [details, setDetails] = useState(false);
   const [contacting, setContacting] = useState(false);
+  const [contactOpened, setContactOpened] = useState(false);
   const contactedBy = useContacts().byListing.get(listing.id) ?? [];
   const saved = keys.has(listing.id);
 
@@ -262,7 +263,10 @@ export function ListingCard({ listing }: Props) {
           </button>
           <button
             type="button"
-            onClick={() => setContacting((current) => !current)}
+            onClick={() => {
+              setContactOpened(true);
+              setContacting((current) => !current);
+            }}
             aria-expanded={contacting}
             className="text-sm font-semibold underline underline-offset-2"
             style={{ color: contactedBy.length > 0 ? '#b45309' : 'var(--text)' }}
@@ -273,13 +277,16 @@ export function ListingCard({ listing }: Props) {
           </button>
         </div>
 
-        {contacting && (
-          <ContactDraft
-            listingKey={listing.id}
-            url={listing.url}
-            contactPhone={listing.contactPhone}
-            contactEmail={listing.contactEmail}
-          />
+        {/* Stays mounted once opened so a half-written draft survives collapsing the panel. */}
+        {(contacting || contactOpened) && (
+          <div hidden={!contacting}>
+            <ContactDraft
+              listingKey={listing.id}
+              url={listing.url}
+              contactPhone={listing.contactPhone}
+              contactEmail={listing.contactEmail}
+            />
+          </div>
         )}
 
         {details && (

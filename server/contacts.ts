@@ -80,6 +80,19 @@ export function updateContact(
   return toEntry({ ...row, outcome, note, updated_at: now });
 }
 
+/** Undoing the last logged contact also undoes the auto-promotion to "contacted". */
 export function deleteContact(id: number): boolean {
-  return db.prepare('DELETE FROM listing_contacts WHERE id = ?').run(id).changes > 0;
+  const row = db.prepare('SELECT listing_key FROM listing_contacts WHERE id = ?').get(id) as
+    | { listing_key: string }
+    | undefined;
+  if (!row) return false;
+  db.prepare('DELETE FROM listing_contacts WHERE id = ?').run(id);
+
+  const remaining = db
+    .prepare('SELECT COUNT(*) AS n FROM listing_contacts WHERE listing_key = ?')
+    .get(row.listing_key) as { n: number };
+  if (remaining.n === 0 && getSaved(row.listing_key)?.status === 'contacted') {
+    setStatus(row.listing_key, 'saved');
+  }
+  return true;
 }

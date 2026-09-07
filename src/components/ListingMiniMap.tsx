@@ -50,10 +50,12 @@ export function ListingMiniMap({ lat, lng, label, mapsUrl }: Props) {
     const map = L.map(element, {
       center: [lat, lng],
       zoom: BLOCK_ZOOM,
-      zoomControl: true,
+      zoomControl: false,
       attributionControl: false,
       scrollWheelZoom: false,
     });
+    // Bottom-left keeps +/− clear of the Expand/Recenter buttons on narrow phones.
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
     L.circleMarker([lat, lng], {
@@ -109,7 +111,9 @@ export function ListingMiniMap({ lat, lng, label, mapsUrl }: Props) {
 
   return (
     <div
-      className={expanded ? 'fixed inset-0 z-[1200] p-4 flex flex-col gap-2' : 'relative'}
+      // `isolate` keeps Leaflet's z-index:1000 controls inside the card, so they
+      // cannot paint over the settings drawer or other overlays.
+      className={expanded ? 'fixed inset-0 z-[1200] p-4 flex flex-col gap-2' : 'relative isolate z-0'}
       style={expanded ? { backgroundColor: 'rgba(0,0,0,0.85)' } : undefined}
     >
       {expanded && (
@@ -134,7 +138,7 @@ export function ListingMiniMap({ lat, lng, label, mapsUrl }: Props) {
         />
       </div>
       <div
-        className={`flex items-center gap-1.5 ${expanded ? '' : 'absolute top-1.5 right-1.5 z-[500]'}`}
+        className={`flex items-center gap-1.5 ${expanded ? '' : 'absolute top-1.5 right-1.5 z-[1001]'}`}
       >
         <button
           type="button"

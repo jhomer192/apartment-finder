@@ -199,7 +199,7 @@ export function SearchForm({
                 className={`${inputClass} mt-1`}
                 style={inputStyle}
                 min={0}
-                step={100}
+                step={50}
               />
             </label>
             <label className="text-xs" style={{ color: 'var(--text-dim)' }}>
@@ -211,7 +211,7 @@ export function SearchForm({
                 className={`${inputClass} mt-1`}
                 style={inputStyle}
                 min={0}
-                step={100}
+                step={50}
               />
             </label>
           </div>

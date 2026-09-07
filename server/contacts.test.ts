@@ -74,4 +74,14 @@ describe('contact log', () => {
     expect(deleteContact(id)).toBe(false);
     expect(listContacts()).toEqual([]);
   });
+
+  it('undoing the only contact puts the saved listing back to saved', () => {
+    save(listing(), 'jack@example.com');
+    const first = logContact('redfin:1', 'jack@example.com', 'email', '');
+    const second = logContact('redfin:1', 'garrett@example.com', 'sms', '');
+    deleteContact(first.id);
+    expect(getSaved('redfin:1')?.status).toBe('contacted');
+    deleteContact(second.id);
+    expect(getSaved('redfin:1')?.status).toBe('saved');
+  });
 });
