@@ -48,6 +48,7 @@ import {
 import { deleteFilter, filterSchema, listFilters, saveFilter } from './filters.js';
 import { deleteGroup, groupSchema, listGroups, saveGroup } from './groups.js';
 import { bookTour, cancelTour, listTours, planDays, tourSchema } from './tours.js';
+import { planRequestSchema, planTourDay } from './tour-plan.js';
 import { inventoryStatus, refreshInventory, startCrawlSchedule } from './inventory.js';
 import { findListings, getListings } from './listings.js';
 import { mailConfigured, sendSignInLink } from './mailer.js';
@@ -459,6 +460,49 @@ app.post('/api/tours', requireAuth, (req, res) => {
   }
 
   res.json({ days: planDays(listTours()) });
+});
+
+app.post('/api/tour-plan', requireAuth, async (req, res) => {
+  const body = planRequestSchema.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'Check the day, times and group size.' });
+    return;
+  }
+  try {
+    res.json(await planTourDay(body.data));
+  } catch (error) {
+    res.status(502).json({ error: error instanceof Error ? error.message : 'Could not plan the day' });
+  }
+});
+
+/** Saves each stop (so tours can hang off it) and books the tour at the planned time. */
+app.post('/api/tour-plan/book', requireAuth, async (req, res) => {
+  const body = z
+    .object({
+      stops: z
+        .array(z.object({ listingKey: listingKeyParam, startsAt: z.number().int().positive() }))
+        .min(1)
+        .max(20),
+      minutes: z.number().int().min(5).max(240).default(30),
+    })
+    .safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'Nothing to book.' });
+    return;
+  }
+
+  const listings = await findListings(body.data.stops.map((stop) => stop.listingKey));
+  const byKey = new Map(listings.map((listing) => [listing.key, listing]));
+  let booked = 0;
+  for (const stop of body.data.stops) {
+    const listing = byKey.get(stop.listingKey);
+    if (!listing) continue;
+    if (!getSaved(stop.listingKey)) save(listing, req.user!.email);
+    if (bookTour({ listingKey: stop.listingKey, startsAt: stop.startsAt, minutes: body.data.minutes, note: 'Planned tour day' }, req.user!.email)) {
+      booked += 1;
+    }
+  }
+  res.json({ booked, days: planDays(listTours()), saved: listSaved() });
 });
 
 app.delete('/api/tours/:id', requireAuth, (req, res) => {

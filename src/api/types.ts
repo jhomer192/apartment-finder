@@ -196,6 +196,35 @@ export interface TourDay {
   routeUrl: string | null;
 }
 
+export interface PlanRequest {
+  startsAt: number;
+  endsAt: number;
+  tourMinutes: number;
+  groupSize: number;
+  maxPerPerson: number | null;
+  neighborhoods: string[];
+  maxScamScore: number;
+}
+
+export interface PlannedStop {
+  listing: ApiListing;
+  startsAt: number;
+  minutes: number;
+  travelKm: number | null;
+  travelMinutes: number | null;
+  perPerson: number;
+  saved: boolean;
+}
+
+export interface TourPlan {
+  stops: PlannedStop[];
+  leftOver: number;
+  candidates: number;
+  totalKm: number;
+  averagePerPerson: number | null;
+  routeUrl: string | null;
+}
+
 export const SORT_OPTIONS = [
   'price-asc',
   'price-desc',

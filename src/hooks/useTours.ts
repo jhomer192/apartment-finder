@@ -24,6 +24,8 @@ export interface Tours {
   days: TourDay[];
   book(tour: { listingKey: string; startsAt: number; minutes: number; note: string }): Promise<void>;
   cancel(id: number): Promise<void>;
+  /** Replace the schedule with one the server returned from another call. */
+  replace(days: TourDay[]): void;
 }
 
 export function useTours(): Tours {
@@ -43,5 +45,6 @@ export function useTours(): Tours {
     days: value,
     book: async (tour) => publish((await bookTour(tour)).days),
     cancel: async (id) => publish((await cancelTour(id)).days),
+    replace: publish,
   };
 }

@@ -13,6 +13,8 @@ import type {
   ListingNote,
   Member,
   ListingsResponse,
+  PlanRequest,
+  TourPlan,
   SavedFilter,
   SavedListing,
   SavedStatus,
@@ -257,6 +259,17 @@ export function bookTour(tour: {
   note: string;
 }): Promise<{ days: TourDay[] }> {
   return request('/api/tours', { method: 'POST', body: JSON.stringify(tour) });
+}
+
+export function planTourDay(plan: PlanRequest): Promise<TourPlan> {
+  return request('/api/tour-plan', { method: 'POST', body: JSON.stringify(plan) });
+}
+
+export function bookTourPlan(
+  stops: { listingKey: string; startsAt: number }[],
+  minutes: number,
+): Promise<{ booked: number; days: TourDay[]; saved: SavedListing[] }> {
+  return request('/api/tour-plan/book', { method: 'POST', body: JSON.stringify({ stops, minutes }) });
 }
 
 export function cancelTour(id: number): Promise<{ days: TourDay[] }> {

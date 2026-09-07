@@ -3,6 +3,7 @@ import { useShortlist } from '../hooks/useShortlist';
 import { SavedListingCard } from './SavedListingCard';
 import { ShareButton } from './ShareButton';
 import { ShareGroupsPanel } from './ShareGroupsPanel';
+import { TourPlanner } from './TourPlanner';
 import { TourSchedule } from './TourSchedule';
 
 interface PanelProps {
@@ -15,6 +16,7 @@ export function ShortlistPanel({ open, onOpenChange }: PanelProps) {
   const [confirmingRemoveAll, setConfirmingRemoveAll] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showGroups, setShowGroups] = useState(false);
+  const [planning, setPlanning] = useState(false);
 
   if (saved.length === 0 && !error && !open) return null;
 
@@ -57,9 +59,16 @@ export function ShortlistPanel({ open, onOpenChange }: PanelProps) {
       {error && <p className="px-4 pb-3 text-xs text-red-400">{error}</p>}
 
       {open && saved.length === 0 && (
-        <p className="px-4 pb-4 text-xs" style={{ color: 'var(--text-dim)' }}>
-          Nothing saved yet. Tap the heart on a listing and it shows up here for everyone.
-        </p>
+        <div className="px-4 pb-4 space-y-3">
+          <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+            Nothing saved yet. Tap the heart on a listing and it shows up here for everyone — or{' '}
+            <button type="button" onClick={() => setPlanning(true)} className="underline" style={{ color: 'var(--accent)' }}>
+              plan a tour day
+            </button>{' '}
+            and let it pick the cheapest places to see.
+          </p>
+          {planning && <TourPlanner onClose={() => setPlanning(false)} />}
+        </div>
       )}
 
       {open && saved.length > 0 && (
@@ -74,6 +83,9 @@ export function ShortlistPanel({ open, onOpenChange }: PanelProps) {
               </button>
             )}
             <div className="ml-auto flex flex-wrap items-center gap-2">
+              <button onClick={() => setPlanning((was) => !was)} className={small} style={smallStyle}>
+                {planning ? 'Hide planner' : 'Plan a tour day'}
+              </button>
               <button onClick={() => setShowGroups((was) => !was)} className={small} style={smallStyle}>
                 {showGroups ? 'Hide groups' : 'Share groups'}
               </button>
@@ -111,6 +123,8 @@ export function ShortlistPanel({ open, onOpenChange }: PanelProps) {
               <ShareGroupsPanel />
             </div>
           )}
+
+          {planning && <TourPlanner onClose={() => setPlanning(false)} />}
 
           <TourSchedule />
 
