@@ -51,7 +51,7 @@ function firstName(email: string): string {
 
 function daysAgo(at: number): string {
   const days = Math.floor((Date.now() - at) / 86_400_000);
-  if (days === 0) return 'today';
+  if (days <= 0) return 'today';
   if (days === 1) return 'yesterday';
   return `${days} days ago`;
 }
