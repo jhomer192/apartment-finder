@@ -38,6 +38,56 @@ db.exec(`
     updated_at  INTEGER NOT NULL
   );
 
+  -- A search hits this table rather than the sources: SF has far more rentals
+  -- than any one source response returns, so the full set is crawled nightly
+  -- and kept here instead of being refetched, and truncated, per search.
+  CREATE TABLE IF NOT EXISTS inventory (
+    listing_key   TEXT PRIMARY KEY,
+    source_id     TEXT NOT NULL,
+    price         INTEGER NOT NULL,
+    bedrooms      INTEGER,
+    scam_score    INTEGER NOT NULL,
+    first_seen_at INTEGER NOT NULL,
+    last_seen_at  INTEGER NOT NULL,
+    payload       TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_inventory_price ON inventory(price);
+
+  CREATE TABLE IF NOT EXISTS inventory_runs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at  INTEGER NOT NULL,
+    finished_at INTEGER,
+    listings    INTEGER NOT NULL DEFAULT 0,
+    sources     TEXT NOT NULL DEFAULT '[]',
+    error       TEXT
+  );
+
+  -- One row per price a listing has been seen at: a crawl that finds the same
+  -- rent writes nothing, and a cut or a hike is a new row.
+  CREATE TABLE IF NOT EXISTS listing_prices (
+    listing_key TEXT NOT NULL,
+    price       INTEGER NOT NULL,
+    seen_at     INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_listing_prices_key ON listing_prices(listing_key, seen_at);
+
+  -- Who reached out to which lister, how, and what came back, so five people
+  -- do not each email the same landlord.
+  CREATE TABLE IF NOT EXISTS listing_contacts (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    listing_key  TEXT NOT NULL,
+    email        TEXT NOT NULL,
+    via          TEXT NOT NULL,
+    outcome      TEXT NOT NULL DEFAULT 'sent',
+    note         TEXT NOT NULL DEFAULT '',
+    contacted_at INTEGER NOT NULL,
+    updated_at   INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_contacts_listing ON listing_contacts(listing_key);
+
   CREATE TABLE IF NOT EXISTS scam_assessments (
     listing_key  TEXT PRIMARY KEY,
     score        INTEGER NOT NULL,

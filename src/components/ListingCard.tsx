@@ -10,6 +10,9 @@ import { pricePerBedroom } from '../utils/rooms';
 import { ListingMiniMap } from './ListingMiniMap';
 import { SafetyRating } from './SafetyRating';
 import { ShareButton } from './ShareButton';
+import { HistoryBadges } from './HistoryBadges';
+import { ContactDraft } from './ContactDraft';
+import { useContacts } from '../hooks/useContacts';
 
 interface Props {
   listing: Listing;
@@ -25,6 +28,8 @@ export function ListingCard({ listing }: Props) {
   const [index, setIndex] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [details, setDetails] = useState(false);
+  const [contacting, setContacting] = useState(false);
+  const contactedBy = useContacts().byListing.get(listing.id) ?? [];
   const saved = keys.has(listing.id);
 
   const gallery = (listing.imageUrls.length > 0
@@ -221,6 +226,8 @@ export function ListingCard({ listing }: Props) {
 
         <ScamBadge scam={listing.scam} />
 
+        <HistoryBadges history={listing.history} price={listing.price} postedAt={listing.postedAt} />
+
         <div className="flex flex-wrap items-center gap-2">
           {listing.area?.safety && <SafetyRating safety={listing.area.safety} />}
           {listing.factsFrom && (
@@ -243,15 +250,37 @@ export function ListingCard({ listing }: Props) {
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setDetails((current) => !current)}
-          aria-expanded={details}
-          className="self-start text-sm font-semibold underline underline-offset-2"
-          style={{ color: 'var(--text)' }}
-        >
-          {details ? 'Hide details' : 'Details & map'}
-        </button>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <button
+            type="button"
+            onClick={() => setDetails((current) => !current)}
+            aria-expanded={details}
+            className="text-sm font-semibold underline underline-offset-2"
+            style={{ color: 'var(--text)' }}
+          >
+            {details ? 'Hide details' : 'Details & map'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setContacting((current) => !current)}
+            aria-expanded={contacting}
+            className="text-sm font-semibold underline underline-offset-2"
+            style={{ color: contactedBy.length > 0 ? '#b45309' : 'var(--text)' }}
+          >
+            {contactedBy.length > 0
+              ? `Contacted by ${[...new Set(contactedBy.map((entry) => entry.email.split('@')[0]))].join(', ')}`
+              : 'Contact lister'}
+          </button>
+        </div>
+
+        {contacting && (
+          <ContactDraft
+            listingKey={listing.id}
+            url={listing.url}
+            contactPhone={listing.contactPhone}
+            contactEmail={listing.contactEmail}
+          />
+        )}
 
         {details && (
           <div className="space-y-3 pt-1">

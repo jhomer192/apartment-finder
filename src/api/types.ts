@@ -39,6 +39,42 @@ export interface ApiListing {
   area?: AreaFacts | null;
   /** Other sites advertising this same unit, folded into this one. */
   alsoOn?: { sourceId: string; sourceName: string; url: string }[];
+  history?: ListingHistory;
+}
+
+export interface PricePoint {
+  price: number;
+  at: number;
+}
+
+export interface ListingHistory {
+  firstSeenAt: number;
+  lastSeenAt: number;
+  /** Every rent seen, oldest first; empty when it never moved. */
+  prices: PricePoint[];
+}
+
+export interface Availability {
+  status: 'listed' | 'gone' | 'unknown';
+  lastSeenAt: number | null;
+  currentPrice: number | null;
+}
+
+export const CONTACT_CHANNELS = ['email', 'sms', 'call', 'site'] as const;
+export type ContactChannel = (typeof CONTACT_CHANNELS)[number];
+
+export const CONTACT_OUTCOMES = ['sent', 'replied', 'tour-offered', 'declined', 'no-reply'] as const;
+export type ContactOutcome = (typeof CONTACT_OUTCOMES)[number];
+
+export interface ContactEntry {
+  id: number;
+  listingKey: string;
+  email: string;
+  via: ContactChannel;
+  outcome: ContactOutcome;
+  note: string;
+  contactedAt: number;
+  updatedAt: number;
 }
 
 export interface AreaFacts {
@@ -250,6 +286,7 @@ export interface SavedListing {
   status: SavedStatus;
   statusAt: number;
   notes: ListingNote[];
+  availability: Availability;
 }
 
 export interface ContactDraft {

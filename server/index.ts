@@ -34,6 +34,7 @@ import { primeAreaData } from './area.js';
 import { ClaudeUnavailableError } from './claude.js';
 import { config } from './config.js';
 import { draftInquiry } from './contact.js';
+import { CONTACT_CHANNELS, CONTACT_OUTCOMES, deleteContact, listContacts, logContact, updateContact } from './contacts.js';
 import { purgeExpired } from './db.js';
 import { deleteFilter, filterSchema, listFilters, saveFilter } from './filters.js';
 import { deleteGroup, groupSchema, listGroups, saveGroup } from './groups.js';
@@ -503,6 +504,53 @@ app.post('/api/saved/:key/notes', requireAuth, (req, res) => {
     return;
   }
   res.json({ note });
+});
+
+app.get('/api/contacts', requireAuth, (_req, res) => {
+  res.json({ contacts: listContacts() });
+});
+
+app.post('/api/contacts', requireAuth, (req, res) => {
+  const body = z
+    .object({
+      listingKey: listingKeyParam,
+      via: z.enum(CONTACT_CHANNELS),
+      note: z.string().trim().max(500).default(''),
+    })
+    .safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'Say which listing and how you reached out.' });
+    return;
+  }
+
+  logContact(body.data.listingKey, req.user!.email, body.data.via, body.data.note);
+  res.json({ contacts: listContacts() });
+});
+
+app.patch('/api/contacts/:id', requireAuth, (req, res) => {
+  const id = z.coerce.number().int().positive().safeParse(req.params.id);
+  const body = z
+    .object({ outcome: z.enum(CONTACT_OUTCOMES).optional(), note: z.string().trim().max(500).optional() })
+    .safeParse(req.body);
+  if (!id.success || !body.success) {
+    res.status(400).json({ error: `Outcome must be one of: ${CONTACT_OUTCOMES.join(', ')}.` });
+    return;
+  }
+
+  if (!updateContact(id.data, body.data)) {
+    res.status(404).json({ error: 'No such contact entry.' });
+    return;
+  }
+  res.json({ contacts: listContacts() });
+});
+
+app.delete('/api/contacts/:id', requireAuth, (req, res) => {
+  const id = z.coerce.number().int().positive().safeParse(req.params.id);
+  if (!id.success || !deleteContact(id.data)) {
+    res.status(404).json({ error: 'No such contact entry.' });
+    return;
+  }
+  res.json({ contacts: listContacts() });
 });
 
 /** Returns a draft for the group to send themselves; the server never sends it. */

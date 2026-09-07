@@ -10,6 +10,8 @@ export interface Shortlist {
   removeAll(): Promise<void>;
   setStatus(listingKey: string, status: SavedStatus): Promise<void>;
   addNote(listingKey: string, body: string): Promise<void>;
+  /** Re-fetch from the server after something else changed it. */
+  reload(): void;
 }
 
 export const ShortlistContext = createContext<Shortlist | null>(null);

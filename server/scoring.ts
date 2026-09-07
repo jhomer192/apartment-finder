@@ -1,5 +1,6 @@
 import { getMetroById } from '../src/data/metros.js';
 import { areaFactsFor, type AreaFacts } from './area.js';
+import type { ListingHistory } from './history.js';
 import {
   assessListing,
   crossListingSignals,
@@ -32,6 +33,8 @@ export interface ScoredListing extends RawListing {
   area: AreaFacts | null;
   /** Other sites advertising this same unit, folded into this card by dedupe. */
   alsoOn?: { sourceId: string; sourceName: string; url: string }[];
+  /** What the nightly crawl has seen of this listing; absent until it has been stored once. */
+  history?: ListingHistory;
 }
 
 export interface SourceStatus {

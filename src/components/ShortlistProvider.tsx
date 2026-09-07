@@ -17,6 +17,9 @@ export function ShortlistProvider({ children }: { children: ReactNode }) {
   const [saved, setSaved] = useState<SavedListing[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  const [reloads, setReloads] = useState(0);
+  const reload = useCallback(() => setReloads((n) => n + 1), []);
+
   useEffect(() => {
     let live = true;
     fetchSaved()
@@ -29,7 +32,7 @@ export function ShortlistProvider({ children }: { children: ReactNode }) {
     return () => {
       live = false;
     };
-  }, []);
+  }, [reloads]);
 
   const replace = useCallback((entry: SavedListing) => {
     setSaved((current) => {
@@ -80,8 +83,9 @@ export function ShortlistProvider({ children }: { children: ReactNode }) {
             ),
           );
         }),
+      reload,
     };
-  }, [saved, error, replace, run]);
+  }, [saved, error, replace, run, reload]);
 
   return <ShortlistContext.Provider value={value}>{children}</ShortlistContext.Provider>;
 }

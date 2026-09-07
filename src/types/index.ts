@@ -1,4 +1,4 @@
-import type { AreaFacts, ScamAssessment, SourceStatus } from '../api/types';
+import type { AreaFacts, ListingHistory, ScamAssessment, SourceStatus } from '../api/types';
 
 export type { AreaFacts, ScamAssessment, ScamBand, SortOption, SourceStatus } from '../api/types';
 
@@ -66,6 +66,11 @@ export interface Listing {
   area: AreaFacts | null;
   /** Other sites advertising this same unit, collapsed into this card. */
   alsoOn: { sourceId: string; sourceName: string; url: string }[];
+  postedAt: number | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  /** What the nightly crawl has seen: first/last seen and every rent. */
+  history: ListingHistory | undefined;
   metroId: string;
   gradientFrom: string;
   gradientTo: string;

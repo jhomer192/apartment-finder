@@ -1,35 +1,7 @@
 import { db } from './db.js';
+import { changedPrices, pruneHistory, recordPrice, type ListingHistory } from './history.js';
 import { scoreAll, SOURCES, type ScoredListing, type SourceStatus } from './scoring.js';
 import type { RawListing, SourceQuery } from './sources/types.js';
-
-/**
- * A search hits this table rather than the sources: SF has far more rentals
- * than any one source response returns, so the full set is crawled nightly and
- * kept here instead of being refetched, and truncated, per search.
- */
-db.exec(`
-  CREATE TABLE IF NOT EXISTS inventory (
-    listing_key   TEXT PRIMARY KEY,
-    source_id     TEXT NOT NULL,
-    price         INTEGER NOT NULL,
-    bedrooms      INTEGER,
-    scam_score    INTEGER NOT NULL,
-    first_seen_at INTEGER NOT NULL,
-    last_seen_at  INTEGER NOT NULL,
-    payload       TEXT NOT NULL
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_inventory_price ON inventory(price);
-
-  CREATE TABLE IF NOT EXISTS inventory_runs (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    started_at  INTEGER NOT NULL,
-    finished_at INTEGER,
-    listings    INTEGER NOT NULL DEFAULT 0,
-    sources     TEXT NOT NULL DEFAULT '[]',
-    error       TEXT
-  );
-`);
 
 /** A listing missing from this many consecutive crawls has been taken down. */
 const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
@@ -68,6 +40,7 @@ export function storeListings(listings: ScoredListing[], now: number): void {
 
   db.transaction(() => {
     for (const listing of listings) {
+      recordPrice(listing.key, listing.price, now);
       statement.run({
         key: listing.key,
         sourceId: listing.sourceId,
@@ -132,6 +105,7 @@ export function refreshInventory(): Promise<RefreshResult> {
       // not empty the app.
       if (sources.some((source) => source.count > 0)) {
         db.prepare('DELETE FROM inventory WHERE last_seen_at < ?').run(finishedAt - STALE_AFTER_MS);
+        pruneHistory();
       }
 
       db.prepare('UPDATE inventory_runs SET finished_at = ?, listings = ?, sources = ? WHERE id = ?').run(
@@ -241,7 +215,7 @@ export function queryInventory(
 ): ScoredListing[] {
   const rows = db
     .prepare(
-      `SELECT payload FROM inventory
+      `SELECT payload, first_seen_at, last_seen_at FROM inventory
        WHERE price BETWEEN @minRent AND @maxRent
          AND (@minBedrooms IS NULL OR bedrooms IS NULL OR bedrooms >= @minBedrooms)
          AND (@maxBedrooms IS NULL OR bedrooms IS NULL OR bedrooms <= @maxBedrooms)
@@ -252,22 +226,41 @@ export function queryInventory(
       maxRent: query.maxRent,
       minBedrooms: query.minBedrooms,
       maxBedrooms: query.maxBedrooms,
-    }) as Array<{ payload: string }>;
+    }) as StoredRow[];
 
+  const prices = changedPrices();
   const listings: ScoredListing[] = [];
   for (const row of rows) {
     if (listings.length >= query.limit) break;
-    const listing = JSON.parse(row.payload) as ScoredListing;
+    const listing = hydrate(row, prices);
     if (keep(listing)) listings.push(listing);
   }
   return listings;
+}
+
+interface StoredRow {
+  payload: string;
+  first_seen_at: number;
+  last_seen_at: number;
+}
+
+/** The crawl's own record of the listing rides along with the source's payload. */
+function hydrate(row: StoredRow, prices: Map<string, ListingHistory['prices']>): ScoredListing {
+  const listing = JSON.parse(row.payload) as ScoredListing;
+  listing.history = {
+    firstSeenAt: row.first_seen_at,
+    lastSeenAt: row.last_seen_at,
+    prices: prices.get(listing.key) ?? [],
+  };
+  return listing;
 }
 
 export function inventoryByKeys(keys: string[]): ScoredListing[] {
   if (keys.length === 0) return [];
   const placeholders = keys.map(() => '?').join(',');
   const rows = db
-    .prepare(`SELECT payload FROM inventory WHERE listing_key IN (${placeholders})`)
-    .all(...keys) as Array<{ payload: string }>;
-  return rows.map((row) => JSON.parse(row.payload) as ScoredListing);
+    .prepare(`SELECT payload, first_seen_at, last_seen_at FROM inventory WHERE listing_key IN (${placeholders})`)
+    .all(...keys) as StoredRow[];
+  const prices = changedPrices();
+  return rows.map((row) => hydrate(row, prices));
 }

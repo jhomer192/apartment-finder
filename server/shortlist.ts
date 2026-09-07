@@ -1,4 +1,5 @@
 import { db } from './db.js';
+import { availabilityFor, historyFor, type Availability } from './history.js';
 import type { ScoredListing } from './listings.js';
 
 export const SAVED_STATUSES = ['saved', 'contacted', 'touring', 'applied', 'passed'] as const;
@@ -19,6 +20,8 @@ export interface SavedListing {
   status: SavedStatus;
   statusAt: number;
   notes: ListingNote[];
+  /** Whether the source still advertises it, and at what rent, since the snapshot was taken. */
+  availability: Availability;
 }
 
 interface SavedRow {
@@ -58,16 +61,25 @@ function notesFor(keys: string[]): Map<string, ListingNote[]> {
   return notes;
 }
 
+/** The snapshot froze at save time; the crawl keeps seeing the listing after that. */
+function withHistory(listing: ScoredListing, current: ScoredListing['history']): ScoredListing {
+  return current ? { ...listing, history: current } : listing;
+}
+
 function hydrate(rows: SavedRow[]): SavedListing[] {
-  const notes = notesFor(rows.map((row) => row.listing_key));
+  const keys = rows.map((row) => row.listing_key);
+  const notes = notesFor(keys);
+  const availability = availabilityFor(keys);
+  const history = historyFor(keys);
   return rows.map((row) => ({
     key: row.listing_key,
-    listing: JSON.parse(row.snapshot) as ScoredListing,
+    listing: withHistory(JSON.parse(row.snapshot) as ScoredListing, history.get(row.listing_key)),
     savedBy: row.saved_by,
     savedAt: row.saved_at,
     status: row.status,
     statusAt: row.status_at,
     notes: notes.get(row.listing_key) ?? [],
+    availability: availability.get(row.listing_key) ?? { status: 'unknown', lastSeenAt: null, currentPrice: null },
   }));
 }
 

@@ -10,6 +10,7 @@ import { ListingMiniMap } from './ListingMiniMap';
 import { SafetyRating } from './SafetyRating';
 import { ScamBadge } from './ScamBadge';
 import { ShareButton } from './ShareButton';
+import { HistoryBadges } from './HistoryBadges';
 
 const STATUS_COLORS: Record<string, string> = {
   saved: '#64748b',
@@ -342,6 +343,13 @@ export function SavedListingCard({ entry, selected, onSelect }: Props) {
 
           <ScamBadge scam={listing.scam} />
 
+          <HistoryBadges
+            history={listing.history}
+            price={listing.price}
+            postedAt={listing.postedAt}
+            availability={entry.availability}
+          />
+
           <DetailPreview entry={entry} />
 
           <div className="flex flex-wrap items-center gap-1.5">
@@ -374,7 +382,12 @@ export function SavedListingCard({ entry, selected, onSelect }: Props) {
           </div>
 
           <TourRow entry={entry} />
-          <ContactDraft entry={entry} />
+          <ContactDraft
+            listingKey={entry.key}
+            url={listing.url}
+            contactPhone={listing.contactPhone}
+            contactEmail={listing.contactEmail}
+          />
           <NoteList entry={entry} />
         </div>
       </div>

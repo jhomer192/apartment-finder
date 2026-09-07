@@ -2,7 +2,10 @@ import type {
   AlertPrefs,
   AlertSettings,
   ClaudeSearchResult,
+  ContactChannel,
   ContactDraft,
+  ContactEntry,
+  ContactOutcome,
   DislikeSummary,
   HouseRules,
   InventoryStatus,
@@ -229,6 +232,29 @@ export function bookTour(tour: {
 
 export function cancelTour(id: number): Promise<{ days: TourDay[] }> {
   return request(`/api/tours/${id}`, { method: 'DELETE' });
+}
+
+export function fetchContacts(): Promise<{ contacts: ContactEntry[] }> {
+  return request('/api/contacts');
+}
+
+export function logContact(
+  listingKey: string,
+  via: ContactChannel,
+  note = '',
+): Promise<{ contacts: ContactEntry[] }> {
+  return request('/api/contacts', { method: 'POST', body: JSON.stringify({ listingKey, via, note }) });
+}
+
+export function updateContact(
+  id: number,
+  changes: { outcome?: ContactOutcome; note?: string },
+): Promise<{ contacts: ContactEntry[] }> {
+  return request(`/api/contacts/${id}`, { method: 'PATCH', body: JSON.stringify(changes) });
+}
+
+export function deleteContact(id: number): Promise<{ contacts: ContactEntry[] }> {
+  return request(`/api/contacts/${id}`, { method: 'DELETE' });
 }
 
 export function draftContactMessage(listingKey: string, ask = ''): Promise<ContactDraft> {

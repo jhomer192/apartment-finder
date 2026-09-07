@@ -16,6 +16,7 @@ import { SourceStatusBar } from './components/SourceStatusBar';
 import { InventoryBar } from './components/InventoryBar';
 import { ShortlistProvider } from './components/ShortlistProvider';
 import { DislikesProvider } from './components/DislikesProvider';
+import { ContactsProvider } from './components/ContactsProvider';
 import { ShortlistPanel } from './components/ShortlistPanel';
 import { PasswordPanel } from './components/PasswordPanel';
 import { CommuteBar } from './components/CommuteBar';
@@ -62,7 +63,9 @@ export default function App() {
   ) : (
     <ShortlistProvider>
       <DislikesProvider>
-        <Finder email={user.email} hasPassword={user.hasPassword ?? false} signOut={signOut} onPasswordSet={refresh} />
+        <ContactsProvider>
+          <Finder email={user.email} hasPassword={user.hasPassword ?? false} signOut={signOut} onPasswordSet={refresh} />
+        </ContactsProvider>
       </DislikesProvider>
     </ShortlistProvider>
   );
