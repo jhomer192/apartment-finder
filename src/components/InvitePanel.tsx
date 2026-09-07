@@ -19,7 +19,7 @@ function inviteText(url: string, from: string): string {
 }
 
 function daysLeft(expiresAt: number): string {
-  const days = Math.ceil((expiresAt - Date.now()) / 86_400_000);
+  const days = Math.min(7, Math.ceil((expiresAt - Date.now()) / 86_400_000));
   return days <= 0 ? 'expired' : days === 1 ? 'expires tomorrow' : `expires in ${days} days`;
 }
 
@@ -157,7 +157,7 @@ export function InvitePanel({ email, isAdmin }: Props) {
           <ul className="space-y-1">
             {open.map((link) => (
               <li key={link.id} className="flex items-center justify-between gap-2 text-xs" style={{ color: 'var(--text)' }}>
-                <span className="truncate">
+                <span className="min-w-0 break-words">
                   {link.label || 'Invite'} · from {link.createdBy} · {daysLeft(link.expiresAt)}
                 </span>
                 <button type="button" onClick={() => void revoke(link.id)} className="font-semibold shrink-0" style={{ color: '#ef4444' }}>
@@ -176,7 +176,7 @@ export function InvitePanel({ email, isAdmin }: Props) {
         <ul className="space-y-1">
           {members.map((member) => (
             <li key={member.email} className="flex items-center justify-between gap-2 text-xs" style={{ color: 'var(--text)' }}>
-              <span className="truncate">
+              <span className="min-w-0 break-words">
                 {member.email}
                 {member.isAdmin && <span style={{ color: 'var(--text-dim)' }}> · owner</span>}
                 {member.invitedBy && <span style={{ color: 'var(--text-dim)' }}> · invited by {member.invitedBy}</span>}

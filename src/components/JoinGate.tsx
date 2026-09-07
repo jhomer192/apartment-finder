@@ -108,7 +108,7 @@ export function JoinGate({ token, onJoined, onDismiss }: Props) {
                 minLength={MIN_PASSWORD_LENGTH}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder={`Choose a password (at least ${MIN_PASSWORD_LENGTH} characters)`}
+                placeholder={`Password (${MIN_PASSWORD_LENGTH}+ characters)`}
                 autoComplete="new-password"
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
                 style={inputStyle}
