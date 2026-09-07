@@ -26,13 +26,13 @@ body {
   box-shadow: var(--shadow);
 }
 
+/* No transform on hover: a transformed card would trap its fixed fullscreen photo/map overlays. */
 .card-hover {
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  transition: box-shadow 0.15s ease;
 }
 
 .card-hover:hover {
   box-shadow: var(--shadow-lg);
-  transform: translateY(-1px);
 }
 
 /* Airbnb-style pill control: rounded, bordered, darkens on hover. */
