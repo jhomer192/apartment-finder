@@ -178,7 +178,7 @@ export function SearchForm({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Popover open={open === 'price'} onClose={close} trigger={pill('price', priceActive, priceLabel(params))} className="w-72">
+      <Popover open={open === 'price'} onClose={close} trigger={pill('price', priceActive, priceLabel(params))} className="lg:w-72">
         <form
           className="space-y-3"
           onSubmit={(event) => {
@@ -243,7 +243,7 @@ export function SearchForm({
         open={open === 'beds'}
         onClose={close}
         trigger={pill('beds', bedsActive, rangeLabel(params.minBedrooms, params.maxBedrooms, 'bd', 'Beds'))}
-        className="w-72"
+        className="lg:w-72"
       >
         <RoomRange
           id="bedrooms"
@@ -260,7 +260,7 @@ export function SearchForm({
         open={open === 'baths'}
         onClose={close}
         trigger={pill('baths', bathsActive, rangeLabel(params.minBathrooms, params.maxBathrooms, 'ba', 'Baths'))}
-        className="w-72"
+        className="lg:w-72"
       >
         <RoomRange
           id="bathrooms"
@@ -285,7 +285,7 @@ export function SearchForm({
               : `${selectedNeighborhoods.size} neighborhoods`
             : 'Neighborhood',
         )}
-        className="w-[min(90vw,32rem)]"
+        className="lg:w-[32rem]"
       >
         <NeighborhoodFilter
           neighborhoods={neighborhoods}
@@ -295,7 +295,7 @@ export function SearchForm({
         />
       </Popover>
 
-      <Popover open={open === 'sort'} onClose={close} trigger={pill('sort', false, `Sort: ${sortLabel(sort)}`)} className="w-72" align="right">
+      <Popover open={open === 'sort'} onClose={close} trigger={pill('sort', false, `Sort: ${sortLabel(sort)}`)} className="lg:w-72" align="right">
         <SortSelect
           sort={sort}
           onChange={(next) => {
@@ -305,7 +305,7 @@ export function SearchForm({
         />
       </Popover>
 
-      <Popover open={open === 'more'} onClose={close} trigger={pill('more', !params.dedupe, 'More')} className="w-80" align="right">
+      <Popover open={open === 'more'} onClose={close} trigger={pill('more', !params.dedupe, 'More')} className="lg:w-80" align="right">
         <label className="flex items-start gap-2 text-sm cursor-pointer" style={{ color: 'var(--text)' }}>
           <input
             type="checkbox"

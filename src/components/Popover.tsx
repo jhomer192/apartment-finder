@@ -35,7 +35,9 @@ export function Popover({ open, onClose, trigger, children, align = 'left', clas
       {trigger}
       {open && (
         <div
-          className={`card absolute z-40 mt-2 p-4 ${align === 'right' ? 'right-0' : 'left-0'} ${className}`}
+          className={`card z-40 p-4 max-lg:fixed max-lg:inset-x-3 max-lg:top-20 max-lg:w-auto max-lg:max-h-[70vh] max-lg:overflow-y-auto lg:absolute lg:mt-2 ${
+            align === 'right' ? 'lg:right-0' : 'lg:left-0'
+          } ${className}`}
           style={{ boxShadow: 'var(--shadow-lg)' }}
           role="dialog"
         >
