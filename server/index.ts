@@ -3,7 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cookieParser from 'cookie-parser';
 import express from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import helmet from 'helmet';
 import { z } from 'zod';
 import {
@@ -63,6 +63,20 @@ const askLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10 });
 const refreshLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 3 });
 /** Tighter than authLimiter: this route sends mail, so it is the abusable one. */
 const signInLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5 });
+/**
+ * Keyed on the account, not the caller: with a 6-character minimum, a botnet
+ * rotating IPs must not get unlimited guesses at one roommate's password.
+ */
+const passwordAccountLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) =>
+    typeof req.body?.email === 'string'
+      ? `email:${req.body.email.trim().toLowerCase()}`
+      : ipKeyGenerator(req.ip ?? ''),
+  message: { error: 'Too many password attempts for this account. Email yourself a link instead.' },
+});
 
 /**
  * Prefer the configured origin: the Host header is attacker-controlled, and
@@ -148,7 +162,7 @@ app.post('/api/auth/password', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/auth/password/login', signInLimiter, (req, res) => {
+app.post('/api/auth/password/login', signInLimiter, passwordAccountLimiter, (req, res) => {
   const body = z
     .object({ email: z.string().email().max(320), password: z.string().min(1).max(200) })
     .safeParse(req.body);
