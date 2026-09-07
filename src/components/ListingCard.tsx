@@ -24,6 +24,7 @@ export function ListingCard({ listing }: Props) {
   const [broken, setBroken] = useState<Set<string>>(new Set());
   const [index, setIndex] = useState(0);
   const [expanded, setExpanded] = useState(false);
+  const [details, setDetails] = useState(false);
   const saved = keys.has(listing.id);
 
   const gallery = (listing.imageUrls.length > 0
@@ -52,17 +53,14 @@ export function ListingCard({ listing }: Props) {
   const bathsLabel = listing.bathrooms === null ? '— ba' : `${listing.bathrooms} ba`;
   const sqftLabel = listing.sqft === null ? 'sqft n/a' : `${listing.sqft.toLocaleString()} sqft`;
 
+  const overlayButton = 'flex items-center justify-center rounded-full transition-colors backdrop-blur-sm';
+
   return (
-    <div
-      className="rounded-xl border overflow-hidden transition-all hover:shadow-lg"
-      style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
-    >
-      {/* Gradient banner */}
+    <article className="card card-hover overflow-hidden flex flex-col">
+      {/* Photo */}
       <div
-        className="relative h-36 flex flex-col justify-end p-4"
-        style={{
-          background: `linear-gradient(135deg, ${listing.gradientFrom}, ${listing.gradientTo})`,
-        }}
+        className="relative aspect-[4/3] group"
+        style={{ background: `linear-gradient(135deg, ${listing.gradientFrom}, ${listing.gradientTo})` }}
       >
         {photo ? (
           <>
@@ -74,40 +72,36 @@ export function ListingCard({ listing }: Props) {
               className="absolute inset-0 w-full h-full object-cover cursor-zoom-in"
               onError={() => setBroken((current) => new Set(current).add(photo))}
             />
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.1))' }}
-            />
             {gallery.length > 1 && (
               <>
                 <button
                   onClick={() => step(-1)}
                   aria-label="Previous photo"
-                  className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full text-white text-sm"
-                  style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+                  className={`${overlayButton} absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 text-lg opacity-0 group-hover:opacity-100 focus:opacity-100`}
+                  style={{ backgroundColor: 'rgba(255,255,255,0.9)', color: '#1f1f23' }}
                 >
                   ‹
                 </button>
                 <button
                   onClick={() => step(1)}
                   aria-label="Next photo"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full text-white text-sm"
-                  style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+                  className={`${overlayButton} absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 text-lg opacity-0 group-hover:opacity-100 focus:opacity-100`}
+                  style={{ backgroundColor: 'rgba(255,255,255,0.9)', color: '#1f1f23' }}
                 >
                   ›
                 </button>
                 <span
-                  className="absolute top-3 left-3 z-10 px-2 py-0.5 rounded text-[10px] font-medium text-white/90"
-                  style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+                  className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-2 py-0.5 rounded-full text-[11px] font-medium text-white"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
                 >
-                  Photo {Math.min(index, gallery.length - 1) + 1} of {gallery.length}
+                  {Math.min(index, gallery.length - 1) + 1} / {gallery.length}
                 </span>
               </>
             )}
             {expanded && (
               <div
                 className="fixed inset-0 z-50 flex items-center justify-center p-6"
-                style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}
+                style={{ backgroundColor: 'rgba(0,0,0,0.9)' }}
                 onClick={() => setExpanded(false)}
                 role="dialog"
                 aria-label={`Photos of ${listing.title}`}
@@ -151,17 +145,28 @@ export function ListingCard({ listing }: Props) {
             )}
           </>
         ) : (
-          <span className="absolute top-3 left-3 px-2 py-0.5 rounded text-[10px] font-medium text-white/90" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
+          <span
+            className="absolute bottom-3 left-3 px-2 py-0.5 rounded-full text-[11px] font-medium text-white"
+            style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+          >
             {broken.size > 0 ? 'Photos failed to load' : `No photo from ${listing.sourceName}`}
           </span>
         )}
+
+        <span
+          className="absolute top-3 left-3 z-10 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+          style={{ backgroundColor: 'rgba(255,255,255,0.92)', color: '#1f1f23' }}
+        >
+          {listing.neighborhood}
+        </span>
+
         {/* Thumbs-down: a vote, shared with the group, that hides the listing once enough agree */}
         <button
           onClick={() => void dislikes.toggle(listing.id)}
-          className="absolute top-3 right-14 flex items-center gap-1 px-2 py-1.5 rounded-full transition-colors text-xs font-semibold"
+          className={`${overlayButton} absolute top-3 right-14 z-10 h-9 px-2.5 gap-1 text-xs font-semibold`}
           style={{
-            backgroundColor: disliked ? 'rgba(239,68,68,0.85)' : 'rgba(0,0,0,0.3)',
-            color: '#fff',
+            backgroundColor: disliked ? '#ef4444' : 'rgba(255,255,255,0.92)',
+            color: disliked ? '#fff' : '#1f1f23',
           }}
           aria-pressed={disliked}
           aria-label={disliked ? 'Take back your dislike' : 'Dislike this listing'}
@@ -175,201 +180,189 @@ export function ListingCard({ listing }: Props) {
         {/* Shortlist heart, shared with the rest of the group */}
         <button
           onClick={() => void toggle(listing.id)}
-          className="absolute top-3 right-3 p-1.5 rounded-full transition-colors"
-          style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
+          className={`${overlayButton} absolute top-3 right-3 z-10 w-9 h-9`}
+          style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
           aria-label={saved ? 'Remove from the shortlist' : 'Add to the shortlist'}
         >
-          <svg
-            className="w-5 h-5"
-            viewBox="0 0 24 24"
-            fill={saved ? '#ef4444' : 'none'}
-            stroke={saved ? '#ef4444' : 'white'}
-            strokeWidth={2}
-          >
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill={saved ? '#ef4444' : 'none'} stroke={saved ? '#ef4444' : '#1f1f23'} strokeWidth={2}>
             <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
           </svg>
         </button>
-
-        {/* Price and stats overlay */}
-        <div className="relative z-10 pointer-events-none">
-          <div className="text-2xl font-bold text-white">
-            ${listing.price.toLocaleString()}<span className="text-sm font-normal opacity-80">/mo</span>
-          </div>
-          <div className="flex items-center gap-3 text-white/80 text-sm mt-1">
-            <span>{bedsLabel}</span>
-            <span className="opacity-50">|</span>
-            <span>{bathsLabel}</span>
-            <span className="opacity-50">|</span>
-            <span>{sqftLabel}</span>
-          </div>
-        </div>
-
-        {/* Neighborhood label */}
-        <div className="absolute bottom-3 right-3 px-2 py-0.5 rounded text-xs font-medium text-white/90 pointer-events-none"
-          style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
-        >
-          {listing.neighborhood}
-        </div>
       </div>
 
-      {/* Details */}
-      <div className="p-4 space-y-3">
-        <ScamBadge scam={listing.scam} />
-
-        {/* Title */}
-        <h3 className="font-semibold text-base leading-tight" style={{ color: 'var(--text)' }}>
-          {listing.title}
-        </h3>
-
-        {/* Address */}
-        <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
-          {listing.address}
-        </p>
-
-        <a
-          href={googleMapsUrl(listing)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs font-medium"
-          style={{ color: 'var(--accent)' }}
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          See the block on Google Maps
-        </a>
-
-        {commute.destination.trim() && (
-          <a
-            href={commuteUrl(listing, commute.destination, commute.time, commute.mode)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs font-medium"
-            style={{ color: 'var(--accent)' }}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <circle cx="12" cy="12" r="9" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" />
-            </svg>
-            Directions to work, leaving {clockLabel(commute.time)}
-          </a>
-        )}
-
-        {/* Stats row */}
-        <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-dim)' }}>
-          <span>{bedsLabel} / {bathsLabel}</span>
-          <span>{sqftLabel}</span>
-          <span title="Rent split evenly by bedroom, so a big place shared by the group can beat a cheaper small one.">
+      {/* Summary */}
+      <div className="p-4 space-y-2 flex-1 flex flex-col">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-xl font-bold leading-tight" style={{ color: 'var(--text)' }}>
+            ${listing.price.toLocaleString()}
+            <span className="text-sm font-normal" style={{ color: 'var(--text-dim)' }}>
+              /mo
+            </span>
+          </p>
+          <span className="text-xs" style={{ color: 'var(--text-dim)' }}>
             ${perBedroom.toLocaleString()}/bd
           </span>
-          {ppsqft !== null && <span>${ppsqft.toFixed(2)}/sqft</span>}
+        </div>
+        <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+          {bedsLabel}
+          <span className="font-normal" style={{ color: 'var(--text-dim)' }}> · </span>
+          {bathsLabel}
+          {listing.sqft !== null && (
+            <>
+              <span className="font-normal" style={{ color: 'var(--text-dim)' }}> · </span>
+              {sqftLabel}
+            </>
+          )}
+        </p>
+
+        <p className="text-sm truncate" style={{ color: 'var(--text-dim)' }} title={listing.address}>
+          {listing.address || listing.title}
+        </p>
+
+        <ScamBadge scam={listing.scam} />
+
+        <div className="flex flex-wrap items-center gap-2">
+          {listing.area?.safety && <SafetyRating safety={listing.area.safety} />}
           {listing.factsFrom && (
             <span
               title={`${listing.sourceName} did not publish these, so they come from ${listing.factsFrom}'s listing for the same building and unit size.`}
-              className="px-1.5 py-0.5 rounded"
-              style={{
-                backgroundColor: 'color-mix(in srgb, var(--text-dim) 12%, transparent)',
-                color: 'var(--text-dim)',
-              }}
+              className="text-[11px] px-2 py-0.5 rounded-full"
+              style={{ backgroundColor: 'var(--bg)', color: 'var(--text-dim)', border: '1px solid var(--border)' }}
             >
               baths/sqft from {listing.factsFrom}
             </span>
           )}
-        </div>
-
-        {listing.area?.safety && (
-          <div className="flex">
-            <SafetyRating safety={listing.area.safety} />
-          </div>
-        )}
-
-        {listing.lat !== null && listing.lng !== null && (
-          <ListingMiniMap
-            lat={listing.lat}
-            lng={listing.lng}
-            label={listing.address || listing.neighborhood}
-            mapsUrl={googleMapsUrl(listing)}
-          />
-        )}
-
-        <AreaFactsRow area={listing.area} />
-
-        {/* Amenity pills */}
-        <div className="flex flex-wrap gap-1.5">
-          {listing.amenities.slice(0, 5).map(a => (
+          {listing.amenities.slice(0, 3).map((a) => (
             <span
               key={a}
-              className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-              style={{
-                backgroundColor: 'color-mix(in srgb, var(--accent) 12%, transparent)',
-                color: 'var(--accent)',
-                border: '1px solid color-mix(in srgb, var(--accent) 20%, transparent)',
-              }}
+              className="text-[11px] px-2 py-0.5 rounded-full"
+              style={{ backgroundColor: 'var(--bg)', color: 'var(--text-dim)', border: '1px solid var(--border)' }}
             >
               {a}
             </span>
           ))}
-          {listing.amenities.length > 5 && (
-            <span
-              className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-              style={{ color: 'var(--text-dim)' }}
-            >
-              +{listing.amenities.length - 5} more
-            </span>
-          )}
         </div>
 
+        <button
+          type="button"
+          onClick={() => setDetails((current) => !current)}
+          aria-expanded={details}
+          className="self-start text-sm font-semibold underline underline-offset-2"
+          style={{ color: 'var(--text)' }}
+        >
+          {details ? 'Hide details' : 'Details & map'}
+        </button>
+
+        {details && (
+          <div className="space-y-3 pt-1">
+            <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+              {listing.title}
+            </p>
+
+            {listing.lat !== null && listing.lng !== null && (
+              <ListingMiniMap
+                lat={listing.lat}
+                lng={listing.lng}
+                label={listing.address || listing.neighborhood}
+                mapsUrl={googleMapsUrl(listing)}
+              />
+            )}
+
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <a
+                href={googleMapsUrl(listing)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-medium"
+                style={{ color: 'var(--accent)' }}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                See the block on Google Maps
+              </a>
+              {commute.destination.trim() && (
+                <a
+                  href={commuteUrl(listing, commute.destination, commute.time, commute.mode)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-medium"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <circle cx="12" cy="12" r="9" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" />
+                  </svg>
+                  Directions to work, leaving {clockLabel(commute.time)}
+                </a>
+              )}
+            </div>
+
+            <AreaFactsRow area={listing.area} />
+
+            {(ppsqft !== null || listing.amenities.length > 3) && (
+              <div className="flex flex-wrap items-center gap-1.5 text-xs" style={{ color: 'var(--text-dim)' }}>
+                {ppsqft !== null && <span className="mr-2">${ppsqft.toFixed(2)}/sqft</span>}
+                {listing.amenities.slice(3).map((a) => (
+                  <span
+                    key={a}
+                    className="text-[11px] px-2 py-0.5 rounded-full"
+                    style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}
+                  >
+                    {a}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Source + CTA */}
-        <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded flex items-center justify-center text-white font-bold text-xs"
+        <div className="mt-auto flex items-center justify-between gap-2 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-2 min-w-0 text-xs" style={{ color: 'var(--text-dim)' }}>
+            <span
+              className="w-5 h-5 rounded flex items-center justify-center text-white font-bold text-[10px] shrink-0"
               style={{ backgroundColor: listing.sourceColor }}
             >
               {listing.sourceName[0]}
-            </div>
-            <span className="text-xs font-medium" style={{ color: 'var(--text-dim)' }}>
-              {listing.sourceName}
             </span>
-            {listing.alsoOn.length > 0 && (
-              <span className="text-xs flex items-center gap-1" style={{ color: 'var(--text-dim)' }}>
-                · also on
-                {listing.alsoOn.map((other) => (
-                  <a
-                    key={other.sourceId}
-                    href={other.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium underline"
-                    style={{ color: 'var(--accent)' }}
-                  >
-                    {other.sourceName}
-                  </a>
-                ))}
-              </span>
-            )}
+            <span className="truncate">
+              {listing.sourceName}
+              {listing.alsoOn.length > 0 && (
+                <>
+                  {' · also on '}
+                  {listing.alsoOn.map((other, position) => (
+                    <a
+                      key={other.sourceId}
+                      href={other.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium underline"
+                      style={{ color: 'var(--accent)' }}
+                    >
+                      {position > 0 ? ', ' : ''}
+                      {other.sourceName}
+                    </a>
+                  ))}
+                </>
+              )}
+            </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <ShareButton listings={[listing]} compact />
             <a
               href={listing.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-              style={{
-                backgroundColor: listing.sourceColor,
-                color: '#fff',
-              }}
+              className="text-xs font-semibold px-3 py-1.5 rounded-full text-white"
+              style={{ backgroundColor: 'var(--accent)' }}
             >
-              View Listing
-              <svg className="inline-block w-3 h-3 ml-1 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
+              View listing
             </a>
           </div>
         </div>
       </div>
-    </div>
+    </article>
   );
 }

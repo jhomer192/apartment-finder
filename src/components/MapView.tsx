@@ -9,6 +9,8 @@ interface Props {
   listings: Listing[];
   centerLat: number;
   centerLng: number;
+  /** Height of the map box; the split view stretches it to the viewport. */
+  className?: string;
 }
 
 const BAND_COLOR: Record<ScamBand, string> = {
@@ -85,10 +87,11 @@ function createPopup(listing: Listing): HTMLElement {
   return root;
 }
 
-export function MapView({ listings, centerLat, centerLng }: Props) {
+export function MapView({ listings, centerLat, centerLng, className = 'h-[600px]' }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.LayerGroup | null>(null);
+  const boundsRef = useRef<L.LatLngBoundsExpression | null>(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -108,7 +111,17 @@ export function MapView({ listings, centerLat, centerLng }: Props) {
     markersRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
+    // The map can mount while hidden (phone list view) or change height with the viewport;
+    // Leaflet only measures itself once, so re-measure and refit whenever the box resizes.
+    const observer = new ResizeObserver((entries) => {
+      if (!entries.some((entry) => entry.contentRect.width > 0)) return;
+      map.invalidateSize();
+      if (boundsRef.current) map.fitBounds(boundsRef.current, { padding: [40, 40] });
+    });
+    observer.observe(containerRef.current);
+
     return () => {
+      observer.disconnect();
       map.remove();
       mapRef.current = null;
     };
@@ -129,8 +142,9 @@ export function MapView({ listings, centerLat, centerLng }: Props) {
       bounds.push([listing.lat, listing.lng]);
     });
 
-    if (bounds.length > 0) {
-      mapRef.current.fitBounds(bounds as L.LatLngBoundsExpression, { padding: [40, 40] });
+    boundsRef.current = bounds.length > 0 ? (bounds as L.LatLngBoundsExpression) : null;
+    if (boundsRef.current) {
+      mapRef.current.fitBounds(boundsRef.current, { padding: [40, 40] });
     }
   }, [listings]);
 
@@ -140,7 +154,7 @@ export function MapView({ listings, centerLat, centerLng }: Props) {
     <div className="space-y-2">
       <div
         ref={containerRef}
-        className="w-full h-[600px] rounded-xl border overflow-hidden"
+        className={`w-full rounded-xl border overflow-hidden ${className}`}
         style={{ borderColor: 'var(--border)' }}
       />
       <p className="text-xs" style={{ color: 'var(--text-dim)' }}>

@@ -1,6 +1,10 @@
 import { useState } from 'react';
-import type { SearchParams } from '../types';
+import type { SearchParams, SortOption } from '../types';
 import { DEFAULT_SEARCH } from '../data/search';
+import { Popover } from './Popover';
+import { NeighborhoodFilter } from './NeighborhoodFilter';
+import { SortSelect } from './SortSelect';
+import { sortLabel } from '../utils/sortOptions';
 
 interface Props {
   /** The search that is actually running, so applying a saved one fills the boxes in. */
@@ -9,9 +13,17 @@ interface Props {
   /** Puts the search back to every SF listing, including any neighborhood pills. */
   onClearAll: () => void;
   loading: boolean;
+  neighborhoods: string[];
+  selectedNeighborhoods: Set<string>;
+  onNeighborhoods: (selected: Set<string>) => void;
+  neighborhoodCounts: Map<string, number>;
+  sort: SortOption;
+  onSort: (sort: SortOption) => void;
 }
 
 const MAX_ROOMS = 6;
+
+type Panel = 'price' | 'beds' | 'baths' | 'neighborhoods' | 'sort' | 'more';
 
 function parseRoom(value: string): number | null {
   return value === 'any' ? null : parseInt(value, 10);
@@ -19,6 +31,21 @@ function parseRoom(value: string): number | null {
 
 function roomValue(count: number | null): string {
   return count === null ? 'any' : String(count);
+}
+
+function rangeLabel(min: number | null, max: number | null, unit: string, fallback: string): string {
+  if (min === null && max === null) return fallback;
+  if (min !== null && min === max) return `${min} ${unit}`;
+  if (min === null) return `Up to ${max} ${unit}`;
+  if (max === null) return `${min}+ ${unit}`;
+  return `${min}\u2013${max} ${unit}`;
+}
+
+function priceLabel(params: SearchParams): string {
+  const changed = params.minRent !== DEFAULT_SEARCH.minRent || params.maxRent !== DEFAULT_SEARCH.maxRent;
+  if (!changed) return 'Price';
+  if (params.minRent === 0) return `Up to $${params.maxRent.toLocaleString()}`;
+  return `$${params.minRent.toLocaleString()}\u2013$${params.maxRent.toLocaleString()}`;
 }
 
 const inputClass =
@@ -44,11 +71,11 @@ interface RangeProps {
 function RoomRange({ id, label, optionLabel, min, max, onMin, onMax }: RangeProps) {
   const counts = Array.from({ length: MAX_ROOMS + 1 }, (_, count) => count);
   return (
-    <div>
-      <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-dim)' }} htmlFor={`${id}-min`}>
+    <div className="space-y-1">
+      <label className="block text-xs font-medium" style={{ color: 'var(--text-dim)' }} htmlFor={`${id}-min`}>
         {label}
       </label>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
         <select
           id={`${id}-min`}
           aria-label={`Minimum ${label.toLowerCase()}`}
@@ -87,129 +114,228 @@ function RoomRange({ id, label, optionLabel, min, max, onMin, onMax }: RangeProp
   );
 }
 
-export function SearchForm({ params, onSearch, onClearAll, loading }: Props) {
-  const [draft, setDraft] = useState(params);
+function Chevron() {
+  return (
+    <svg className="w-3.5 h-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
+/** Zillow-style filter row: each pill opens a small panel and applies as you change it. */
+export function SearchForm({
+  params,
+  onSearch,
+  onClearAll,
+  loading,
+  neighborhoods,
+  selectedNeighborhoods,
+  onNeighborhoods,
+  neighborhoodCounts,
+  sort,
+  onSort,
+}: Props) {
+  const [open, setOpen] = useState<Panel | null>(null);
+  const [priceDraft, setPriceDraft] = useState({ min: params.minRent, max: params.maxRent });
   const [shown, setShown] = useState(params);
 
-  // Applying a saved search changes the running search under the form, and the
-  // boxes have to follow it; anything typed since is on its way out anyway.
+  // Applying a saved search changes the running search under the pills, and the
+  // price boxes have to follow it.
   if (shown !== params) {
     setShown(params);
-    setDraft(params);
+    setPriceDraft({ min: params.minRent, max: params.maxRent });
   }
 
-  const change = (patch: Partial<SearchParams>) => setDraft((current) => ({ ...current, ...patch }));
+  const close = () => setOpen(null);
+  const toggle = (panel: Panel) => setOpen((current) => (current === panel ? null : panel));
+  const apply = (patch: Partial<SearchParams>) => onSearch({ ...params, ...patch });
 
-  const minRent = draft.minRent;
-  const maxRent = draft.maxRent;
-  const minBedrooms = roomValue(draft.minBedrooms);
-  const maxBedrooms = roomValue(draft.maxBedrooms);
-  const minBathrooms = roomValue(draft.minBathrooms);
-  const maxBathrooms = roomValue(draft.maxBathrooms);
-  const dedupe = draft.dedupe;
-
-  function handleClear() {
-    setDraft(DEFAULT_SEARCH);
-    onClearAll();
+  function applyPrice() {
+    const min = Math.max(0, priceDraft.min);
+    const max = Math.max(min, priceDraft.max);
+    apply({ minRent: min, maxRent: max });
+    close();
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    onSearch(draft);
-  }
+  const priceActive = params.minRent !== DEFAULT_SEARCH.minRent || params.maxRent !== DEFAULT_SEARCH.maxRent;
+  const bedsActive = params.minBedrooms !== null || params.maxBedrooms !== null;
+  const bathsActive = params.minBathrooms !== null || params.maxBathrooms !== null;
+  const hoodsActive = selectedNeighborhoods.size > 0;
+  const anyActive = priceActive || bedsActive || bathsActive || hoodsActive || !params.dedupe;
 
-  // Re-searches on the spot: a checkbox that needed a second button press to
-  // take effect reads as broken.
-  function handleDedupe(next: boolean) {
-    setDraft({ ...draft, dedupe: next });
-    onSearch({ ...draft, dedupe: next });
-  }
+  const pill = (panel: Panel, active: boolean, label: string) => (
+    <button
+      type="button"
+      onClick={() => toggle(panel)}
+      aria-expanded={open === panel}
+      className={`pill ${active ? 'pill-active' : ''}`}
+      disabled={loading}
+    >
+      {label}
+      <Chevron />
+    </button>
+  );
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 items-end">
-        <div>
-          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-dim)' }} htmlFor="min-rent">
-            Rent from
-          </label>
-          <input
-            id="min-rent"
-            type="number"
-            value={minRent}
-            onChange={e => change({ minRent: Number(e.target.value) })}
-            className={inputClass}
-            style={inputStyle}
-            min={0}
-            step={100}
-          />
-        </div>
+    <div className="flex flex-wrap items-center gap-2">
+      <Popover open={open === 'price'} onClose={close} trigger={pill('price', priceActive, priceLabel(params))} className="w-72">
+        <form
+          className="space-y-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            applyPrice();
+          }}
+        >
+          <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+            Monthly rent
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs" style={{ color: 'var(--text-dim)' }}>
+              From
+              <input
+                type="number"
+                value={priceDraft.min}
+                onChange={(e) => setPriceDraft({ ...priceDraft, min: Number(e.target.value) })}
+                className={`${inputClass} mt-1`}
+                style={inputStyle}
+                min={0}
+                step={100}
+              />
+            </label>
+            <label className="text-xs" style={{ color: 'var(--text-dim)' }}>
+              Up to
+              <input
+                type="number"
+                value={priceDraft.max}
+                onChange={(e) => setPriceDraft({ ...priceDraft, max: Number(e.target.value) })}
+                className={`${inputClass} mt-1`}
+                style={inputStyle}
+                min={0}
+                step={100}
+              />
+            </label>
+          </div>
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => {
+                setPriceDraft({ min: DEFAULT_SEARCH.minRent, max: DEFAULT_SEARCH.maxRent });
+                apply({ minRent: DEFAULT_SEARCH.minRent, maxRent: DEFAULT_SEARCH.maxRent });
+                close();
+              }}
+              className="text-xs font-medium underline"
+              style={{ color: 'var(--text-dim)' }}
+            >
+              Any price
+            </button>
+            <button
+              type="submit"
+              className="text-sm font-semibold px-4 py-1.5 rounded-lg text-white"
+              style={{ backgroundColor: 'var(--accent)' }}
+            >
+              Done
+            </button>
+          </div>
+        </form>
+      </Popover>
 
-        <div>
-          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-dim)' }} htmlFor="max-rent">
-            Rent up to
-          </label>
-          <input
-            id="max-rent"
-            type="number"
-            value={maxRent}
-            onChange={e => change({ maxRent: Number(e.target.value) })}
-            className={inputClass}
-            style={inputStyle}
-            min={0}
-            step={100}
-          />
-        </div>
-
+      <Popover
+        open={open === 'beds'}
+        onClose={close}
+        trigger={pill('beds', bedsActive, rangeLabel(params.minBedrooms, params.maxBedrooms, 'bd', 'Beds'))}
+        className="w-72"
+      >
         <RoomRange
           id="bedrooms"
           label="Bedrooms"
           optionLabel={(count) => (count === 0 ? 'Studio' : `${count} bd`)}
-          min={minBedrooms}
-          max={maxBedrooms}
-          onMin={(value) => change({ minBedrooms: parseRoom(value) })}
-          onMax={(value) => change({ maxBedrooms: parseRoom(value) })}
+          min={roomValue(params.minBedrooms)}
+          max={roomValue(params.maxBedrooms)}
+          onMin={(value) => apply({ minBedrooms: parseRoom(value) })}
+          onMax={(value) => apply({ maxBedrooms: parseRoom(value) })}
         />
+      </Popover>
 
+      <Popover
+        open={open === 'baths'}
+        onClose={close}
+        trigger={pill('baths', bathsActive, rangeLabel(params.minBathrooms, params.maxBathrooms, 'ba', 'Baths'))}
+        className="w-72"
+      >
         <RoomRange
           id="bathrooms"
           label="Bathrooms"
           optionLabel={(count) => `${count} ba`}
-          min={minBathrooms}
-          max={maxBathrooms}
-          onMin={(value) => change({ minBathrooms: parseRoom(value) })}
-          onMax={(value) => change({ maxBathrooms: parseRoom(value) })}
+          min={roomValue(params.minBathrooms)}
+          max={roomValue(params.maxBathrooms)}
+          onMin={(value) => apply({ minBathrooms: parseRoom(value) })}
+          onMax={(value) => apply({ maxBathrooms: parseRoom(value) })}
         />
+      </Popover>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="font-medium py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ backgroundColor: 'var(--accent)', color: 'var(--bg)' }}
-        >
-          {loading ? 'Loading…' : 'Update listings'}
-        </button>
+      <Popover
+        open={open === 'neighborhoods'}
+        onClose={close}
+        trigger={pill(
+          'neighborhoods',
+          hoodsActive,
+          hoodsActive
+            ? selectedNeighborhoods.size === 1
+              ? [...selectedNeighborhoods][0]
+              : `${selectedNeighborhoods.size} neighborhoods`
+            : 'Neighborhood',
+        )}
+        className="w-[min(90vw,32rem)]"
+      >
+        <NeighborhoodFilter
+          neighborhoods={neighborhoods}
+          selected={selectedNeighborhoods}
+          onChange={onNeighborhoods}
+          counts={neighborhoodCounts}
+        />
+      </Popover>
 
+      <Popover open={open === 'sort'} onClose={close} trigger={pill('sort', false, `Sort: ${sortLabel(sort)}`)} className="w-72" align="right">
+        <SortSelect
+          sort={sort}
+          onChange={(next) => {
+            onSort(next);
+            close();
+          }}
+        />
+      </Popover>
+
+      <Popover open={open === 'more'} onClose={close} trigger={pill('more', !params.dedupe, 'More')} className="w-80" align="right">
+        <label className="flex items-start gap-2 text-sm cursor-pointer" style={{ color: 'var(--text)' }}>
+          <input
+            type="checkbox"
+            checked={!params.dedupe}
+            onChange={(e) => apply({ dedupe: !e.target.checked })}
+            disabled={loading}
+            className="mt-1 accent-[var(--accent)]"
+          />
+          <span>
+            Show every site&rsquo;s copy of a listing
+            <span className="block text-xs" style={{ color: 'var(--text-dim)' }}>
+              Off: one card per apartment, with the other sites linked on it.
+            </span>
+          </span>
+        </label>
+      </Popover>
+
+      {anyActive && (
         <button
           type="button"
-          onClick={handleClear}
-          disabled={loading}
-          className="font-medium py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50"
-          style={{ border: '1px solid var(--border)', color: 'var(--text-dim)' }}
+          onClick={() => {
+            onClearAll();
+            close();
+          }}
+          className="text-sm font-medium underline whitespace-nowrap"
+          style={{ color: 'var(--text-dim)' }}
         >
           Clear all
         </button>
-      </div>
-
-      <label className="flex items-center gap-2 mt-3 text-xs cursor-pointer" style={{ color: 'var(--text-dim)' }}>
-        <input
-          type="checkbox"
-          checked={!dedupe}
-          onChange={(e) => handleDedupe(!e.target.checked)}
-          disabled={loading}
-          className="accent-[var(--accent)]"
-        />
-        Show every site&rsquo;s copy of a listing (off: one card per apartment, with the other sites on it)
-      </label>
-    </form>
+      )}
+    </div>
   );
 }

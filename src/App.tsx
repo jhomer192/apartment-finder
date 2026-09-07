@@ -5,8 +5,6 @@ import { SearchForm } from './components/SearchForm';
 import { SavedFilters } from './components/SavedFilters';
 import { DEFAULT_SEARCH } from './data/search';
 import { ResultsGrid } from './components/ResultsGrid';
-import { SortSelect } from './components/SortSelect';
-import { NeighborhoodFilter } from './components/NeighborhoodFilter';
 import { SourceLinksBar } from './components/SourceLinksBar';
 import { MapView } from './components/MapView';
 import { ThemePicker } from './components/ThemePicker';
@@ -21,6 +19,7 @@ import { DislikesProvider } from './components/DislikesProvider';
 import { ShortlistPanel } from './components/ShortlistPanel';
 import { PasswordPanel } from './components/PasswordPanel';
 import { CommuteBar } from './components/CommuteBar';
+import { SettingsDrawer, DrawerSection } from './components/SettingsDrawer';
 import { useSearch } from './hooks/useSearch';
 import { useShortlist } from './hooks/useShortlist';
 import { useDislikes } from './hooks/useDislikes';
@@ -95,6 +94,8 @@ function Finder({
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>('listings');
   const [shortlistOpen, setShortlistOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const closeSettings = useCallback(() => setSettingsOpen(false), []);
   const [showHidden, setShowHidden] = useState(false);
   const { saved } = useShortlist();
   const dislikes = useDislikes();
@@ -165,11 +166,11 @@ function Finder({
   function handleSearch(params: SearchParams) {
     setActiveSearch(params);
     search(params);
-    setNeighborhoods(new Set());
   }
 
   function handleClearAll() {
     handleSearch(DEFAULT_SEARCH);
+    setNeighborhoods(new Set());
   }
 
   /** A saved search restores the neighborhoods and the sort too, not just the numbers. */
@@ -193,180 +194,141 @@ function Finder({
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)' }}>
-      {/* Header */}
-      <header className="border-b sticky top-0 z-30 backdrop-blur-sm" style={{ borderColor: 'var(--border)', backgroundColor: 'color-mix(in srgb, var(--bg) 80%, transparent)' }}>
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
-          <svg className="w-7 h-7" style={{ color: 'var(--accent-2)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-            <polyline points="9,22 9,12 15,12 15,22" />
-          </svg>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Apartment Finder</h1>
-          <div className="ml-auto flex items-center gap-3">
-            <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-dim)' }}>
-              {email}
+      {/* Header: brand, filter pills and the two things people reach for — Saved and their account. */}
+      <header
+        className="lg:sticky top-0 z-30 border-b"
+        style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface)' }}
+      >
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
+          <a href="#top" className="flex items-center gap-2 shrink-0" style={{ color: 'var(--accent)' }}>
+            <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
+            </svg>
+            <span className="text-lg font-bold tracking-tight hidden sm:inline" style={{ color: 'var(--text)' }}>
+              Apartment Finder
             </span>
-            <button
-              onClick={showShortlist}
-              className="text-xs font-medium px-2.5 py-1.5 rounded-lg border"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
-            >
-              Saved {saved.length}
-            </button>
-            <button
-              onClick={() => void signOut()}
-              className="text-xs font-medium px-2.5 py-1.5 rounded-lg border"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
-            >
-              Sign out
-            </button>
-            <ThemePicker />
+          </a>
+
+          <div className="hidden lg:block flex-1 min-w-0">
+            <SearchForm
+              params={activeSearch}
+              onSearch={handleSearch}
+              onClearAll={handleClearAll}
+              loading={loading}
+              neighborhoods={occupiedNeighborhoods}
+              selectedNeighborhoods={neighborhoods}
+              onNeighborhoods={setNeighborhoods}
+              neighborhoodCounts={neighborhoodCounts}
+              sort={sort}
+              onSort={setSort}
+            />
           </div>
+
+          <div className="ml-auto flex items-center gap-2 shrink-0">
+            <button onClick={showShortlist} className="pill" title="Your group's saved listings">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill={saved.length > 0 ? '#ef4444' : 'none'} stroke={saved.length > 0 ? '#ef4444' : 'currentColor'} strokeWidth={2}>
+                <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+              </svg>
+              Saved{saved.length > 0 ? ` ${saved.length}` : ''}
+            </button>
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="pill"
+              aria-label="Open settings"
+              title={email}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              <span
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-white"
+                style={{ backgroundColor: 'var(--accent)' }}
+                aria-hidden
+              >
+                {email[0]?.toUpperCase()}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Filters drop under the brand on smaller screens. */}
+        <div className="lg:hidden max-w-[1600px] mx-auto px-4 sm:px-6 pb-3">
+          <SearchForm
+            params={activeSearch}
+            onSearch={handleSearch}
+            onClearAll={handleClearAll}
+            loading={loading}
+            neighborhoods={occupiedNeighborhoods}
+            selectedNeighborhoods={neighborhoods}
+            onNeighborhoods={setNeighborhoods}
+            neighborhoodCounts={neighborhoodCounts}
+            sort={sort}
+            onSort={setSort}
+          />
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      <main id="top" className="max-w-[1600px] mx-auto px-4 sm:px-6 py-5 space-y-5">
         <ClaudeSearch />
 
-        <HouseRulesBar onSaved={rerunSearch} />
-
-        <SearchForm params={activeSearch} onSearch={handleSearch} onClearAll={handleClearAll} loading={loading} />
-
-        <SavedFilters
-          current={{ ...activeSearch, neighborhoods: [...neighborhoods], sort }}
-          onApply={applySavedFilter}
-        />
-
-        {/* Error */}
         {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
+          <div className="rounded-xl px-4 py-3 text-sm" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#dc2626' }}>
             {error}
           </div>
         )}
 
-        {/* Results section */}
         {hasSearched && !loading && result && (
-          <>
-            <SourceStatusBar sources={result.sourceStatuses} />
-            <InventoryBar onRefreshed={rerunSearch} />
-
-            {/* Controls bar: count, sort, active filters and view live together so the
-                results header is the one place to steer the list from. */}
-            <div
-              className="sticky top-[61px] z-20 -mx-4 px-4 py-3 flex flex-wrap items-center gap-3 border-b backdrop-blur-sm"
-              style={{ borderColor: 'var(--border)', backgroundColor: 'color-mix(in srgb, var(--bg) 85%, transparent)' }}
-            >
-              <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
-                <span className="font-medium" style={{ color: 'var(--text)' }}>{visibleListings.length}</span> apartment{visibleListings.length !== 1 ? 's' : ''} in San Francisco
-              </p>
-
-              {activeFilters.map((label) => (
-                <span
-                  key={label}
-                  className="text-xs px-2 py-0.5 rounded-full"
-                  style={{
-                    backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)',
-                    color: 'var(--accent)',
-                  }}
-                >
-                  {label}
-                </span>
-              ))}
-
-              {activeFilters.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClearAll}
-                  className="text-xs font-medium underline"
-                  style={{ color: 'var(--accent)' }}
-                >
-                  Clear all
-                </button>
-              )}
-
-              {hiddenCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowHidden((current) => !current)}
-                  className="text-xs font-medium underline"
-                  style={{ color: 'var(--text-dim)' }}
-                  title={`Listings ${dislikes.hideAfter} or more of you disliked`}
-                >
-                  {showHidden
-                    ? `Hide the ${hiddenCount} the group disliked`
-                    : `${hiddenCount} hidden by the group · show`}
-                </button>
-              )}
-
-              <div className="ml-auto flex items-center gap-3">
-                <SortSelect sort={sort} onChange={setSort} />
-
-                {/* View toggle */}
-                <div className="flex items-center rounded-lg border p-0.5" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(360px,42%)] lg:gap-5 lg:items-start">
+            {/* Listings column */}
+            <section className={`space-y-4 ${viewMode === 'map' ? 'hidden lg:block' : ''}`}>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
+                  {visibleListings.length.toLocaleString()} apartment{visibleListings.length !== 1 ? 's' : ''} in San Francisco
+                </h2>
+                {activeFilters.length > 0 && (
+                  <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+                    {activeFilters.join(' · ')}
+                  </p>
+                )}
+                {hiddenCount > 0 && (
                   <button
-                    onClick={() => setViewMode('listings')}
-                    className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                    style={viewMode === 'listings'
-                      ? { backgroundColor: 'var(--border)', color: 'var(--text)' }
-                      : { color: 'var(--text-dim)' }}
+                    type="button"
+                    onClick={() => setShowHidden((current) => !current)}
+                    className="text-xs font-medium underline"
+                    style={{ color: 'var(--text-dim)' }}
+                    title={`Listings ${dislikes.hideAfter} or more of you disliked`}
                   >
-                    <span className="flex items-center gap-1.5">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <rect x="3" y="3" width="7" height="7" rx="1" />
-                        <rect x="14" y="3" width="7" height="7" rx="1" />
-                        <rect x="3" y="14" width="7" height="7" rx="1" />
-                        <rect x="14" y="14" width="7" height="7" rx="1" />
-                      </svg>
-                      Listings
-                    </span>
+                    {showHidden ? `Hide ${hiddenCount} disliked listings` : `${hiddenCount} hidden by the group · show`}
                   </button>
-                  <button
-                    onClick={() => setViewMode('map')}
-                    className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                    style={viewMode === 'map'
-                      ? { backgroundColor: 'var(--border)', color: 'var(--text)' }
-                      : { color: 'var(--text-dim)' }}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                      </svg>
-                      Map
-                    </span>
-                  </button>
-                </div>
+                )}
               </div>
-            </div>
 
-            <CommuteBar />
+              <ResultsGrid
+                listings={visibleListings}
+                searchKey={inNeighborhoods}
+                sort={sort}
+                onClearNeighborhoods={() => setNeighborhoods(new Set())}
+                onShowShortlist={showShortlist}
+              />
+              <SourceLinksBar sources={result.sources} />
+            </section>
 
-            <NeighborhoodFilter
-              neighborhoods={occupiedNeighborhoods}
-              selected={neighborhoods}
-              onChange={setNeighborhoods}
-              counts={neighborhoodCounts}
-            />
-
-            {viewMode === 'listings' ? (
-              <div className="space-y-4">
-                <ResultsGrid
-                  listings={visibleListings}
-                  searchKey={inNeighborhoods}
-                  sort={sort}
-                  onClearNeighborhoods={() => setNeighborhoods(new Set())}
-                  onShowShortlist={showShortlist}
-                />
-                <SourceLinksBar sources={result.sources} />
-              </div>
-            ) : (
-              <MapView listings={visibleListings} centerLat={result.centerLat} centerLng={result.centerLng} />
-            )}
-          </>
+            {/* Map column: rides along on desktop, swaps in for the list on phones. */}
+            <aside className={`lg:sticky lg:top-[73px] ${viewMode === 'map' ? '' : 'hidden lg:block'}`}>
+              <MapView
+                listings={visibleListings}
+                centerLat={result.centerLat}
+                centerLng={result.centerLng}
+                className="h-[70vh] lg:h-[calc(100vh-170px)]"
+              />
+            </aside>
+          </div>
         )}
 
-        {/* Loading state */}
         {loading && (
           <div className="text-center py-20">
-            <svg className="animate-spin w-10 h-10 mx-auto mb-4" style={{ color: 'var(--accent-2)' }} viewBox="0 0 24 24">
+            <svg className="animate-spin w-10 h-10 mx-auto mb-4" style={{ color: 'var(--accent)' }} viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
@@ -375,16 +337,61 @@ function Finder({
         )}
 
         <ShortlistPanel open={shortlistOpen} onOpenChange={setShortlistOpen} />
-
-        <AlertSettings />
-
-        <PasswordPanel hasPassword={hasPassword} onPasswordSet={onPasswordSet} />
       </main>
 
-      {/* Footer */}
+      {/* Phones: floating List / Map switch, the way Zillow does it. */}
+      {hasSearched && !loading && result && (
+        <div className="lg:hidden fixed bottom-5 inset-x-0 z-20 flex justify-center pointer-events-none">
+          <button
+            type="button"
+            onClick={() => {
+              setViewMode((current) => (current === 'map' ? 'listings' : 'map'));
+              window.scrollTo({ top: 0 });
+            }}
+            className="pointer-events-auto flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold text-white shadow-lg"
+            style={{ backgroundColor: 'var(--text)', color: 'var(--surface)' }}
+          >
+            {viewMode === 'map' ? (
+              <>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                Show list
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+                Show map
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      <SettingsDrawer open={settingsOpen} onClose={closeSettings} email={email} onSignOut={() => void signOut()}>
+        <HouseRulesBar onSaved={rerunSearch} />
+        <SavedFilters current={{ ...activeSearch, neighborhoods: [...neighborhoods], sort }} onApply={applySavedFilter} />
+        <DrawerSection title="Commute" hint="Every listing gets a Google Maps directions link to this address.">
+          <CommuteBar />
+        </DrawerSection>
+        <AlertSettings />
+        <DrawerSection title="Listing sources" hint="Refreshed nightly; refresh by hand if you want the latest right now.">
+          <InventoryBar onRefreshed={rerunSearch} />
+          {result && <SourceStatusBar sources={result.sourceStatuses} />}
+        </DrawerSection>
+        <DrawerSection title="Password">
+          <PasswordPanel hasPassword={hasPassword} onPasswordSet={onPasswordSet} />
+        </DrawerSection>
+        <DrawerSection title="Theme">
+          <ThemePicker />
+        </DrawerSection>
+      </SettingsDrawer>
+
       <footer className="border-t mt-12" style={{ borderColor: 'var(--border)' }}>
-        <div className="max-w-7xl mx-auto px-4 py-6 text-center text-xs" style={{ color: 'var(--text-dim)' }}>
-          Live listings pulled from the sources above. Scam scores are heuristics plus a Claude review —
+        <div className="max-w-[1600px] mx-auto px-4 py-6 text-center text-xs" style={{ color: 'var(--text-dim)' }}>
+          Live listings pulled from Redfin, ApartmentList, Zumper and Rent.com. Scam scores are heuristics plus a Claude review —
           treat them as a prompt to look closer, not proof either way.
         </div>
       </footer>

@@ -15,7 +15,54 @@ body {
 }
 
 .map-tiles-dark {
-  filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9);
+  filter: var(--tile-filter);
+}
+
+/* Cards and panels share one elevation language. */
+.card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.card-hover {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.card-hover:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
+/* Airbnb-style pill control: rounded, bordered, darkens on hover. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background-color: var(--surface);
+  color: var(--text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.pill:hover {
+  border-color: var(--text);
+}
+
+.pill-active {
+  border-color: var(--text);
+  background-color: var(--text);
+  color: var(--surface);
+}
+
+.pill-active:hover {
+  border-color: var(--text);
 }
 
 .listing-marker {

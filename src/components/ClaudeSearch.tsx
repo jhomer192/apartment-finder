@@ -112,30 +112,23 @@ export function ClaudeSearch() {
   }
 
   return (
-    <div
-      className="rounded-2xl border-2 p-6 sm:p-8 space-y-5"
-      style={{
-        backgroundColor: 'var(--surface)',
-        borderColor: 'var(--accent)',
-        boxShadow: '0 10px 40px -20px var(--accent)',
-      }}
-    >
+    <div className="card p-5 sm:p-6 space-y-4">
       <div className="flex items-start gap-3">
         <span
-          className="flex items-center justify-center w-10 h-10 rounded-xl text-white shrink-0"
+          className="flex items-center justify-center w-9 h-9 rounded-xl text-white shrink-0"
           style={{ backgroundColor: 'var(--accent)' }}
           aria-hidden
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2l1.9 5.6L19.5 9l-5.6 1.9L12 16.5l-1.9-5.6L4.5 9l5.6-1.4L12 2z" />
             <path d="M18.5 14l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9.9-2.6z" opacity="0.7" />
           </svg>
         </span>
         <div>
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>
             Ask Claude
           </h2>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-dim)' }}>
             {history.length > 0
               ? 'Ask a follow-up in plain English — Claude remembers the last few questions.'
               : 'Chat in plain English. Claude reads every listing we have, ranks the deals and flags the sketchy ones.'}
@@ -170,13 +163,13 @@ export function ClaudeSearch() {
           onChange={(event) => setQuestion(event.target.value)}
           placeholder="e.g. 2br under $4,500 walkable to Caltrain, nothing sketchy"
           maxLength={500}
-          className="flex-1 rounded-xl px-4 py-3.5 text-base border-2 outline-none"
-          style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
+          className="flex-1 rounded-full px-5 py-3 text-base border outline-none focus:ring-2 focus:ring-[var(--accent)]"
+          style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)', boxShadow: 'var(--shadow)' }}
         />
         <button
           type="submit"
           disabled={pending || question.trim().length < 3}
-          className="px-6 py-3.5 rounded-xl text-base font-semibold text-white disabled:opacity-50"
+          className="px-6 py-3 rounded-full text-base font-semibold text-white disabled:opacity-50"
           style={{ backgroundColor: 'var(--accent)' }}
         >
           {pending ? 'Thinking…' : history.length > 0 ? 'Ask' : 'Ask Claude'}
@@ -188,30 +181,31 @@ export function ClaudeSearch() {
               setHistory([]);
               setResult(null);
             }}
-            className="px-4 py-3.5 rounded-xl text-sm font-medium border"
-            style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
+            className="pill"
           >
             Start over
           </button>
         )}
       </form>
 
-      <div className="flex flex-wrap gap-2">
-        {SUGGESTIONS.map((suggestion) => (
-          <button
-            key={suggestion}
-            type="button"
-            onClick={() => {
-              setQuestion(suggestion);
-              void submit(suggestion);
-            }}
-            className="text-xs px-3 py-1.5 rounded-full border"
-            style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
-          >
-            {suggestion}
-          </button>
-        ))}
-      </div>
+      {history.length === 0 && !result && !pending && (
+        <div className="flex flex-wrap gap-2">
+          {SUGGESTIONS.map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              onClick={() => {
+                setQuestion(suggestion);
+                void submit(suggestion);
+              }}
+              className="pill"
+              style={{ color: 'var(--text-dim)' }}
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      )}
 
       {pending && (
         <p className="text-sm animate-pulse" style={{ color: 'var(--text-dim)' }}>
