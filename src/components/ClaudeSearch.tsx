@@ -198,7 +198,7 @@ export function ClaudeSearch() {
                 setQuestion(suggestion);
                 void submit(suggestion);
               }}
-              className="pill max-w-full whitespace-normal text-left"
+              className="pill pill-wrap"
               style={{ color: 'var(--text-dim)' }}
             >
               {suggestion}

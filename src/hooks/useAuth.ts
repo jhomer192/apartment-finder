@@ -20,10 +20,8 @@ export function useAuth() {
       const inviteToken = inviteTokenFromUrl();
       try {
         if (inviteToken) {
-          const redeemed = await api.redeemInvite(inviteToken);
+          await api.redeemInvite(inviteToken);
           window.history.replaceState(null, '', '/');
-          if (!cancelled) setUser(redeemed);
-          return;
         }
         const session = await api.getSession();
         if (!cancelled) setUser(session);

@@ -51,6 +51,12 @@ body {
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
+.pill-wrap {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+
 .pill:hover {
   border-color: var(--text);
 }
