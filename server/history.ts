@@ -96,13 +96,25 @@ interface LatestRun {
   sources: string;
 }
 
+export interface SavedRef {
+  key: string;
+  /** Sources rotate their listing ids; the page URL is the stable identity. */
+  url: string;
+}
+
+const byUrl = db.prepare(
+  `SELECT listing_key, source_id, price, last_seen_at FROM inventory
+   WHERE json_extract(payload, '$.url') = ? ORDER BY last_seen_at DESC LIMIT 1`,
+);
+
 /**
  * Whether the places the group saved are still advertised. A source that
  * failed overnight leaves its listings `listed`: silence is not a delisting.
  */
-export function availabilityFor(keys: string[]): Map<string, Availability> {
+export function availabilityFor(refs: SavedRef[]): Map<string, Availability> {
   const result = new Map<string, Availability>();
-  if (keys.length === 0) return result;
+  if (refs.length === 0) return result;
+  const keys = refs.map((ref) => ref.key);
 
   const run = db
     .prepare(
@@ -121,17 +133,24 @@ export function availabilityFor(keys: string[]): Map<string, Availability> {
     .all(...keys) as StoredRow[];
   const stored = new Map(rows.map((row) => [row.listing_key, row]));
 
-  for (const key of keys) {
-    const row = stored.get(key);
+  const missed = (row: StoredRow) =>
+    run !== undefined && reached.has(row.source_id) && row.last_seen_at < run.finished_at;
+
+  for (const { key, url } of refs) {
+    let row = stored.get(key);
+    if (!row || missed(row)) {
+      const same = byUrl.get(url) as StoredRow | undefined;
+      if (same && !missed(same)) row = same;
+    }
     if (!row) {
       result.set(key, { status: run ? 'gone' : 'unknown', lastSeenAt: null, currentPrice: null });
       continue;
     }
-    const missedLastCrawl = run !== undefined && reached.has(row.source_id) && row.last_seen_at < run.finished_at;
+    const gone = missed(row);
     result.set(key, {
-      status: missedLastCrawl ? 'gone' : 'listed',
+      status: gone ? 'gone' : 'listed',
       lastSeenAt: row.last_seen_at,
-      currentPrice: missedLastCrawl ? null : row.price,
+      currentPrice: gone ? null : row.price,
     });
   }
   return result;

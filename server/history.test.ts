@@ -44,6 +44,8 @@ function finishRun(finishedAt: number, sources: Array<{ id: string; count: numbe
   );
 }
 
+const ref = (key: string, url = 'https://example.com/1') => ({ key, url });
+
 beforeEach(() => {
   db.exec('DELETE FROM inventory; DELETE FROM inventory_runs; DELETE FROM listing_prices');
 });
@@ -83,7 +85,7 @@ describe('availabilityFor', () => {
     storeListings([scored({ price: 4000 })], 5_000);
     finishRun(5_000, [{ id: 'redfin', count: 1 }]);
 
-    expect(availabilityFor(['redfin:1']).get('redfin:1')).toEqual({
+    expect(availabilityFor([ref('redfin:1')]).get('redfin:1')).toEqual({
       status: 'listed',
       lastSeenAt: 5_000,
       currentPrice: 4000,
@@ -94,22 +96,34 @@ describe('availabilityFor', () => {
     storeListings([scored()], 5_000);
     finishRun(9_000, [{ id: 'redfin', count: 40 }]);
 
-    expect(availabilityFor(['redfin:1']).get('redfin:1')?.status).toBe('gone');
+    expect(availabilityFor([ref('redfin:1')]).get('redfin:1')?.status).toBe('gone');
   });
 
   it('does not read a failed source as a delisting', () => {
     storeListings([scored()], 5_000);
     finishRun(9_000, [{ id: 'redfin', count: 0 }, { id: 'zumper', count: 300 }]);
 
-    expect(availabilityFor(['redfin:1']).get('redfin:1')?.status).toBe('listed');
+    expect(availabilityFor([ref('redfin:1')]).get('redfin:1')?.status).toBe('listed');
   });
 
   it('treats a pruned listing as gone once any crawl has finished', () => {
     finishRun(9_000, [{ id: 'redfin', count: 40 }]);
-    expect(availabilityFor(['redfin:old']).get('redfin:old')?.status).toBe('gone');
+    expect(availabilityFor([ref('redfin:old')]).get('redfin:old')?.status).toBe('gone');
+  });
+
+  it('follows the same page URL when the source rotates its listing id', () => {
+    storeListings([scored({ key: 'redfin:old', externalId: 'old' })], 5_000);
+    storeListings([scored({ key: 'redfin:new', externalId: 'new', price: 3900 })], 9_000);
+    finishRun(9_000, [{ id: 'redfin', count: 40 }]);
+
+    expect(availabilityFor([ref('redfin:old')]).get('redfin:old')).toEqual({
+      status: 'listed',
+      lastSeenAt: 9_000,
+      currentPrice: 3900,
+    });
   });
 
   it('cannot tell before the first crawl', () => {
-    expect(availabilityFor(['redfin:1']).get('redfin:1')?.status).toBe('unknown');
+    expect(availabilityFor([ref('redfin:1')]).get('redfin:1')?.status).toBe('unknown');
   });
 });

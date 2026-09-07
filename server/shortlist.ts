@@ -68,12 +68,13 @@ function withHistory(listing: ScoredListing, current: ScoredListing['history']):
 
 function hydrate(rows: SavedRow[]): SavedListing[] {
   const keys = rows.map((row) => row.listing_key);
+  const snapshots = new Map(rows.map((row) => [row.listing_key, JSON.parse(row.snapshot) as ScoredListing]));
   const notes = notesFor(keys);
-  const availability = availabilityFor(keys);
+  const availability = availabilityFor(rows.map((row) => ({ key: row.listing_key, url: snapshots.get(row.listing_key)!.url })));
   const history = historyFor(keys);
   return rows.map((row) => ({
     key: row.listing_key,
-    listing: withHistory(JSON.parse(row.snapshot) as ScoredListing, history.get(row.listing_key)),
+    listing: withHistory(snapshots.get(row.listing_key)!, history.get(row.listing_key)),
     savedBy: row.saved_by,
     savedAt: row.saved_at,
     status: row.status,
