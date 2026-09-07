@@ -9,7 +9,9 @@ import type {
   DislikeSummary,
   HouseRules,
   InventoryStatus,
+  JoinLink,
   ListingNote,
+  Member,
   ListingsResponse,
   SavedFilter,
   SavedListing,
@@ -98,6 +100,33 @@ export function createInviteLink(email: string): Promise<{ email: string; url: s
     method: 'POST',
     body: JSON.stringify({ email }),
   });
+}
+
+export function previewJoinLink(token: string): Promise<{ invitedBy: string; expiresAt: number }> {
+  return request(`/api/join/${encodeURIComponent(token)}`);
+}
+
+export function claimJoinLink(token: string, email: string, password: string): Promise<SessionUser> {
+  return request(`/api/join/${encodeURIComponent(token)}`, {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function fetchJoinLinks(): Promise<{ links: JoinLink[]; members: Member[] }> {
+  return request('/api/join-links');
+}
+
+export function createJoinLink(label: string): Promise<{ url: string; link: JoinLink; links: JoinLink[] }> {
+  return request('/api/join-links', { method: 'POST', body: JSON.stringify({ label }) });
+}
+
+export function revokeJoinLink(id: number): Promise<{ links: JoinLink[] }> {
+  return request(`/api/join-links/${id}`, { method: 'DELETE' });
+}
+
+export function removeMember(email: string): Promise<{ members: Member[] }> {
+  return request(`/api/members/${encodeURIComponent(email)}`, { method: 'DELETE' });
 }
 
 export interface ListingQuery {

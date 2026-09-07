@@ -8,8 +8,15 @@ function inviteTokenFromUrl(): string | null {
   return match ? match[1] : null;
 }
 
+/** Shared join links look like /join/<token>; the page asks for an email + password first. */
+function joinTokenFromUrl(): string | null {
+  const match = window.location.pathname.match(/^\/join\/([A-Za-z0-9_-]{20,200})$/);
+  return match ? match[1] : null;
+}
+
 export function useAuth() {
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [joinToken, setJoinToken] = useState<string | null>(() => joinTokenFromUrl());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,6 +49,8 @@ export function useAuth() {
 
   const refresh = useCallback(async () => {
     setUser(await api.getSession());
+    setJoinToken(null);
+    if (window.location.pathname !== '/') window.history.replaceState(null, '', '/');
   }, []);
 
   const signOut = useCallback(async () => {
@@ -49,5 +58,5 @@ export function useAuth() {
     setUser(null);
   }, []);
 
-  return { user, loading, error, signOut, refresh };
+  return { user, loading, error, joinToken, signOut, refresh };
 }

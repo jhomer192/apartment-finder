@@ -36,6 +36,15 @@ import { config } from './config.js';
 import { draftInquiry } from './contact.js';
 import { CONTACT_CHANNELS, CONTACT_OUTCOMES, deleteContact, listContacts, logContact, updateContact } from './contacts.js';
 import { purgeExpired } from './db.js';
+import {
+  claimJoinLink,
+  createJoinLink,
+  listJoinLinks,
+  listMembers,
+  previewJoinLink,
+  removeMember,
+  revokeJoinLink,
+} from './members.js';
 import { deleteFilter, filterSchema, listFilters, saveFilter } from './filters.js';
 import { deleteGroup, groupSchema, listGroups, saveGroup } from './groups.js';
 import { bookTour, cancelTour, listTours, planDays, tourSchema } from './tours.js';
@@ -215,6 +224,70 @@ app.post('/api/admin/invites', authLimiter, requireAuth, requireAdmin, (req, res
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : 'Could not invite' });
   }
+});
+
+const joinToken = z.string().regex(/^[A-Za-z0-9_-]{20,200}$/);
+
+/** Anyone in the group can mint a link to text to a friend. */
+app.post('/api/join-links', requireAuth, (req, res) => {
+  const body = z.object({ label: z.string().trim().max(80).default('') }).safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'Keep the label short.' });
+    return;
+  }
+  const { token, link } = createJoinLink(req.user!.email, body.data.label);
+  res.json({ url: `${publicBase(req)}/join/${token}`, link, links: listJoinLinks() });
+});
+
+app.get('/api/join-links', requireAuth, (_req, res) => {
+  res.json({ links: listJoinLinks(), members: listMembers() });
+});
+
+app.delete('/api/join-links/:id', requireAuth, (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || !revokeJoinLink(id)) {
+    res.status(404).json({ error: 'That link is already gone.' });
+    return;
+  }
+  res.json({ links: listJoinLinks() });
+});
+
+app.delete('/api/members/:email', requireAuth, requireAdmin, (req, res) => {
+  const email = z.string().email().safeParse(req.params.email);
+  if (!email.success || !removeMember(email.data)) {
+    res.status(404).json({ error: 'Not a removable member.' });
+    return;
+  }
+  res.json({ members: listMembers() });
+});
+
+/** Public: the join page shows who sent the link before asking for anything. */
+app.get('/api/join/:token', authLimiter, (req, res) => {
+  const token = joinToken.safeParse(req.params.token);
+  const preview = token.success ? previewJoinLink(token.data) : null;
+  if (!preview) {
+    res.status(404).json({ error: 'This invite link is invalid, expired, or already used.' });
+    return;
+  }
+  res.json(preview);
+});
+
+app.post('/api/join/:token', authLimiter, (req, res) => {
+  const token = joinToken.safeParse(req.params.token);
+  const body = z
+    .object({ email: z.string().email().max(320), password: z.string().min(MIN_PASSWORD_LENGTH).max(200) })
+    .safeParse(req.body);
+  if (!token.success || !body.success) {
+    res.status(400).json({ error: `Enter your email and a password of at least ${MIN_PASSWORD_LENGTH} characters.` });
+    return;
+  }
+  const result = claimJoinLink(token.data, body.data.email, body.data.password);
+  if (!result) {
+    res.status(401).json({ error: 'This invite link is invalid, expired, or already used.' });
+    return;
+  }
+  setSessionCookie(res, result.sessionToken);
+  res.json({ email: result.email, isAdmin: result.email === config.adminEmail });
 });
 
 /** Express gives an absent query param as `undefined` and a cleared one as `''`. */

@@ -29,6 +29,28 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_sessions_email ON sessions(email);
 
+  -- People let in by a shared join link, on top of ALLOWED_EMAILS.
+  CREATE TABLE IF NOT EXISTS members (
+    email       TEXT PRIMARY KEY,
+    invited_by  TEXT NOT NULL,
+    joined_at   INTEGER NOT NULL,
+    revoked_at  INTEGER
+  );
+
+  -- A join link is minted by a member and texted along by hand; whoever opens
+  -- it picks their email and password and becomes a member.
+  CREATE TABLE IF NOT EXISTS join_links (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_hash  TEXT NOT NULL UNIQUE,
+    created_by  TEXT NOT NULL,
+    label       TEXT NOT NULL DEFAULT '',
+    created_at  INTEGER NOT NULL,
+    expires_at  INTEGER NOT NULL,
+    claimed_by  TEXT,
+    claimed_at  INTEGER,
+    revoked_at  INTEGER
+  );
+
   -- Set only after someone has already redeemed an emailed invite, so a
   -- password can never be the first way into an allowlisted address.
   CREATE TABLE IF NOT EXISTS passwords (

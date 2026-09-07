@@ -12,6 +12,8 @@ import { ClaudeSearch } from './components/ClaudeSearch';
 import { AlertSettings } from './components/AlertSettings';
 import { HouseRulesBar } from './components/HouseRules';
 import { SignInGate } from './components/SignInGate';
+import { JoinGate } from './components/JoinGate';
+import { InvitePanel } from './components/InvitePanel';
 import { SourceStatusBar } from './components/SourceStatusBar';
 import { InventoryBar } from './components/InventoryBar';
 import { ShortlistProvider } from './components/ShortlistProvider';
@@ -57,14 +59,24 @@ function filterLabels(params: SearchParams, neighborhoods: Set<string>): string[
 }
 
 export default function App() {
-  const { user, loading: authLoading, error: authError, signOut, refresh } = useAuth();
+  const { user, loading: authLoading, error: authError, joinToken, signOut, refresh } = useAuth();
+  const [joinDismissed, setJoinDismissed] = useState(false);
+  if (!authLoading && !user && joinToken && !joinDismissed) {
+    return <JoinGate token={joinToken} onJoined={() => void refresh()} onDismiss={() => setJoinDismissed(true)} />;
+  }
   return authLoading || !user ? (
     <Gate loading={authLoading} error={authError} onSignedIn={refresh} />
   ) : (
     <ShortlistProvider>
       <DislikesProvider>
         <ContactsProvider>
-          <Finder email={user.email} hasPassword={user.hasPassword ?? false} signOut={signOut} onPasswordSet={refresh} />
+          <Finder
+            email={user.email}
+            isAdmin={user.isAdmin}
+            hasPassword={user.hasPassword ?? false}
+            signOut={signOut}
+            onPasswordSet={refresh}
+          />
         </ContactsProvider>
       </DislikesProvider>
     </ShortlistProvider>
@@ -86,11 +98,13 @@ function Gate({ loading, error, onSignedIn }: { loading: boolean; error: string 
 
 function Finder({
   email,
+  isAdmin,
   hasPassword,
   signOut,
   onPasswordSet,
 }: {
   email: string;
+  isAdmin: boolean;
   hasPassword: boolean;
   signOut: () => Promise<void>;
   onPasswordSet: () => void;
@@ -383,6 +397,9 @@ function Finder({
         <DrawerSection title="Listing sources" hint="Refreshed nightly; refresh by hand if you want the latest right now.">
           <InventoryBar onRefreshed={rerunSearch} />
           {result && <SourceStatusBar sources={result.sourceStatuses} />}
+        </DrawerSection>
+        <DrawerSection title="Invite friends" hint="Make a link and text it from your phone; whoever opens it picks a password and joins.">
+          <InvitePanel email={email} isAdmin={isAdmin} />
         </DrawerSection>
         <DrawerSection title="Password">
           <PasswordPanel hasPassword={hasPassword} onPasswordSet={onPasswordSet} />

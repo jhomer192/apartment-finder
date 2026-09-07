@@ -30,13 +30,17 @@ function newToken(): string {
   return randomBytes(32).toString('base64url');
 }
 
+const activeMember = db.prepare('SELECT 1 FROM members WHERE email = ? AND revoked_at IS NULL');
+
+/** On the configured allowlist, or let in by a join link and not since removed. */
 export function isAllowed(email: string): boolean {
   const normalized = email.trim().toLowerCase();
-  return config.allowedEmails.some((allowed) => {
+  const configured = config.allowedEmails.some((allowed) => {
     const a = Buffer.from(allowed);
     const b = Buffer.from(normalized);
     return a.length === b.length && timingSafeEqual(a, b);
   });
+  return configured || activeMember.get(normalized) !== undefined;
 }
 
 export function createInvite(email: string): { token: string; expiresAt: number } {

@@ -297,6 +297,25 @@ export interface ContactDraft {
   url: string;
 }
 
+export interface Member {
+  email: string;
+  invitedBy: string;
+  joinedAt: number | null;
+  removable: boolean;
+  isAdmin: boolean;
+}
+
+export interface JoinLink {
+  id: number;
+  createdBy: string;
+  label: string;
+  createdAt: number;
+  expiresAt: number;
+  claimedBy: string | null;
+  claimedAt: number | null;
+  revokedAt: number | null;
+}
+
 export interface SessionUser {
   email: string;
   isAdmin: boolean;
