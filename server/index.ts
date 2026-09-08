@@ -304,7 +304,7 @@ const listingsQuery = z.object({
   maxRent: z.coerce.number().int().min(1).max(100_000).default(8000),
   minBedrooms: z.coerce.number().int().min(0).max(10).nullable().catch(null),
   maxBedrooms: z.coerce.number().int().min(0).max(10).nullable().catch(null),
-  limit: z.coerce.number().int().min(1).max(1000).default(300),
+  limit: z.coerce.number().int().min(1).max(10_000).default(5000),
   /** On unless the reader explicitly asks to see every site's copy of a unit. */
   dedupe: z
     .enum(['true', 'false'])
