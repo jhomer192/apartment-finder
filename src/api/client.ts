@@ -284,8 +284,12 @@ export function cancelTour(id: number): Promise<{ days: TourDay[] }> {
   return request(`/api/tours/${id}`, { method: 'DELETE' });
 }
 
-export function fetchContacts(): Promise<{ contacts: ContactEntry[] }> {
+export function fetchContacts(): Promise<{ contacts: ContactEntry[]; replyTracking: boolean }> {
   return request('/api/contacts');
+}
+
+export function checkReplies(): Promise<{ changed: number; contacts: ContactEntry[] }> {
+  return request('/api/contacts/check-replies', { method: 'POST' });
 }
 
 export function logContact(

@@ -13,10 +13,12 @@ const WARNING_TEXT = {
 
 const REQUEST_NOTE_PREFIX = 'Tour request';
 const NO_REPLY_AFTER_MS = 24 * 60 * 60 * 1000;
+const REPLY_NOTE_MARKER = '· reply from ';
 
 type RequestState =
   | { kind: 'none' }
   | { kind: 'waiting'; entry: ContactEntry; stale: boolean }
+  | { kind: 'replied'; entry: ContactEntry; reply: string | null }
   | { kind: 'confirmed'; entry: ContactEntry }
   | { kind: 'declined'; entry: ContactEntry }
   | { kind: 'no-reply'; entry: ContactEntry };
@@ -26,8 +28,11 @@ function requestState(entries: ContactEntry[] | undefined): RequestState {
   if (!entry) return { kind: 'none' };
   switch (entry.outcome) {
     case 'tour-offered':
-    case 'replied':
       return { kind: 'confirmed', entry };
+    case 'replied': {
+      const at = entry.note.indexOf(REPLY_NOTE_MARKER);
+      return { kind: 'replied', entry, reply: at === -1 ? null : entry.note.slice(at + REPLY_NOTE_MARKER.length) };
+    }
     case 'declined':
       return { kind: 'declined', entry };
     case 'no-reply':
@@ -40,6 +45,7 @@ function requestState(entries: ContactEntry[] | undefined): RequestState {
 const STATE_STYLE: Record<RequestState['kind'], { label: string; color: string }> = {
   none: { label: 'Not requested', color: 'var(--text-dim)' },
   waiting: { label: 'Requested · waiting', color: '#d97706' },
+  replied: { label: 'They wrote back', color: '#2563eb' },
   confirmed: { label: 'Confirmed', color: '#16a34a' },
   declined: { label: 'Declined', color: '#ef4444' },
   'no-reply': { label: 'No reply', color: '#ef4444' },
@@ -57,8 +63,17 @@ export function TourSchedule({ groupSize = 1 }: { groupSize?: number }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<Map<number, TourRequestResult>>(new Map());
+  const [checking, setChecking] = useState(false);
+  const [checked, setChecked] = useState<string | null>(null);
 
   if (days.length === 0) return null;
+
+  const checkInbox = async () => {
+    setChecking(true);
+    const changed = await contacts.checkReplies();
+    setChecked(changed === 0 ? 'Inbox checked · nothing new' : `${changed} new repl${changed === 1 ? 'y' : 'ies'}`);
+    setChecking(false);
+  };
 
   /** Emails what it can from the server; anything else becomes a tap-to-text or open-site handoff. */
   const request = async (tours: PlannedTour[]) => {
@@ -127,6 +142,18 @@ export function TourSchedule({ groupSize = 1 }: { groupSize?: number }) {
                 stops ({day.travelSource === 'osrm' ? 'by road' : 'straight line'})
               </span>
               <div className="ml-auto flex flex-wrap items-center gap-2">
+                {contacts.replyTracking && (
+                  <button
+                    type="button"
+                    disabled={checking}
+                    onClick={() => void checkInbox()}
+                    className="text-xs underline disabled:opacity-60"
+                    style={{ color: 'var(--text-dim)' }}
+                    title="Replies to jack's inbox are matched to these tours automatically every few minutes"
+                  >
+                    {checking ? 'Checking inbox…' : checked ?? 'Check inbox now'}
+                  </button>
+                )}
                 {unrequested.length > 0 && (
                   <button
                     type="button"
@@ -235,7 +262,12 @@ export function TourSchedule({ groupSize = 1 }: { groupSize?: number }) {
                           request this one
                         </button>
                       )}
-                      {(state.kind === 'waiting' || state.kind === 'no-reply') && (
+                      {state.kind === 'replied' && state.reply && (
+                        <span className="basis-full pl-2 italic" style={{ color: 'var(--text-dim)' }}>
+                          {state.reply}
+                        </span>
+                      )}
+                      {(state.kind === 'waiting' || state.kind === 'no-reply' || state.kind === 'replied') && (
                         <>
                           <button type="button" onClick={() => void contacts.update(state.entry.id, { outcome: 'tour-offered' })} className="underline" style={{ color: '#16a34a' }}>
                             they confirmed

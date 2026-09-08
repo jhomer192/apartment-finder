@@ -50,6 +50,7 @@ import { deleteGroup, groupSchema, listGroups, saveGroup } from './groups.js';
 import { bookTour, cancelTour, listTours, planDaysRouted, tourSchema } from './tours.js';
 import { planRequestSchema, planTourDay } from './tour-plan.js';
 import { requestTours, startReminderLoop } from './tour-requests.js';
+import { pollReplies, replyTrackingConfigured, startReplyPolling } from './replies.js';
 import { inventoryStatus, refreshInventory, startCrawlSchedule } from './inventory.js';
 import { findListings, getListings } from './listings.js';
 import { mailConfigured, sendSignInLink } from './mailer.js';
@@ -646,7 +647,22 @@ app.post('/api/saved/:key/notes', requireAuth, (req, res) => {
 });
 
 app.get('/api/contacts', requireAuth, (_req, res) => {
-  res.json({ contacts: listContacts() });
+  res.json({ contacts: listContacts(), replyTracking: replyTrackingConfigured() });
+});
+
+/** Checks the shared mailbox now instead of waiting for the next poll. */
+app.post('/api/contacts/check-replies', outreachLimiter, requireAuth, async (_req, res) => {
+  if (!replyTrackingConfigured()) {
+    res.status(503).json({ error: 'No mailbox is connected; mark replies by hand.' });
+    return;
+  }
+  try {
+    const changed = await pollReplies();
+    res.json({ changed: changed.length, contacts: listContacts() });
+  } catch (error) {
+    console.error('reply check failed:', error instanceof Error ? error.message : error);
+    res.status(502).json({ error: 'Could not reach the mailbox; try again in a minute.' });
+  }
 });
 
 app.post('/api/contacts', requireAuth, (req, res) => {
@@ -729,6 +745,7 @@ setInterval(purgeExpired, 60 * 60 * 1000).unref();
 startAlertLoop();
 startCrawlSchedule();
 startReminderLoop();
+startReplyPolling();
 // Civic datasets take a minute to pull, so the first roommate of the day does not wait on them.
 void primeAreaData();
 

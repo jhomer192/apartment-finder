@@ -39,6 +39,22 @@ function smtp(): SmtpConfig | null {
   return { host, user, pass, port: Number(process.env.SMTP_PORT ?? 587) };
 }
 
+export interface ImapConfig {
+  host: string;
+  port: number;
+  user: string;
+  pass: string;
+}
+
+/** Reply tracking is optional; without a mailbox, replies are marked by hand. */
+function imap(): ImapConfig | null {
+  const host = process.env.IMAP_HOST;
+  const user = process.env.IMAP_USER;
+  const pass = process.env.IMAP_PASS;
+  if (!host || !user || !pass) return null;
+  return { host, user, pass, port: Number(process.env.IMAP_PORT ?? 993) };
+}
+
 /**
  * In production every secret must be supplied explicitly: a generated fallback
  * would silently invalidate every session on restart.
@@ -69,6 +85,8 @@ export const config = {
   smtp: smtp(),
   mailFrom: process.env.MAIL_FROM ?? process.env.SMTP_USER ?? 'apartment-finder@localhost',
   publicUrl: process.env.PUBLIC_URL ?? '',
+  imap: imap(),
+  replyPollMinutes: Number(process.env.REPLY_POLL_MINUTES ?? 5),
   /** Optional: without it, Discord stays unavailable and only email alerts send. */
   discordWebhookUrl: process.env.DISCORD_WEBHOOK_URL ?? '',
   alertIntervalMinutes: Number(process.env.ALERT_INTERVAL_MINUTES ?? 60),
