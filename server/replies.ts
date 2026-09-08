@@ -83,6 +83,8 @@ export function matchReply(mail: InboundMail, pending: PendingRequest[]): Pendin
 
 export function snippet(text: string): string {
   const flat = text
+    .replace(/\[https?:\/\/[^\]\s]+\]/g, '')
+    .replace(/https?:\/\/\S+/g, '')
     .split('\n')
     .filter((line) => !line.trim().startsWith('>'))
     .join(' ')

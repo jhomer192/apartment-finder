@@ -130,5 +130,6 @@ describe('snippet', () => {
   it('drops quoted text and caps the length', () => {
     expect(snippet('Sure!\n\n> On Sat, Jack wrote:\n> could we tour')).toBe('Sure!');
     expect(snippet('x'.repeat(400))).toHaveLength(160);
+    expect(snippet('Logo [https://cdn.example/l.png] Hello Jack, see https://x.example/form')).toBe('Logo Hello Jack, see');
   });
 });
