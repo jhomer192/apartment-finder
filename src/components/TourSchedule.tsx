@@ -124,7 +124,7 @@ export function TourSchedule({ groupSize = 1 }: { groupSize?: number }) {
               </p>
               <span className="text-xs" style={{ color: 'var(--text-dim)' }}>
                 {day.tours.length} tour{day.tours.length === 1 ? '' : 's'} · {confirmed} confirmed · {day.bookedKm} km between
-                stops (straight line)
+                stops ({day.travelSource === 'osrm' ? 'by road' : 'straight line'})
               </span>
               <div className="ml-auto flex flex-wrap items-center gap-2">
                 {unrequested.length > 0 && (
@@ -160,8 +160,9 @@ export function TourSchedule({ groupSize = 1 }: { groupSize?: number }) {
                   color: '#8b5cf6',
                 }}
               >
-                Visiting in the order marked below covers {day.suggestedKm} km instead of {day.bookedKm} km. Distances
-                are straight-line, not driving times — check the Maps link before moving anything.
+                Visiting in the order marked below covers {day.suggestedKm} km instead of {day.bookedKm} km. {day.travelSource === 'osrm'
+                  ? 'Distances are road-routed estimates with parking time, not live traffic.'
+                  : 'Distances are straight-line, not driving times — check the Maps link before moving anything.'}
               </p>
             )}
 

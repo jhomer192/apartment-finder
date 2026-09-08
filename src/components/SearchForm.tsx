@@ -251,7 +251,12 @@ export function SearchForm({
           optionLabel={(count) => (count === 0 ? 'Studio' : `${count} bd`)}
           min={roomValue(params.minBedrooms)}
           max={roomValue(params.maxBedrooms)}
-          onMin={(value) => apply({ minBedrooms: parseRoom(value) })}
+          onMin={(value) => {
+            const minBedrooms = parseRoom(value);
+            // A whole-house search at the default $6k cap finds nothing; lift the cap with the bed count.
+            const roomy = minBedrooms !== null && minBedrooms >= 3 && params.maxRent === DEFAULT_SEARCH.maxRent;
+            apply({ minBedrooms, ...(roomy ? { maxRent: minBedrooms * 3000 } : {}) });
+          }}
           onMax={(value) => apply({ maxBedrooms: parseRoom(value) })}
         />
       </Popover>

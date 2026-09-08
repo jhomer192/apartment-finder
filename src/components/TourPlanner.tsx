@@ -48,6 +48,7 @@ export function TourPlanner({ groupSize, onGroupSize, onClose }: PlannerProps) {
   const [end, setEnd] = useState('17:00');
   const [tourMinutes, setTourMinutes] = useState(30);
   const [maxPerPerson, setMaxPerPerson] = useState('2000');
+  const [leavingFrom, setLeavingFrom] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [plan, setPlan] = useState<TourPlan | null>(null);
   const [busy, setBusy] = useState(false);
@@ -83,6 +84,7 @@ export function TourPlanner({ groupSize, onGroupSize, onClose }: PlannerProps) {
           maxPerPerson: Number.isFinite(perPerson) && perPerson > 0 ? Math.round(perPerson) : null,
           neighborhoods: [...picked],
           maxScamScore: 25,
+          leavingFrom: leavingFrom || null,
         }),
       );
     } catch (e) {
@@ -119,7 +121,8 @@ export function TourPlanner({ groupSize, onGroupSize, onClose }: PlannerProps) {
             Plan a tour day
           </p>
           <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
-            Fits as many tours as the day holds, cheapest places first, with drive time between stops.
+            Fits as many tours as the day holds, cheapest places first, routed as one sweep across the city with real drive
+            times between stops.
           </p>
         </div>
         <button type="button" onClick={onClose} className="text-xs underline" style={{ color: 'var(--text-dim)' }}>
@@ -162,6 +165,17 @@ export function TourPlanner({ groupSize, onGroupSize, onClose }: PlannerProps) {
             className={`${input} w-full`}
             style={inputStyle}
           />
+        </label>
+        <label className="text-xs space-y-1" style={{ color: 'var(--text-dim)' }}>
+          Leaving from
+          <select value={leavingFrom} onChange={(e) => setLeavingFrom(e.target.value)} className={`${input} w-full`} style={inputStyle}>
+            <option value="">Anywhere (best route)</option>
+            {NEIGHBORHOODS.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="text-xs space-y-1" style={{ color: 'var(--text-dim)' }}>
           Minutes per tour
@@ -224,8 +238,15 @@ export function TourPlanner({ groupSize, onGroupSize, onClose }: PlannerProps) {
           <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
             {plan.stops.length === 0
               ? `Nothing fits: ${plan.candidates} listings match, but none can be toured in that window.`
-              : `${plan.stops.length} tours on ${tourDayLabel(date)} · ${plan.totalKm} km between stops (straight line) · avg $${plan.averagePerPerson?.toLocaleString()}/person · ${plan.leftOver} more matched but did not fit`}
+              : `${plan.stops.length} tours on ${tourDayLabel(date)}${plan.start ? ` from ${plan.start.label}` : ''} · ${plan.totalKm} km / ~${plan.totalDriveMinutes} min driving in total · avg $${plan.averagePerPerson?.toLocaleString()}/person · ${plan.leftOver} more matched but did not fit`}
           </p>
+          {plan.stops.length > 0 && (
+            <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+              {plan.travelSource === 'osrm'
+                ? 'Drive times are road-routed (OSRM) plus 15% and 5 min to park; ask each lister for the time shown.'
+                : 'Routing was unreachable, so drive times are straight-line estimates — leave extra slack.'}
+            </p>
+          )}
 
           <ol className="space-y-1.5">
             {plan.stops.map((stop, index) => (
@@ -244,8 +265,13 @@ export function TourPlanner({ groupSize, onGroupSize, onClose }: PlannerProps) {
                 </a>
                 <span style={{ color: 'var(--text-dim)' }}>
                   {stop.listing.neighborhood} · {stop.listing.bedrooms} bd · ${stop.listing.price.toLocaleString()} (${stop.perPerson.toLocaleString()}/person)
-                  {stop.travelKm !== null && ` · ${stop.travelKm} km, ~${stop.travelMinutes} min drive`}
                   {stop.saved && ' · saved'}
+                </span>
+                <span className="basis-full pl-4" style={{ color: 'var(--text-dim)' }}>
+                  Ask for {tourTime(stop.startsAt)}
+                  {stop.travelKm !== null
+                    ? ` · ${stop.travelKm} km, ~${stop.travelMinutes} min from ${index === 0 ? plan.start?.label ?? 'the start' : 'the previous stop'}`
+                    : ' · first stop of the day'}
                 </span>
               </li>
             ))}

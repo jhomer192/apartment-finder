@@ -194,6 +194,7 @@ export interface TourDay {
   bookedKm: number;
   suggestedKm: number;
   routeUrl: string | null;
+  travelSource: 'osrm' | 'estimate';
 }
 
 export interface PlanRequest {
@@ -204,6 +205,7 @@ export interface PlanRequest {
   maxPerPerson: number | null;
   neighborhoods: string[];
   maxScamScore: number;
+  leavingFrom: string | null;
 }
 
 export interface PlannedStop {
@@ -233,8 +235,11 @@ export interface TourPlan {
   leftOver: number;
   candidates: number;
   totalKm: number;
+  totalDriveMinutes: number;
   averagePerPerson: number | null;
   routeUrl: string | null;
+  travelSource: 'osrm' | 'estimate';
+  start: { lat: number; lng: number; label: string } | null;
 }
 
 export const SORT_OPTIONS = [

@@ -47,7 +47,7 @@ import {
 } from './members.js';
 import { deleteFilter, filterSchema, listFilters, saveFilter } from './filters.js';
 import { deleteGroup, groupSchema, listGroups, saveGroup } from './groups.js';
-import { bookTour, cancelTour, listTours, planDays, tourSchema } from './tours.js';
+import { bookTour, cancelTour, listTours, planDaysRouted, tourSchema } from './tours.js';
 import { planRequestSchema, planTourDay } from './tour-plan.js';
 import { requestTours, startReminderLoop } from './tour-requests.js';
 import { inventoryStatus, refreshInventory, startCrawlSchedule } from './inventory.js';
@@ -445,8 +445,8 @@ app.delete('/api/share-groups/:id', requireAuth, (req, res) => {
 });
 
 /** Tour times, plus the day-by-day plan the group drives. */
-app.get('/api/tours', requireAuth, (_req, res) => {
-  res.json({ days: planDays(listTours()) });
+app.get('/api/tours', requireAuth, async (_req, res) => {
+  res.json({ days: await planDaysRouted(listTours()) });
 });
 
 /**
@@ -468,7 +468,7 @@ app.post('/api/tours/request', outreachLimiter, requireAuth, async (req, res) =>
   res.json({ results, contacts: listContacts() });
 });
 
-app.post('/api/tours', requireAuth, (req, res) => {
+app.post('/api/tours', requireAuth, async (req, res) => {
   const body = tourSchema.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: 'That tour time is not valid.' });
@@ -481,7 +481,7 @@ app.post('/api/tours', requireAuth, (req, res) => {
     return;
   }
 
-  res.json({ days: planDays(listTours()) });
+  res.json({ days: await planDaysRouted(listTours()) });
 });
 
 app.post('/api/tour-plan', requireAuth, async (req, res) => {
@@ -524,17 +524,17 @@ app.post('/api/tour-plan/book', requireAuth, async (req, res) => {
       booked += 1;
     }
   }
-  res.json({ booked, days: planDays(listTours()), saved: listSaved() });
+  res.json({ booked, days: await planDaysRouted(listTours()), saved: listSaved() });
 });
 
-app.delete('/api/tours/:id', requireAuth, (req, res) => {
+app.delete('/api/tours/:id', requireAuth, async (req, res) => {
   const id = z.coerce.number().int().positive().safeParse(req.params.id);
   if (!id.success || !cancelTour(id.data)) {
     res.status(404).json({ error: 'No such tour.' });
     return;
   }
 
-  res.json({ days: planDays(listTours()) });
+  res.json({ days: await planDaysRouted(listTours()) });
 });
 
 app.get('/api/alerts/prefs', requireAuth, (req, res) => {

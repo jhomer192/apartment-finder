@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { db } from './db.js';
 import { getSaved, listSaved } from './shortlist.js';
 import type { ScoredListing } from './listings.js';
+import { driveMatrix, improvePath, type DriveMatrix, type Leg, type MatrixSource } from './routing.js';
 
 /**
  * Tour times the whole group can see, so two people do not book the same
@@ -60,6 +61,8 @@ export interface TourDay {
   suggestedKm: number;
   /** Google Maps with the day's stops as waypoints, in the suggested order. */
   routeUrl: string | null;
+  /** Whether legs are road-routed or straight-line guesses. */
+  travelSource: MatrixSource;
 }
 
 interface TourRow {
@@ -107,32 +110,47 @@ export function sfDay(startsAt: number): string {
   return DAY_FORMAT.format(new Date(startsAt));
 }
 
-function pathKm(stops: Tour[]): number {
+/** Leg between two of the day's stops: road-routed when a matrix is at hand, else straight-line. */
+function legBetween(stops: Tour[], matrix: DriveMatrix | null, from: number, to: number): Leg | null {
+  if (matrix) return matrix.legs[from][to];
+  const km = kmBetween(stops[from].listing, stops[to].listing);
+  return km === null ? null : { km, minutes: travelMinutes(km) };
+}
+
+function pathKm(stops: Tour[], matrix: DriveMatrix | null, order: number[]): number {
   let total = 0;
-  for (let i = 1; i < stops.length; i += 1) {
-    total += kmBetween(stops[i - 1].listing, stops[i].listing) ?? 0;
+  for (let i = 1; i < order.length; i += 1) {
+    total += legBetween(stops, matrix, order[i - 1], order[i])?.km ?? 0;
   }
   return Math.round(total * 100) / 100;
 }
 
 /**
- * Shortest straight-line walk of the day's stops. Under eight tours every order
- * is measured, which is exact; past that the booked order is left alone rather
- * than served a guess.
+ * Shortest walk of the day's stops. Under eight tours every order is measured,
+ * which is exact; past that 2-opt improves the booked order instead.
  */
-function shortestOrder(stops: Tour[]): Tour[] {
-  if (stops.length < 3 || stops.length > MAX_OPTIMIZED_STOPS) return stops;
-  if (stops.some((stop) => stop.listing.lat === null || stop.listing.lng === null)) return stops;
+function shortestOrder(stops: Tour[], matrix: DriveMatrix | null): number[] {
+  const booked = stops.map((_, i) => i);
+  if (stops.length < 3) return booked;
+  if (stops.some((stop) => stop.listing.lat === null || stop.listing.lng === null)) return booked;
+  const cost = (order: number[]) => {
+    let total = 0;
+    for (let i = 1; i < order.length; i += 1) total += legBetween(stops, matrix, order[i - 1], order[i])?.minutes ?? 0;
+    return total;
+  };
+  if (stops.length > MAX_OPTIMIZED_STOPS) {
+    const legs = stops.map((_, i) => stops.map((__, j) => legBetween(stops, matrix, i, j) ?? { km: 0, minutes: 0 }));
+    return improvePath(booked, legs, false);
+  }
 
-  let best = stops;
-  let bestKm = pathKm(stops);
-
-  const permute = (order: Tour[], rest: Tour[]) => {
+  let best = booked;
+  let bestCost = cost(booked);
+  const permute = (order: number[], rest: number[]) => {
     if (rest.length === 0) {
-      const km = pathKm(order);
-      if (km < bestKm) {
+      const total = cost(order);
+      if (total < bestCost) {
         best = order;
-        bestKm = km;
+        bestCost = total;
       }
       return;
     }
@@ -140,8 +158,7 @@ function shortestOrder(stops: Tour[]): Tour[] {
       permute([...order, rest[i]], [...rest.slice(0, i), ...rest.slice(i + 1)]);
     }
   };
-  permute([], stops);
-
+  permute([], booked);
   return best;
 }
 
@@ -160,41 +177,58 @@ function routeUrl(stops: Tour[]): string | null {
   return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
 
-/** Groups by SF calendar day, marks clashes, and works out a shorter order. */
-export function planDays(tours: Tour[]): TourDay[] {
+function groupByDay(tours: Tour[]): [string, Tour[]][] {
   const byDay = new Map<string, Tour[]>();
   for (const tour of [...tours].sort((a, b) => a.startsAt - b.startsAt)) {
     const day = sfDay(tour.startsAt);
     byDay.set(day, [...(byDay.get(day) ?? []), tour]);
   }
+  return [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b));
+}
 
-  return [...byDay.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, booked]) => {
-      const planned: PlannedTour[] = booked.map((tour, index) => {
-        if (index === 0) return { ...tour, travelKm: null, travelMinutes: null, warning: null };
+function planDay(date: string, booked: Tour[], matrix: DriveMatrix | null): TourDay {
+  const planned: PlannedTour[] = booked.map((tour, index) => {
+    if (index === 0) return { ...tour, travelKm: null, travelMinutes: null, warning: null };
 
-        const previous = booked[index - 1];
-        const km = kmBetween(previous.listing, tour.listing);
-        const needed = km === null ? null : travelMinutes(km);
-        const gapMinutes = (tour.startsAt - (previous.startsAt + previous.minutes * 60_000)) / 60_000;
+    const previous = booked[index - 1];
+    const leg = legBetween(booked, matrix, index - 1, index);
+    const gapMinutes = (tour.startsAt - (previous.startsAt + previous.minutes * 60_000)) / 60_000;
 
-        const warning: TourWarning | null =
-          gapMinutes < 0 ? 'overlap' : needed !== null && gapMinutes < needed ? 'tight' : null;
+    const warning: TourWarning | null =
+      gapMinutes < 0 ? 'overlap' : leg !== null && gapMinutes < leg.minutes ? 'tight' : null;
 
-        return { ...tour, travelKm: km, travelMinutes: needed, warning };
-      });
+    return { ...tour, travelKm: leg?.km ?? null, travelMinutes: leg?.minutes ?? null, warning };
+  });
 
-      const suggested = shortestOrder(booked);
-      return {
-        date,
-        tours: planned,
-        suggestedOrder: suggested.map((tour) => tour.listingKey),
-        bookedKm: pathKm(booked),
-        suggestedKm: pathKm(suggested),
-        routeUrl: routeUrl(suggested),
-      };
-    });
+  const suggested = shortestOrder(booked, matrix);
+  return {
+    date,
+    tours: planned,
+    suggestedOrder: suggested.map((i) => booked[i].listingKey),
+    bookedKm: pathKm(booked, matrix, booked.map((_, i) => i)),
+    suggestedKm: pathKm(booked, matrix, suggested),
+    routeUrl: routeUrl(suggested.map((i) => booked[i])),
+    travelSource: matrix?.source ?? 'estimate',
+  };
+}
+
+/** Groups by SF calendar day, marks clashes, and works out a shorter order from straight-line legs. */
+export function planDays(tours: Tour[]): TourDay[] {
+  return groupByDay(tours).map(([date, booked]) => planDay(date, booked, null));
+}
+
+/** Same, with road-routed legs for each day that has more than one stop. */
+export async function planDaysRouted(tours: Tour[], matrixFor: typeof driveMatrix = driveMatrix): Promise<TourDay[]> {
+  return Promise.all(
+    groupByDay(tours).map(async ([date, booked]) => {
+      const located = booked.every((tour) => tour.listing.lat !== null && tour.listing.lng !== null);
+      const matrix =
+        booked.length > 1 && located
+          ? await matrixFor(booked.map((tour) => ({ lat: tour.listing.lat as number, lng: tour.listing.lng as number })))
+          : null;
+      return planDay(date, booked, matrix);
+    }),
+  );
 }
 
 function hydrate(rows: TourRow[]): Tour[] {
