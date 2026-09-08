@@ -216,6 +216,18 @@ export interface PlannedStop {
   saved: boolean;
 }
 
+export type RequestChannel = 'emailed' | 'sms' | 'site' | 'none' | 'already';
+
+export interface TourRequestResult {
+  tourId: number;
+  listingKey: string;
+  channel: RequestChannel;
+  phone: string | null;
+  body: string;
+  url: string | null;
+  error?: string;
+}
+
 export interface TourPlan {
   stops: PlannedStop[];
   leftOver: number;

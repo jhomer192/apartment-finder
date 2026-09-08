@@ -17,6 +17,14 @@ export function ShortlistPanel({ open, onOpenChange }: PanelProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showGroups, setShowGroups] = useState(false);
   const [planning, setPlanning] = useState(false);
+  const [groupSize, setGroupSizeState] = useState(() => {
+    const stored = Number(localStorage.getItem('tour-group-size'));
+    return stored >= 1 && stored <= 6 ? stored : 3;
+  });
+  const setGroupSize = (size: number) => {
+    localStorage.setItem('tour-group-size', String(size));
+    setGroupSizeState(size);
+  };
 
   if (saved.length === 0 && !error && !open) return null;
 
@@ -67,7 +75,7 @@ export function ShortlistPanel({ open, onOpenChange }: PanelProps) {
             </button>{' '}
             and let it pick the cheapest places to see.
           </p>
-          {planning && <TourPlanner onClose={() => setPlanning(false)} />}
+          {planning && <TourPlanner groupSize={groupSize} onGroupSize={setGroupSize} onClose={() => setPlanning(false)} />}
         </div>
       )}
 
@@ -124,9 +132,9 @@ export function ShortlistPanel({ open, onOpenChange }: PanelProps) {
             </div>
           )}
 
-          {planning && <TourPlanner onClose={() => setPlanning(false)} />}
+          {planning && <TourPlanner groupSize={groupSize} onGroupSize={setGroupSize} onClose={() => setPlanning(false)} />}
 
-          <TourSchedule />
+          <TourSchedule groupSize={groupSize} />
 
           {/* Capped height so the shortlist reads as its own list you scroll,
               instead of pushing the page down forever. */}

@@ -49,6 +49,7 @@ import { deleteFilter, filterSchema, listFilters, saveFilter } from './filters.j
 import { deleteGroup, groupSchema, listGroups, saveGroup } from './groups.js';
 import { bookTour, cancelTour, listTours, planDays, tourSchema } from './tours.js';
 import { planRequestSchema, planTourDay } from './tour-plan.js';
+import { requestTours, startReminderLoop } from './tour-requests.js';
 import { inventoryStatus, refreshInventory, startCrawlSchedule } from './inventory.js';
 import { findListings, getListings } from './listings.js';
 import { mailConfigured, sendSignInLink } from './mailer.js';
@@ -72,6 +73,8 @@ const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20 });
 const askLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10 });
 /** A crawl hits the sources hundreds of times, so the button cannot be spammed. */
 const refreshLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 3 });
+/** Outbound mail to strangers: enough for a full tour day, not enough to spam. */
+const outreachLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 6 });
 /** Tighter than authLimiter: this route sends mail, so it is the abusable one. */
 const signInLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5 });
 /**
@@ -446,6 +449,25 @@ app.get('/api/tours', requireAuth, (_req, res) => {
   res.json({ days: planDays(listTours()) });
 });
 
+/**
+ * Emails listers that publish an address (Reply-To the roommate who asked) and
+ * hands phone-only or form-only listers back for the roommate to send themselves.
+ */
+app.post('/api/tours/request', outreachLimiter, requireAuth, async (req, res) => {
+  const body = z
+    .object({
+      tourIds: z.array(z.number().int().positive()).min(1).max(10),
+      groupSize: z.number().int().min(1).max(6).default(1),
+    })
+    .safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'Pick which tours to request.' });
+    return;
+  }
+  const results = await requestTours(body.data.tourIds, req.user!.email, body.data.groupSize);
+  res.json({ results, contacts: listContacts() });
+});
+
 app.post('/api/tours', requireAuth, (req, res) => {
   const body = tourSchema.safeParse(req.body);
   if (!body.success) {
@@ -706,6 +728,7 @@ purgeExpired();
 setInterval(purgeExpired, 60 * 60 * 1000).unref();
 startAlertLoop();
 startCrawlSchedule();
+startReminderLoop();
 // Civic datasets take a minute to pull, so the first roommate of the day does not wait on them.
 void primeAreaData();
 

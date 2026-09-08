@@ -22,6 +22,7 @@ import type {
   StoredGroup,
   StoredFilter,
   TourDay,
+  TourRequestResult,
   SessionUser,
   StoredRules,
 } from './types';
@@ -263,6 +264,13 @@ export function bookTour(tour: {
 
 export function planTourDay(plan: PlanRequest): Promise<TourPlan> {
   return request('/api/tour-plan', { method: 'POST', body: JSON.stringify(plan) });
+}
+
+export function requestTours(
+  tourIds: number[],
+  groupSize: number,
+): Promise<{ results: TourRequestResult[]; contacts: ContactEntry[] }> {
+  return request('/api/tours/request', { method: 'POST', body: JSON.stringify({ tourIds, groupSize }) });
 }
 
 export function bookTourPlan(

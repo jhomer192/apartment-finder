@@ -56,6 +56,10 @@ export function ContactsProvider({ children }: { children: ReactNode }) {
         await run(() => deleteContact(id));
         reloadShortlist();
       },
+      replace: (next) => {
+        setContacts(next);
+        reloadShortlist();
+      },
     };
   }, [contacts, error, run, reloadShortlist]);
 

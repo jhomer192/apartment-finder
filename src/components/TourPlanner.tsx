@@ -15,10 +15,15 @@ const inputStyle = {
 };
 const input = 'rounded-lg px-2 py-1.5 text-sm border outline-none';
 
-/** The coming Sunday as YYYY-MM-DD in the browser's zone. */
+/**
+ * The next Sunday listers can realistically confirm for, as YYYY-MM-DD in the
+ * browser's zone: a Sunday under two days out is skipped for the one after.
+ */
 function nextSunday(from = new Date()): string {
   const date = new Date(from);
-  date.setDate(date.getDate() + ((7 - date.getDay()) % 7 || 7));
+  let ahead = (7 - date.getDay()) % 7 || 7;
+  if (ahead < 2) ahead += 7;
+  date.setDate(date.getDate() + ahead);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
@@ -28,7 +33,13 @@ function nextSunday(from = new Date()): string {
  * with enough bedrooms for the group in the neighborhoods they want. Legs are
  * straight-line estimates, so the plan links out to Google Maps for the drive.
  */
-export function TourPlanner({ onClose }: { onClose: () => void }) {
+interface PlannerProps {
+  groupSize: number;
+  onGroupSize: (size: number) => void;
+  onClose: () => void;
+}
+
+export function TourPlanner({ groupSize, onGroupSize, onClose }: PlannerProps) {
   const { reload } = useShortlist();
   const tours = useTours();
 
@@ -36,7 +47,6 @@ export function TourPlanner({ onClose }: { onClose: () => void }) {
   const [start, setStart] = useState('10:00');
   const [end, setEnd] = useState('17:00');
   const [tourMinutes, setTourMinutes] = useState(30);
-  const [groupSize, setGroupSize] = useState(3);
   const [maxPerPerson, setMaxPerPerson] = useState('2000');
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [plan, setPlan] = useState<TourPlan | null>(null);
@@ -132,7 +142,7 @@ export function TourPlanner({ onClose }: { onClose: () => void }) {
         </label>
         <label className="text-xs space-y-1" style={{ color: 'var(--text-dim)' }}>
           People moving in
-          <select value={groupSize} onChange={(e) => setGroupSize(Number(e.target.value))} className={`${input} w-full`} style={inputStyle}>
+          <select value={groupSize} onChange={(e) => onGroupSize(Number(e.target.value))} className={`${input} w-full`} style={inputStyle}>
             {[1, 2, 3, 4, 5, 6].map((n) => (
               <option key={n} value={n}>
                 {n} {n === 1 ? 'person' : 'people'} · {n}+ bd
@@ -264,7 +274,9 @@ export function TourPlanner({ onClose }: { onClose: () => void }) {
                 </a>
               )}
               <span className="text-xs" style={{ color: 'var(--text-dim)' }}>
-                Booking only holds the slots for the group — use Contact lister on each saved card to ask for the time.
+                {booked !== null
+                  ? 'Booked — now hit "Request all tours" on the schedule below to ask each lister for the time.'
+                  : 'Booking holds the slots for the group; the schedule below then asks each lister for you.'}
               </span>
             </div>
           )}
