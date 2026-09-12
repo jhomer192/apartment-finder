@@ -26,8 +26,15 @@ export interface InboundMail {
  * Listing-site receipts ("You messaged 969 Fell St") quote the address but are
  * not the lister; so do our own outgoing copies.
  */
-const RECEIPT_SENDERS = [/@info\.zumper\.com$/i, /@emp\.apartmentlist\.com$/i, /@zumper\.com$/i, /@apartmentlist\.com$/i];
-const RECEIPT_SUBJECTS = [/^you messaged /i, /^new listing recommendations/i, /^let's get you moving/i];
+const RECEIPT_SENDERS = [
+  /@info\.zumper\.com$/i,
+  /@emp\.apartmentlist\.com$/i,
+  /@zumper\.com$/i,
+  /@apartmentlist\.com$/i,
+  /@e\.rent\.com$/i,
+  /@rent\.com$/i,
+];
+const RECEIPT_SUBJECTS = [/^you messaged /i, /^new listing recommendations/i, /^let's get you moving/i, /^still thinking about /i];
 
 export function isReceipt(mail: InboundMail, ownAddresses: string[]): boolean {
   const from = mail.from.toLowerCase();
