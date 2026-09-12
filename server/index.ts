@@ -47,7 +47,10 @@ import {
 } from './members.js';
 import { deleteFilter, filterSchema, listFilters, saveFilter } from './filters.js';
 import { deleteGroup, groupSchema, listGroups, saveGroup } from './groups.js';
-import { bookTour, cancelTour, listTours, planDays, tourSchema } from './tours.js';
+import { bookTour, cancelTour, listTours, planDaysRouted, tourSchema } from './tours.js';
+import { planRequestSchema, planTourDay } from './tour-plan.js';
+import { requestTours, startReminderLoop } from './tour-requests.js';
+import { pollReplies, replyTrackingConfigured, startReplyPolling } from './replies.js';
 import { inventoryStatus, refreshInventory, startCrawlSchedule } from './inventory.js';
 import { findListings, getListings } from './listings.js';
 import { mailConfigured, sendSignInLink } from './mailer.js';
@@ -71,6 +74,8 @@ const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20 });
 const askLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10 });
 /** A crawl hits the sources hundreds of times, so the button cannot be spammed. */
 const refreshLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 3 });
+/** Outbound mail to strangers: enough for a full tour day, not enough to spam. */
+const outreachLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 6 });
 /** Tighter than authLimiter: this route sends mail, so it is the abusable one. */
 const signInLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5 });
 /**
@@ -300,7 +305,7 @@ const listingsQuery = z.object({
   maxRent: z.coerce.number().int().min(1).max(100_000).default(8000),
   minBedrooms: z.coerce.number().int().min(0).max(10).nullable().catch(null),
   maxBedrooms: z.coerce.number().int().min(0).max(10).nullable().catch(null),
-  limit: z.coerce.number().int().min(1).max(1000).default(300),
+  limit: z.coerce.number().int().min(1).max(10_000).default(5000),
   /** On unless the reader explicitly asks to see every site's copy of a unit. */
   dedupe: z
     .enum(['true', 'false'])
@@ -441,11 +446,30 @@ app.delete('/api/share-groups/:id', requireAuth, (req, res) => {
 });
 
 /** Tour times, plus the day-by-day plan the group drives. */
-app.get('/api/tours', requireAuth, (_req, res) => {
-  res.json({ days: planDays(listTours()) });
+app.get('/api/tours', requireAuth, async (_req, res) => {
+  res.json({ days: await planDaysRouted(listTours()) });
 });
 
-app.post('/api/tours', requireAuth, (req, res) => {
+/**
+ * Emails listers that publish an address (Reply-To the roommate who asked) and
+ * hands phone-only or form-only listers back for the roommate to send themselves.
+ */
+app.post('/api/tours/request', outreachLimiter, requireAuth, async (req, res) => {
+  const body = z
+    .object({
+      tourIds: z.array(z.number().int().positive()).min(1).max(10),
+      groupSize: z.number().int().min(1).max(6).default(1),
+    })
+    .safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'Pick which tours to request.' });
+    return;
+  }
+  const results = await requestTours(body.data.tourIds, req.user!.email, body.data.groupSize);
+  res.json({ results, contacts: listContacts() });
+});
+
+app.post('/api/tours', requireAuth, async (req, res) => {
   const body = tourSchema.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: 'That tour time is not valid.' });
@@ -458,17 +482,60 @@ app.post('/api/tours', requireAuth, (req, res) => {
     return;
   }
 
-  res.json({ days: planDays(listTours()) });
+  res.json({ days: await planDaysRouted(listTours()) });
 });
 
-app.delete('/api/tours/:id', requireAuth, (req, res) => {
+app.post('/api/tour-plan', requireAuth, async (req, res) => {
+  const body = planRequestSchema.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'Check the day, times and group size.' });
+    return;
+  }
+  try {
+    res.json(await planTourDay(body.data));
+  } catch (error) {
+    res.status(502).json({ error: error instanceof Error ? error.message : 'Could not plan the day' });
+  }
+});
+
+/** Saves each stop (so tours can hang off it) and books the tour at the planned time. */
+app.post('/api/tour-plan/book', requireAuth, async (req, res) => {
+  const body = z
+    .object({
+      stops: z
+        .array(z.object({ listingKey: listingKeyParam, startsAt: z.number().int().positive() }))
+        .min(1)
+        .max(20),
+      minutes: z.number().int().min(5).max(240).default(30),
+    })
+    .safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'Nothing to book.' });
+    return;
+  }
+
+  const listings = await findListings(body.data.stops.map((stop) => stop.listingKey));
+  const byKey = new Map(listings.map((listing) => [listing.key, listing]));
+  let booked = 0;
+  for (const stop of body.data.stops) {
+    const listing = byKey.get(stop.listingKey);
+    if (!listing) continue;
+    if (!getSaved(stop.listingKey)) save(listing, req.user!.email);
+    if (bookTour({ listingKey: stop.listingKey, startsAt: stop.startsAt, minutes: body.data.minutes, note: 'Planned tour day' }, req.user!.email)) {
+      booked += 1;
+    }
+  }
+  res.json({ booked, days: await planDaysRouted(listTours()), saved: listSaved() });
+});
+
+app.delete('/api/tours/:id', requireAuth, async (req, res) => {
   const id = z.coerce.number().int().positive().safeParse(req.params.id);
   if (!id.success || !cancelTour(id.data)) {
     res.status(404).json({ error: 'No such tour.' });
     return;
   }
 
-  res.json({ days: planDays(listTours()) });
+  res.json({ days: await planDaysRouted(listTours()) });
 });
 
 app.get('/api/alerts/prefs', requireAuth, (req, res) => {
@@ -580,7 +647,22 @@ app.post('/api/saved/:key/notes', requireAuth, (req, res) => {
 });
 
 app.get('/api/contacts', requireAuth, (_req, res) => {
-  res.json({ contacts: listContacts() });
+  res.json({ contacts: listContacts(), replyTracking: replyTrackingConfigured() });
+});
+
+/** Checks the shared mailbox now instead of waiting for the next poll. */
+app.post('/api/contacts/check-replies', outreachLimiter, requireAuth, async (_req, res) => {
+  if (!replyTrackingConfigured()) {
+    res.status(503).json({ error: 'No mailbox is connected; mark replies by hand.' });
+    return;
+  }
+  try {
+    const changed = await pollReplies();
+    res.json({ changed: changed.length, contacts: listContacts() });
+  } catch (error) {
+    console.error('reply check failed:', error instanceof Error ? error.message : error);
+    res.status(502).json({ error: 'Could not reach the mailbox; try again in a minute.' });
+  }
 });
 
 app.post('/api/contacts', requireAuth, (req, res) => {
@@ -662,6 +744,8 @@ purgeExpired();
 setInterval(purgeExpired, 60 * 60 * 1000).unref();
 startAlertLoop();
 startCrawlSchedule();
+startReminderLoop();
+startReplyPolling();
 // Civic datasets take a minute to pull, so the first roommate of the day does not wait on them.
 void primeAreaData();
 

@@ -28,6 +28,16 @@ export function mailConfigured(): boolean {
   return config.smtp !== null;
 }
 
+export async function sendMail(message: {
+  to: string;
+  cc?: string;
+  replyTo?: string;
+  subject: string;
+  text: string;
+}): Promise<void> {
+  await transporter().sendMail({ from: config.mailFrom, ...message });
+}
+
 export async function sendAlertEmail(email: string, entries: string[]): Promise<void> {
   const heading = `${entries.length} new SF listing${entries.length === 1 ? '' : 's'}`;
   const settings = config.publicUrl ? `\n\nChange or turn off alerts: ${config.publicUrl}` : '';

@@ -194,6 +194,52 @@ export interface TourDay {
   bookedKm: number;
   suggestedKm: number;
   routeUrl: string | null;
+  travelSource: 'osrm' | 'estimate';
+}
+
+export interface PlanRequest {
+  startsAt: number;
+  endsAt: number;
+  tourMinutes: number;
+  groupSize: number;
+  maxPerPerson: number | null;
+  neighborhoods: string[];
+  maxScamScore: number;
+  leavingFrom: string | null;
+}
+
+export interface PlannedStop {
+  listing: ApiListing;
+  startsAt: number;
+  minutes: number;
+  travelKm: number | null;
+  travelMinutes: number | null;
+  perPerson: number;
+  saved: boolean;
+}
+
+export type RequestChannel = 'emailed' | 'sms' | 'site' | 'none' | 'already';
+
+export interface TourRequestResult {
+  tourId: number;
+  listingKey: string;
+  channel: RequestChannel;
+  phone: string | null;
+  body: string;
+  url: string | null;
+  error?: string;
+}
+
+export interface TourPlan {
+  stops: PlannedStop[];
+  leftOver: number;
+  candidates: number;
+  totalKm: number;
+  totalDriveMinutes: number;
+  averagePerPerson: number | null;
+  routeUrl: string | null;
+  travelSource: 'osrm' | 'estimate';
+  start: { lat: number; lng: number; label: string } | null;
 }
 
 export const SORT_OPTIONS = [

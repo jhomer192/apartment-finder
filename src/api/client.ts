@@ -13,6 +13,8 @@ import type {
   ListingNote,
   Member,
   ListingsResponse,
+  PlanRequest,
+  TourPlan,
   SavedFilter,
   SavedListing,
   SavedStatus,
@@ -20,6 +22,7 @@ import type {
   StoredGroup,
   StoredFilter,
   TourDay,
+  TourRequestResult,
   SessionUser,
   StoredRules,
 } from './types';
@@ -259,12 +262,34 @@ export function bookTour(tour: {
   return request('/api/tours', { method: 'POST', body: JSON.stringify(tour) });
 }
 
+export function planTourDay(plan: PlanRequest): Promise<TourPlan> {
+  return request('/api/tour-plan', { method: 'POST', body: JSON.stringify(plan) });
+}
+
+export function requestTours(
+  tourIds: number[],
+  groupSize: number,
+): Promise<{ results: TourRequestResult[]; contacts: ContactEntry[] }> {
+  return request('/api/tours/request', { method: 'POST', body: JSON.stringify({ tourIds, groupSize }) });
+}
+
+export function bookTourPlan(
+  stops: { listingKey: string; startsAt: number }[],
+  minutes: number,
+): Promise<{ booked: number; days: TourDay[]; saved: SavedListing[] }> {
+  return request('/api/tour-plan/book', { method: 'POST', body: JSON.stringify({ stops, minutes }) });
+}
+
 export function cancelTour(id: number): Promise<{ days: TourDay[] }> {
   return request(`/api/tours/${id}`, { method: 'DELETE' });
 }
 
-export function fetchContacts(): Promise<{ contacts: ContactEntry[] }> {
+export function fetchContacts(): Promise<{ contacts: ContactEntry[]; replyTracking: boolean }> {
   return request('/api/contacts');
+}
+
+export function checkReplies(): Promise<{ changed: number; contacts: ContactEntry[] }> {
+  return request('/api/contacts/check-replies', { method: 'POST' });
 }
 
 export function logContact(

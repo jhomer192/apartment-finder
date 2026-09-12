@@ -21,6 +21,7 @@ function day(overrides: Partial<TourDay> = {}): TourDay {
     bookedKm: 12,
     suggestedKm: 7,
     routeUrl: null,
+    travelSource: 'estimate',
     ...overrides,
   };
 }

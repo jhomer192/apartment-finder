@@ -110,6 +110,13 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_contacts_listing ON listing_contacts(listing_key);
 
+  -- Mailbox messages already examined by the reply poller, so a restart does
+  -- not re-mark or re-announce the same lister reply.
+  CREATE TABLE IF NOT EXISTS mail_seen (
+    message_id TEXT PRIMARY KEY,
+    seen_at    INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS scam_assessments (
     listing_key  TEXT PRIMARY KEY,
     score        INTEGER NOT NULL,
