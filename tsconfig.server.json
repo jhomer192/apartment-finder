@@ -17,5 +17,5 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["server", "src/data/metros.ts"]
+  "include": ["server", "evals", "src/data/metros.ts"]
 }

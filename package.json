@@ -12,6 +12,8 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b && tsc -p tsconfig.server.json",
     "test": "vitest run",
+    "eval:prepare": "tsx --env-file-if-exists=.env evals/prepare.ts",
+    "eval": "tsx --env-file-if-exists=.env evals/run.ts",
     "lint": "eslint .",
     "preview": "vite preview"
   },
