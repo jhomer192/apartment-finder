@@ -11,7 +11,13 @@ export interface AreaFacts {
    * `walkMinutes` is null past `WALKABLE_M`: the distance is a straight line, so
    * over that range it may cross water or a hill and a walking figure would lie.
    */
-  transit: { name: string; kind: RailKind; meters: number; walkMinutes: number | null } | null;
+  transit: RailDistance | null;
+  /**
+   * The nearest stop of each kind, so "near Caltrain" means Caltrain rather than
+   * whichever Muni stop happens to be closer. Absent on inventory scored before
+   * it existed.
+   */
+  rail?: Partial<Record<RailKind, RailDistance>>;
   /**
    * Reported incidents within `radiusMeters` over the trailing year, as a rate
    * against the residents living in that radius so a dense block is not marked
@@ -44,6 +50,13 @@ export interface AreaFacts {
 }
 
 export type SafetyGrade = 'A' | 'B' | 'C' | 'D' | 'E';
+
+export interface RailDistance {
+  name: string;
+  kind: RailKind;
+  meters: number;
+  walkMinutes: number | null;
+}
 
 /** "Muni rail" is a surface streetcar or light-rail stop rather than a Metro station. */
 export type RailKind = 'BART' | 'Caltrain' | 'Muni Metro' | 'Muni rail';
@@ -455,22 +468,21 @@ export async function areaFactsFor(lat: number | null, lng: number | null): Prom
     return null;
   }
 
+  const rail: Partial<Record<RailKind, RailDistance>> = {};
   let transit: AreaFacts['transit'] = null;
-  let nearest: { stop: RailStop; metres: number } | null = null;
   for (const stop of data.rail ?? []) {
     const metres = metresBetween(lat, lng, stop.lat, stop.lng);
-    if (!nearest || metres < nearest.metres) nearest = { stop, metres };
-  }
-  if (nearest) {
-    transit = {
-      name: nearest.stop.name,
-      kind: nearest.stop.kind,
-      meters: Math.round(nearest.metres),
-      walkMinutes:
-        nearest.metres <= WALKABLE_M
-          ? Math.max(1, Math.round(nearest.metres / WALK_METRES_PER_MINUTE))
-          : null,
+    const closest = rail[stop.kind];
+    if (closest && closest.meters <= metres) continue;
+    rail[stop.kind] = {
+      name: stop.name,
+      kind: stop.kind,
+      meters: Math.round(metres),
+      walkMinutes: metres <= WALKABLE_M ? Math.max(1, Math.round(metres / WALK_METRES_PER_MINUTE)) : null,
     };
+  }
+  for (const distance of Object.values(rail)) {
+    if (!transit || distance.meters < transit.meters) transit = distance;
   }
 
   const residents = data.population
@@ -512,6 +524,7 @@ export async function areaFactsFor(lat: number | null, lng: number | null): Prom
 
   return {
     transit,
+    rail,
     safety,
     incidents,
     parking: data.parking

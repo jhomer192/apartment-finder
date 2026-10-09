@@ -287,6 +287,8 @@ export interface SearchPlan {
   neighborhoods: string[];
   maxScamScore: number;
   keywords: string[];
+  nearTrain: { kind: 'BART' | 'Caltrain' | 'Muni Metro' | 'Muni rail' | 'any'; maxWalkMinutes: number } | null;
+  minSafetyGrade: 'A' | 'B' | 'C' | 'D' | 'E' | null;
   sort: 'value' | 'price-asc' | 'price-desc' | 'per-bedroom-asc' | 'safest';
 }
 

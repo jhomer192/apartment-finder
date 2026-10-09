@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { AreaFacts, RailKind, SafetyGrade } from './area.js';
 import type { ScoredListing } from './listings.js';
 import { applyPlan, matchWithFallback, planSchema } from './search-agent.js';
 
@@ -97,6 +98,68 @@ describe('applyPlan', () => {
     ]);
   });
 
+  it('ranks listings that mention a keyword ahead of ones with no text to check', () => {
+    const listings = [
+      listing({ key: 'no-text', description: '', price: 2000 }),
+      listing({ key: 'text', description: 'Dogs welcome', price: 5000 }),
+    ];
+    expect(applyPlan(listings, plan({ keywords: ['dogs'], sort: 'price-asc' })).map((i) => i.key)).toEqual([
+      'text',
+      'no-text',
+    ]);
+  });
+
+  it('filters by walk to a kind of rail stop, not just the nearest stop', () => {
+    const stop = (kind: RailKind, walkMinutes: number | null) => ({ name: 's', kind, meters: 0, walkMinutes });
+    const area = (rail: AreaFacts['rail'], transit = stop('Muni rail', 2)): AreaFacts => ({
+      transit,
+      rail,
+      incidents: null,
+      safety: null,
+      parking: null,
+    });
+    const listings = [
+      listing({ key: 'caltrain-close', area: area({ 'Muni rail': stop('Muni rail', 2), Caltrain: stop('Caltrain', 9) }) }),
+      listing({ key: 'caltrain-far', area: area({ 'Muni rail': stop('Muni rail', 2), Caltrain: stop('Caltrain', 25) }) }),
+      listing({ key: 'caltrain-unwalkable', area: area({ Caltrain: stop('Caltrain', null) }) }),
+      // Scored before per-kind stops existed: only its nearest stop is known.
+      listing({ key: 'legacy-caltrain', area: area(undefined, stop('Caltrain', 5)) }),
+      listing({ key: 'legacy-muni', area: area(undefined, stop('Muni rail', 3)) }),
+      listing({ key: 'no-coords', area: null }),
+    ];
+    const keys = (kind: 'Caltrain' | 'any') =>
+      applyPlan(listings, plan({ nearTrain: { kind, maxWalkMinutes: 15 } }))
+        .map((i) => i.key)
+        .sort();
+    expect(keys('Caltrain')).toEqual(['caltrain-close', 'legacy-caltrain']);
+    expect(keys('any')).toEqual(['caltrain-close', 'caltrain-far', 'caltrain-unwalkable', 'legacy-caltrain', 'legacy-muni']);
+  });
+
+  it('keeps only grades at least as quiet as the minimum, and drops unknown ones', () => {
+    const graded = (key: string, grade: SafetyGrade | null) =>
+      listing({
+        key,
+        area: grade
+          ? {
+              transit: null,
+              incidents: null,
+              parking: null,
+              safety: {
+                grade,
+                violentCount: 0,
+                residents: 0,
+                ratePer100k: 0,
+                cityRatePer100k: 0,
+                radiusMeters: 0,
+                quieterThanPercent: 0,
+              },
+            }
+          : null,
+      });
+    const listings = [graded('a', 'A'), graded('b', 'B'), graded('c', 'C'), graded('unknown', null)];
+    expect(applyPlan(listings, plan({ minSafetyGrade: 'B' })).map((i) => i.key)).toEqual(['a', 'b']);
+  });
+
   it('reads a per-person budget as rent split by bedroom, not the whole unit', () => {
     const listings = [
       listing({ key: 'four-share', price: 9000, bedrooms: 4 }),
@@ -141,6 +204,8 @@ describe('applyPlan', () => {
       neighborhoods: [],
       maxScamScore: 100,
       keywords: [],
+      nearTrain: null,
+      minSafetyGrade: null,
       sort: 'value',
     });
   });

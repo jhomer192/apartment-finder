@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { getMetroById } from '../src/data/metros.js';
+import type { RailKind, SafetyGrade } from './area.js';
 import { askClaude } from './claude.js';
 import { getListings, type ScoredListing } from './listings.js';
 import { describeRules, getHouseRules } from './rules.js';
@@ -32,6 +33,16 @@ export const planSchema = z.object({
   neighborhoods: z.array(z.string().max(60)).max(20).default([]),
   maxScamScore: z.number().int().min(0).max(100).default(100),
   keywords: z.array(z.string().max(40)).max(10).default([]),
+  /** A walk to a particular kind of rail stop; "any" takes whichever is nearest. */
+  nearTrain: z
+    .object({
+      kind: z.enum(['BART', 'Caltrain', 'Muni Metro', 'Muni rail', 'any']),
+      maxWalkMinutes: z.number().int().min(1).max(60),
+    })
+    .nullable()
+    .default(null),
+  /** Violent-crime grade against the city rate (A at half or less); "B" keeps A and B. */
+  minSafetyGrade: z.enum(['A', 'B', 'C', 'D', 'E']).nullable().default(null),
   sort: z.enum(['value', 'price-asc', 'price-desc', 'per-bedroom-asc', 'safest']).default('value'),
 });
 
@@ -98,6 +109,21 @@ function valueDelta(listing: ScoredListing, medians: Map<number, number>): numbe
   return Math.round(((median - listing.price) / median) * 100);
 }
 
+/**
+ * Minutes on foot to the nearest stop of a kind, or null when unknown or past
+ * walking range. Inventory scored before per-kind stops existed only knows its
+ * single nearest stop, which still answers when that stop is the right kind.
+ */
+function walkTo(listing: ScoredListing, kind: RailKind | 'any'): number | null {
+  const area = listing.area;
+  if (!area) return null;
+  if (kind === 'any') return area.transit?.walkMinutes ?? null;
+  if (area.rail) return area.rail[kind]?.walkMinutes ?? null;
+  return area.transit?.kind === kind ? area.transit.walkMinutes : null;
+}
+
+const GRADES: SafetyGrade[] = ['A', 'B', 'C', 'D', 'E'];
+
 /** Studios house someone, so they count as one share of the rent. */
 function shares(listing: ScoredListing): number {
   return Math.max(listing.bedrooms ?? 1, 1);
@@ -125,6 +151,16 @@ export function applyPlan(listings: ScoredListing[], plan: SearchPlan): ScoredLi
     }
     if (wantedHoods.size > 0 && !wantedHoods.has(listing.neighborhood.toLowerCase())) return false;
     if (listing.scam.score > plan.maxScamScore) return false;
+    // Without coordinates there is no walk or grade to check, and a renter who
+    // asked for either has not asked for a guess.
+    if (plan.nearTrain) {
+      const minutes = walkTo(listing, plan.nearTrain.kind);
+      if (minutes === null || minutes > plan.nearTrain.maxWalkMinutes) return false;
+    }
+    if (plan.minSafetyGrade) {
+      const grade = listing.area?.safety?.grade;
+      if (!grade || GRADES.indexOf(grade) > GRADES.indexOf(plan.minSafetyGrade)) return false;
+    }
     // Some sources publish no description at all, so a keyword can only rule out
     // listings that came with text to search.
     if (keywords.length > 0 && listing.description.trim()) {
@@ -142,7 +178,12 @@ export function applyPlan(listings: ScoredListing[], plan: SearchPlan): ScoredLi
     value: (a, b) => valueDelta(b, medians) - valueDelta(a, medians),
   };
 
-  return matches.sort(order[plan.sort]);
+  // A listing with no text passes a keyword it was never checked against, so
+  // it ranks behind every listing that actually mentions the feature.
+  const unconfirmed = (listing: ScoredListing) =>
+    keywords.length > 0 && !listing.description.trim() ? 1 : 0;
+
+  return matches.sort((a, b) => unconfirmed(a) - unconfirmed(b) || order[plan.sort](a, b));
 }
 
 /**
@@ -161,6 +202,11 @@ export function matchWithFallback(
     { describe: 'the bathroom requirement', without: { minBathrooms: 0, bathsPerBedroom: 0 } },
     { describe: 'the bedroom count', without: { bedrooms: [] } },
     { describe: 'the neighborhoods', without: { neighborhoods: [] } },
+    {
+      describe: `the ${plan.nearTrain?.maxWalkMinutes}-minute walk to ${plan.nearTrain?.kind === 'any' ? 'a train' : plan.nearTrain?.kind}`,
+      without: { nearTrain: null },
+    },
+    { describe: 'the safety grade', without: { minSafetyGrade: null } },
   ];
 
   let current = plan;
@@ -188,6 +234,8 @@ async function planFor(question: string, history: Turn[]): Promise<SearchPlan> {
     '{"minRent": int, "maxRent": int, "maxRentPerBedroom": int, "bedrooms": int[],',
     ' "minBathrooms": number, "bathsPerBedroom": number, "neighborhoods": string[],',
     ' "maxScamScore": int (0-100), "keywords": string[],',
+    ' "nearTrain": {"kind": "BART"|"Caltrain"|"Muni Metro"|"Muni rail"|"any", "maxWalkMinutes": int},',
+    ' "minSafetyGrade": "A"|"B"|"C"|"D"|"E",',
     ' "sort": "value"|"price-asc"|"price-desc"|"per-bedroom-asc"|"safest"}',
     'Cheapest for a group splitting rent is per-bedroom-asc; price-asc just finds',
     'the smallest units.',
@@ -199,6 +247,13 @@ async function planFor(question: string, history: Turn[]): Promise<SearchPlan> {
     'Bathrooms: "everyone gets their own bathroom" or "a bathroom each" is',
     'bathsPerBedroom 1; "at least 2 baths" is minBathrooms 2.',
     `Neighborhoods must come from this list: ${NEIGHBORHOODS.join(', ')}.`,
+    'Transit is nearTrain, never a keyword: "walkable to Caltrain" is',
+    '{"kind": "Caltrain", "maxWalkMinutes": 15}; "near BART" is 10 minutes unless',
+    'they say otherwise; "near a train" or "near transit" is kind "any".',
+    'Safety grades rate reported violent crime per resident against the city: A is',
+    'half the city rate or less, B under it, C about average, D and E well above.',
+    '"Safe neighborhood" is minSafetyGrade "B"; "not sketchy" or "reasonably safe"',
+    'is "C". Sort "safest" orders by scam risk, not crime.',
     'If the request mentions avoiding scams, set maxScamScore to at most 25.',
     'A follow-up keeps the earlier filter unless it changes it.',
     '',
@@ -264,6 +319,9 @@ async function rank(
       const comparison =
         delta === 0 ? 'at the median' : `${Math.abs(delta)}% ${delta > 0 ? 'below' : 'above'} median`;
       const transit = listing.area?.transit;
+      const kind = plan.nearTrain?.kind;
+      // When they asked about one line, its stop matters even when another is nearer.
+      const asked = kind && kind !== 'any' && transit?.kind !== kind ? listing.area?.rail?.[kind] : undefined;
       const incidents = listing.area?.incidents;
       const safety = listing.area?.safety;
       return (
@@ -275,6 +333,10 @@ async function rank(
         (transit
           ? ` | nearest train ${transit.name} (${transit.kind}) ${transit.meters}m away` +
             (transit.walkMinutes === null ? '' : `, about ${transit.walkMinutes} min walk`)
+          : '') +
+        (asked
+          ? ` | nearest ${asked.kind} ${asked.name} ${asked.meters}m away` +
+            (asked.walkMinutes === null ? '' : `, about ${asked.walkMinutes} min walk`)
           : '') +
         (incidents
           ? ` | ${incidents.ratePer100k} police reports per 100k residents/yr within ${incidents.radiusMeters}m, citywide ${incidents.cityRatePer100k}`

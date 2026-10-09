@@ -29,6 +29,11 @@ function planSummary(plan: SearchPlan): string {
   else if (plan.minBathrooms > 0) parts.push(`${plan.minBathrooms}+ ba`);
   if (plan.neighborhoods.length) parts.push(plan.neighborhoods.join(', '));
   if (plan.keywords.length) parts.push(plan.keywords.join(', '));
+  if (plan.nearTrain) {
+    const stop = plan.nearTrain.kind === 'any' ? 'a train' : plan.nearTrain.kind;
+    parts.push(`≤ ${plan.nearTrain.maxWalkMinutes} min walk to ${stop}`);
+  }
+  if (plan.minSafetyGrade) parts.push(`safety ${plan.minSafetyGrade} or better`);
   if (plan.maxScamScore < 100) parts.push(`scam risk ≤ ${plan.maxScamScore}`);
   parts.push(`sorted by ${plan.sort}`);
   return parts.join(' · ');
