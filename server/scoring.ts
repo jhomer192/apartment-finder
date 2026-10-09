@@ -1,6 +1,7 @@
 import { getMetroById } from '../src/data/metros.js';
 import { areaFactsFor, type AreaFacts } from './area.js';
 import type { ListingHistory } from './history.js';
+import { sfNeighborhoodAt } from './neighborhoods.js';
 import {
   assessListing,
   crossListingSignals,
@@ -49,6 +50,10 @@ const BAY_AREA = getMetroById('bay-area');
 
 export function nearestNeighborhood(lat: number | null, lng: number | null): string {
   if (lat === null || lng === null || !BAY_AREA) return 'Unknown';
+  const inCity = sfNeighborhoodAt(lat, lng);
+  if (inCity) return inCity;
+  // Outside San Francisco there are no boundaries bundled, so the nearest
+  // named place is the best label going.
   let best = 'Unknown';
   let bestDistance = Infinity;
   for (const hood of BAY_AREA.neighborhoods) {
