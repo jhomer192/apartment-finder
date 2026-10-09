@@ -1,7 +1,7 @@
 /**
- * We deliberately do not rate how safe a block is, or compute commute times
- * ourselves: the honest version of both is handing the address to a map
- * everyone already knows how to read.
+ * Commute times are left to a map everyone already knows how to read: an
+ * honest one needs routing we do not run. Block safety is graded server-side
+ * from reported violent crime (server/area.ts), with its caveats attached.
  */
 interface Place {
   address: string;
